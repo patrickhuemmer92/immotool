@@ -1,0 +1,99 @@
+{
+  "app": {
+    "name": "immotool",
+    "tagline": "Real Estate Portfolio Manager"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "create": "Create",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "saved": "Saved",
+    "error": "Error",
+    "actions": "Actions",
+    "confirm_delete": "Really delete?",
+    "search": "Search",
+    "all": "All",
+    "none": "None",
+    "empty": "No entries"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "Properties",
+    "owners": "Owners",
+    "finance": "Finance",
+    "loans": "Loans",
+    "pnl": "P&L",
+    "depreciation": "Depreciation",
+    "portfolio": "Portfolio",
+    "investments": "Investments",
+    "settings": "Settings",
+    "logout": "Sign out"
+  },
+  "auth": {
+    "login": "Sign in",
+    "signup": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "no_account": "No account yet?",
+    "have_account": "Already registered?",
+    "to_signup": "Sign up here",
+    "to_login": "Sign in here",
+    "logging_in": "Signing in...",
+    "signing_up": "Signing up..."
+  },
+  "invite": {
+    "title": "Accept invitation",
+    "joining": "You were invited to join workspace \"{workspace}\" as {role}.",
+    "accept": "Join",
+    "login_required": "Please sign in first to accept the invitation.",
+    "invalid_or_used": "This invitation is invalid or has already been used.",
+    "accepted": "Invitation accepted."
+  },
+  "settings": {
+    "title": "Settings",
+    "general": "General",
+    "tax_rate": "Tax rate",
+    "tax_rate_help": "Applied flat to the tax effect in the P&L calculation.",
+    "default_depreciation_rate": "Default depreciation rate",
+    "default_depreciation_help": "Used for properties without their own rate.",
+    "default_locale": "Language",
+    "default_currency": "Currency",
+    "workspace": "Workspace",
+    "workspace_name": "Name",
+    "members": "Members",
+    "members_invite": "Invite member",
+    "members_email": "Email",
+    "members_role": "Role",
+    "role_owner": "Owner",
+    "role_editor": "Editor",
+    "role_viewer": "Viewer (e.g. tax advisor, buyer)",
+    "members_status": "Status",
+    "status_pending": "Pending",
+    "status_accepted": "Accepted",
+    "status_revoked": "Revoked",
+    "members_invited_at": "Invited at",
+    "members_revoke": "Revoke",
+    "members_invite_link": "Invite link",
+    "members_copy_link": "Copy link",
+    "members_link_copied": "Link copied"
+  },
+  "owners": {
+    "title": "Owners",
+    "new": "New owner",
+    "name": "Name",
+    "tax_id": "Tax ID",
+    "notes": "Notes",
+    "empty": "No owners yet."
+  },
+  "errors": {
+    "generic": "Something went wrong.",
+    "unauthorized": "Not signed in.",
+    "no_workspace": "No workspace selected."
+  }
+}
