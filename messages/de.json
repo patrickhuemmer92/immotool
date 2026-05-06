@@ -1,0 +1,99 @@
+{
+  "app": {
+    "name": "immotool",
+    "tagline": "Immobilien-Portfolio Manager"
+  },
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "back": "Zurück",
+    "create": "Anlegen",
+    "yes": "Ja",
+    "no": "Nein",
+    "loading": "Lädt...",
+    "saved": "Gespeichert",
+    "error": "Fehler",
+    "actions": "Aktionen",
+    "confirm_delete": "Wirklich löschen?",
+    "search": "Suche",
+    "all": "Alle",
+    "none": "Keine",
+    "empty": "Keine Einträge"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "Objekte",
+    "owners": "Eigentümer",
+    "finance": "Finanzen",
+    "loans": "Darlehen",
+    "pnl": "GuV",
+    "depreciation": "Afa",
+    "portfolio": "Portfolio",
+    "investments": "Investitionen",
+    "settings": "Einstellungen",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "signup": "Registrieren",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "no_account": "Noch keinen Account?",
+    "have_account": "Bereits registriert?",
+    "to_signup": "Hier registrieren",
+    "to_login": "Hier anmelden",
+    "logging_in": "Anmelden...",
+    "signing_up": "Registrieren..."
+  },
+  "invite": {
+    "title": "Einladung annehmen",
+    "joining": "Du wurdest eingeladen, dem Workspace „{workspace}\" als {role} beizutreten.",
+    "accept": "Beitreten",
+    "login_required": "Bitte zuerst anmelden, um die Einladung anzunehmen.",
+    "invalid_or_used": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
+    "accepted": "Einladung angenommen."
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "general": "Allgemein",
+    "tax_rate": "Steuersatz",
+    "tax_rate_help": "Pauschal angewendet auf den Steuereffekt in der GuV-Berechnung.",
+    "default_depreciation_rate": "Standard-Afa-Satz",
+    "default_depreciation_help": "Wird für Objekte ohne eigenen Afa-Satz verwendet.",
+    "default_locale": "Sprache",
+    "default_currency": "Währung",
+    "workspace": "Workspace",
+    "workspace_name": "Name",
+    "members": "Mitglieder",
+    "members_invite": "Mitglied einladen",
+    "members_email": "E-Mail",
+    "members_role": "Rolle",
+    "role_owner": "Eigentümer",
+    "role_editor": "Editor",
+    "role_viewer": "Lesend (z. B. Steuerberater, Käufer)",
+    "members_status": "Status",
+    "status_pending": "Ausstehend",
+    "status_accepted": "Angenommen",
+    "status_revoked": "Zurückgezogen",
+    "members_invited_at": "Eingeladen am",
+    "members_revoke": "Zurückziehen",
+    "members_invite_link": "Einladungslink",
+    "members_copy_link": "Link kopieren",
+    "members_link_copied": "Link kopiert"
+  },
+  "owners": {
+    "title": "Eigentümer",
+    "new": "Neuer Eigentümer",
+    "name": "Name",
+    "tax_id": "Steuer-ID",
+    "notes": "Notizen",
+    "empty": "Noch keine Eigentümer angelegt."
+  },
+  "errors": {
+    "generic": "Etwas ist schiefgelaufen.",
+    "unauthorized": "Nicht angemeldet.",
+    "no_workspace": "Kein Workspace ausgewählt."
+  }
+}
