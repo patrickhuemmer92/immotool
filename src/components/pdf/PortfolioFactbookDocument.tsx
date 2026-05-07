@@ -9,29 +9,57 @@ const styles = StyleSheet.create({
     padding: pdfSpacing.pagePadding,
     fontSize: pdfFontSizes.body,
     color: pdfColors.text,
-    fontFamily: "Helvetica",
+    fontFamily: "Inter",
+  },
+  coverPage: {
+    padding: 0,
+    fontFamily: "Inter",
+    color: "#FFFFFF",
+    backgroundColor: pdfColors.text,
   },
   cover: {
     flex: 1,
     flexDirection: "column",
     justifyContent: "center",
     paddingHorizontal: pdfSpacing.pagePadding,
+    paddingVertical: pdfSpacing.pagePadding,
+  },
+  coverAccentBar: {
+    width: 60,
+    height: 3,
+    backgroundColor: pdfColors.accent,
+    marginBottom: 18,
   },
   brand: {
     fontSize: 10,
-    color: pdfColors.muted,
+    color: pdfColors.accent,
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 3,
+    fontFamily: "Inter-Bold",
   },
   title: {
-    fontSize: 36,
-    fontFamily: "Helvetica-Bold",
-    marginTop: 12,
+    fontSize: 38,
+    fontFamily: "Inter-Bold",
+    marginTop: 14,
+    color: "#FFFFFF",
   },
   subtitle: {
     fontSize: 14,
-    color: pdfColors.muted,
-    marginTop: 8,
+    color: pdfColors.border,
+    marginTop: 10,
+  },
+  coverFootline: {
+    position: "absolute",
+    bottom: 40,
+    left: pdfSpacing.pagePadding,
+    right: pdfSpacing.pagePadding,
+    fontSize: 9,
+    color: pdfColors.border,
+    borderTopWidth: 1,
+    borderTopColor: pdfColors.accent,
+    paddingTop: 6,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   pageHeader: {
     flexDirection: "row",
@@ -47,7 +75,7 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: pdfFontSizes.pageTitle,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginBottom: 12,
   },
   kpiRow: { flexDirection: "row", gap: 8, marginBottom: pdfSpacing.sectionGap },
@@ -66,7 +94,7 @@ const styles = StyleSheet.create({
   },
   kpiValue: {
     fontSize: pdfFontSizes.large,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 2,
   },
   table: { flexDirection: "column", marginTop: pdfSpacing.sectionGap },
@@ -98,7 +126,7 @@ const styles = StyleSheet.create({
   },
   propertyHeading: {
     fontSize: 14,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginBottom: 4,
     marginTop: 12,
   },
@@ -142,19 +170,21 @@ export function PortfolioFactbookDocument({
   return (
     <Document title={`Factbook ${workspaceName}`}>
       {/* Cover */}
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={styles.coverPage}>
         <View style={styles.cover}>
-          <Text style={styles.brand}>{t("app.name")} · {t("portfolio.title")}</Text>
+          <View style={styles.coverAccentBar} />
+          <Text style={styles.brand}>
+            {t("app.name")} · {t("portfolio.title")}
+          </Text>
           <Text style={styles.title}>{workspaceName}</Text>
           <Text style={styles.subtitle}>
             {properties.length} {t("portfolio.kpi_objects")} · {today}
           </Text>
         </View>
-        <Text
-          style={styles.pageNumber}
-          render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-          fixed
-        />
+        <View style={styles.coverFootline}>
+          <Text>{t("app.name")}</Text>
+          <Text>{today}</Text>
+        </View>
       </Page>
 
       {/* Portfolio KPIs */}

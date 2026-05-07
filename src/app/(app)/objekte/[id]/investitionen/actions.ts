@@ -55,14 +55,18 @@ export async function createInvestment(
   _prev: InvestmentState,
   formData: FormData
 ): Promise<InvestmentState> {
+  const get = (k: string): string | undefined => {
+    const v = formData.get(k);
+    return v === null ? undefined : (v as string);
+  };
   let parsed;
   try {
     parsed = schema.safeParse({
-      year: formData.get("year"),
-      is_long_term: formData.get("is_long_term"),
-      amount: formData.get("amount"),
-      description: formData.get("description"),
-      measure_type: formData.get("measure_type"),
+      year: get("year"),
+      is_long_term: get("is_long_term"),
+      amount: get("amount"),
+      description: get("description"),
+      measure_type: get("measure_type"),
     });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "parse_error" };

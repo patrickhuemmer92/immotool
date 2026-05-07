@@ -1,7 +1,9 @@
 {
   "app": {
-    "name": "immotool",
-    "tagline": "Immobilien-Portfolio Manager"
+    "name": "EstateAbly",
+    "name_prefix": "Estate",
+    "name_suffix": "Ably",
+    "tagline": "Das digitale Factbook für Immobilien"
   },
   "common": {
     "save": "Speichern",
@@ -237,6 +239,28 @@
     "delete_snapshot": "Snapshot löschen",
     "no_snapshots": "Noch keine Snapshots.",
     "portfolio_table": "Portfolio-GuV pro Objekt"
+  },
+  "afa": {
+    "title": "Afa",
+    "section_building": "Gebäude-Afa",
+    "section_other": "Weitere Posten (Küche, etc.)",
+    "afa_basis": "Afa-Basis",
+    "afa_rate": "Afa-Satz",
+    "annual_building_afa": "Jährliche Gebäude-Afa",
+    "annual_other_afa": "Jährliche Sonst. Afa",
+    "annual_total_afa": "Jährliche Afa gesamt",
+    "no_basis": "Keine Basis (Kaufpreis und Gebäude-Anteil/Bodenwert fehlen)",
+    "rate_source_property": "Objekt-Override",
+    "rate_source_default": "Default aus Einstellungen",
+    "item_name": "Bezeichnung",
+    "acquisition_cost": "Anschaffungskosten",
+    "acquisition_date": "Anschaffungsdatum",
+    "duration_years": "Nutzungsdauer (Jahre)",
+    "annual_amount": "Jährlich",
+    "add_item": "Posten hinzufügen",
+    "no_items": "Noch keine weiteren Afa-Posten.",
+    "delete_item": "Löschen",
+    "portfolio_table": "Afa pro Objekt"
   },
   "investments": {
     "title": "Investitionen",

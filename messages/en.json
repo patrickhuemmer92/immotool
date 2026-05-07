@@ -1,7 +1,9 @@
 {
   "app": {
-    "name": "immotool",
-    "tagline": "Real Estate Portfolio Manager"
+    "name": "EstateAbly",
+    "name_prefix": "Estate",
+    "name_suffix": "Ably",
+    "tagline": "The digital factbook for real estate"
   },
   "common": {
     "save": "Save",
@@ -237,6 +239,28 @@
     "delete_snapshot": "Delete snapshot",
     "no_snapshots": "No snapshots yet.",
     "portfolio_table": "Portfolio P&L per property"
+  },
+  "afa": {
+    "title": "Depreciation",
+    "section_building": "Building depreciation",
+    "section_other": "Other items (kitchen, etc.)",
+    "afa_basis": "Depreciation basis",
+    "afa_rate": "Rate",
+    "annual_building_afa": "Annual building depreciation",
+    "annual_other_afa": "Annual other depreciation",
+    "annual_total_afa": "Annual depreciation total",
+    "no_basis": "No basis (purchase price and building share/land value missing)",
+    "rate_source_property": "Property override",
+    "rate_source_default": "Default from settings",
+    "item_name": "Name",
+    "acquisition_cost": "Acquisition cost",
+    "acquisition_date": "Acquisition date",
+    "duration_years": "Useful life (years)",
+    "annual_amount": "Annual",
+    "add_item": "Add item",
+    "no_items": "No other depreciation items yet.",
+    "delete_item": "Delete",
+    "portfolio_table": "Depreciation per property"
   },
   "investments": {
     "title": "Investments",

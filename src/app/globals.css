@@ -1,26 +1,96 @@
 @import "tailwindcss";
 
+/* ----------------------------------------------------------------------
+   Estateably brand palette — applied via Tailwind v4 theme tokens so the
+   existing `neutral-*` utility classes pick up the brand colors with no
+   call-site changes. Dark variant is disabled (brand is light-only).
+---------------------------------------------------------------------- */
+@theme {
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-inter-mono);
+
+  /* Neutral scale rebound to Estateably's cool-slate palette. */
+  --color-neutral-50: #f5f7fa;
+  --color-neutral-100: #edf1f7;
+  --color-neutral-200: #c8d4e3;
+  --color-neutral-300: #a8bad0;
+  --color-neutral-400: #7b8fa8;
+  --color-neutral-500: #52688a;
+  --color-neutral-600: #1e3a5f;
+  --color-neutral-700: #152538;
+  --color-neutral-800: #0f1e32;
+  --color-neutral-900: #0a1628;
+  --color-neutral-950: #050b14;
+
+  /* Brand accent — mint/teal pop color. */
+  --color-accent: #00e5c7;
+  --color-accent-foreground: #0a1628;
+  --color-accent-soft: #e6fcf8;
+  --color-navy: #1e3a5f;
+}
+
+/* Disable dark-mode media-query variant entirely. The codebase still
+   carries `dark:` classes; with the variant pointed at `.dark *` and the
+   class never set, those rules become inert. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-neutral-50);
+  --foreground: var(--color-neutral-900);
+  color-scheme: light;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
+  color: var(--foreground);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Inter, system-ui, sans-serif;
+}
+
+/* Subtle teal selection so brand peeks through. */
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-foreground);
+}
+
+/* Inputs / textareas / selects pick up a teal ring on focus instead of the
+   default browser ring. Tailwind utilities like `focus:ring-2 focus:ring-…`
+   still win when the call site sets them — this is just the default. */
+input,
+select,
+textarea {
+  outline-offset: 2px;
+}
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-color: var(--color-accent) !important;
+}
+
+/* Buttons get a faint teal halo on focus. */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Headlines: subtle teal accent line under h1 in app pages. */
+main h1 {
+  position: relative;
+}
+main h1::after {
+  content: "";
+  display: block;
+  width: 32px;
+  height: 2px;
+  background: var(--color-accent);
+  margin-top: 8px;
+  border-radius: 2px;
 }
