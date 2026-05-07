@@ -9,7 +9,7 @@ const styles = StyleSheet.create({
     padding: pdfSpacing.pagePadding,
     fontSize: pdfFontSizes.body,
     color: pdfColors.text,
-    fontFamily: "Helvetica",
+    fontFamily: "Inter",
   },
   header: {
     borderBottomWidth: 2,
@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: pdfFontSizes.pageTitle,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 4,
   },
   subtitle: {
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   kpiValue: {
     fontSize: pdfFontSizes.large,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 2,
   },
   twoCol: {
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: pdfFontSizes.sectionTitle,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     color: pdfColors.accent,
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   label: { color: pdfColors.muted },
-  value: { fontFamily: "Helvetica-Bold" },
+  value: { fontFamily: "Inter-Bold" },
   footer: {
     position: "absolute",
     bottom: 24,
@@ -282,7 +282,7 @@ export function FactsheetDocument({
               )}
               {data.loans.length > 0 && (
                 <View style={[styles.row, { marginTop: 4 }]}>
-                  <Text style={[styles.label, { fontFamily: "Helvetica-Bold" }]}>
+                  <Text style={[styles.label, { fontFamily: "Inter-Bold" }]}>
                     {t("loans.annuity")}
                   </Text>
                   <Text style={styles.value}>{eur(data.totalAnnuity)}/M</Text>
@@ -327,7 +327,7 @@ export function FactsheetDocument({
                     </Text>
                   </View>
                   <View style={[styles.row, { marginTop: 4 }]}>
-                    <Text style={[styles.label, { fontFamily: "Helvetica-Bold" }]}>
+                    <Text style={[styles.label, { fontFamily: "Inter-Bold" }]}>
                       {t("pnl.after_tax_cashflow")}
                     </Text>
                     <Text style={styles.value}>

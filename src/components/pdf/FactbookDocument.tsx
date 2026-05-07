@@ -9,7 +9,7 @@ const styles = StyleSheet.create({
     padding: pdfSpacing.pagePadding,
     fontSize: pdfFontSizes.body,
     color: pdfColors.text,
-    fontFamily: "Helvetica",
+    fontFamily: "Inter",
   },
   pageHeader: {
     flexDirection: "row",
@@ -25,30 +25,61 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     fontSize: pdfFontSizes.pageTitle,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginBottom: 12,
+  },
+  coverPage: {
+    padding: 0,
+    fontFamily: "Inter",
+    color: "#FFFFFF",
+    backgroundColor: pdfColors.text,
+  },
+  coverImageWrap: {
+    height: "55%",
+    position: "relative",
+  },
+  coverImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    opacity: 0.65,
+  },
+  coverImageOverlay: {
+    position: "absolute",
+    inset: 0,
+    backgroundColor: pdfColors.text,
+    opacity: 0.4,
   },
   cover: {
     flex: 1,
     flexDirection: "column",
     justifyContent: "center",
     paddingHorizontal: pdfSpacing.pagePadding,
+    paddingVertical: pdfSpacing.pagePadding,
+  },
+  coverAccentBar: {
+    width: 60,
+    height: 3,
+    backgroundColor: pdfColors.accent,
+    marginBottom: 18,
   },
   coverBrand: {
     fontSize: 10,
-    color: pdfColors.muted,
+    color: pdfColors.accent,
     textTransform: "uppercase",
-    letterSpacing: 2,
+    letterSpacing: 3,
+    fontFamily: "Inter-Bold",
   },
   coverTitle: {
-    fontSize: 36,
-    fontFamily: "Helvetica-Bold",
-    marginTop: 12,
+    fontSize: 38,
+    fontFamily: "Inter-Bold",
+    marginTop: 14,
+    color: "#FFFFFF",
   },
   coverSubtitle: {
     fontSize: 14,
-    color: pdfColors.muted,
-    marginTop: 8,
+    color: pdfColors.border,
+    marginTop: 10,
   },
   coverFootline: {
     position: "absolute",
@@ -56,26 +87,19 @@ const styles = StyleSheet.create({
     left: pdfSpacing.pagePadding,
     right: pdfSpacing.pagePadding,
     fontSize: 9,
-    color: pdfColors.muted,
-    borderTopWidth: 2,
+    color: pdfColors.border,
+    borderTopWidth: 1,
     borderTopColor: pdfColors.accent,
     paddingTop: 6,
-  },
-  coverImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 350,
-    objectFit: "cover",
-    opacity: 0.85,
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   section: {
     marginBottom: pdfSpacing.sectionGap,
   },
   sectionTitle: {
     fontSize: pdfFontSizes.sectionTitle,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     color: pdfColors.accent,
     textTransform: "uppercase",
     letterSpacing: 0.6,
@@ -129,7 +153,7 @@ const styles = StyleSheet.create({
   },
   kpiValue: {
     fontSize: pdfFontSizes.large,
-    fontFamily: "Helvetica-Bold",
+    fontFamily: "Inter-Bold",
     marginTop: 2,
   },
   imageGrid: {
@@ -197,13 +221,19 @@ export function FactbookDocument({
   return (
     <Document title={`Factbook ${data.property.address}`}>
       {/* Page 1 — Cover */}
-      <Page size="A4" style={styles.page}>
-        {cover?.signedUrl && (
-          /* eslint-disable-next-line jsx-a11y/alt-text */
-          <Image src={cover.signedUrl} style={styles.coverImage} />
-        )}
+      <Page size="A4" style={styles.coverPage}>
+        {cover?.signedUrl ? (
+          <View style={styles.coverImageWrap}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={cover.signedUrl} style={styles.coverImage} />
+            <View style={styles.coverImageOverlay} />
+          </View>
+        ) : null}
         <View style={styles.cover}>
-          <Text style={styles.coverBrand}>{t("app.name")} · {t("factsheet.title")}</Text>
+          <View style={styles.coverAccentBar} />
+          <Text style={styles.coverBrand}>
+            {t("app.name")} · {t("factsheet.title")}
+          </Text>
           <Text style={styles.coverTitle}>{data.property.address}</Text>
           <Text style={styles.coverSubtitle}>
             {data.property.unit_number
@@ -211,8 +241,10 @@ export function FactbookDocument({
               : ""}
           </Text>
         </View>
-        <Text style={styles.coverFootline}>{today}</Text>
-        <PageFooter />
+        <View style={styles.coverFootline}>
+          <Text>{t("app.name")}</Text>
+          <Text>{today}</Text>
+        </View>
       </Page>
 
       {/* Page 2 — KPIs + Owners */}
@@ -365,14 +397,14 @@ export function FactbookDocument({
               </View>
               <View style={styles.tableRow}>
                 <Text
-                  style={[styles.cell, { fontFamily: "Helvetica-Bold" }]}
+                  style={[styles.cell, { fontFamily: "Inter-Bold" }]}
                 >
                   {t("valuation.combined")}
                 </Text>
                 <Text
                   style={[
                     styles.cellRight,
-                    { fontFamily: "Helvetica-Bold" },
+                    { fontFamily: "Inter-Bold" },
                   ]}
                 >
                   {eur(data.latestValuation.combined)}

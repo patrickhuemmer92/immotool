@@ -1,15 +1,24 @@
+import path from "node:path";
+import { Font } from "@react-pdf/renderer";
+
 /**
- * PDF design tokens — Bank-Look. Anthracite primary, light gray accents.
- * Swap `colors.accent` once corporate design is delivered.
+ * Estateably corporate design tokens. Mirrors the brand deck's palette:
+ * cool slate background, deep navy structure, mint as the energy color.
  */
 export const pdfColors = {
-  text: "#0f172a",
-  muted: "#64748b",
-  border: "#e2e8f0",
-  accent: "#1f2937",
-  bgSubtle: "#f8fafc",
-  positive: "#059669",
-  negative: "#dc2626",
+  bg: "#F5F7FA",
+  text: "#0A1628",
+  textMuted: "#7B8FA8",
+  border: "#C8D4E3",
+  accent: "#00E5C7",
+  accentDark: "#1E3A5F",
+  accentLight: "#4DD9C4",
+  navy: "#152538",
+  positive: "#00E5C7",
+  negative: "#FF6B6B",
+  bgSubtle: "#F5F7FA",
+  // Legacy aliases — keep so existing imports compile.
+  muted: "#7B8FA8",
 };
 
 export const pdfSpacing = {
@@ -20,9 +29,37 @@ export const pdfSpacing = {
 
 export const pdfFontSizes = {
   pageTitle: 22,
-  sectionTitle: 11,
+  sectionTitle: 10,
   body: 10,
   small: 9,
-  large: 16,
+  large: 18,
   mono: 9,
 };
+
+export const pdfFonts = {
+  body: "Inter",
+  bold: "Inter-Bold",
+  semi: "Inter-SemiBold",
+};
+
+const FONT_DIR = path.join(process.cwd(), "src/components/pdf/fonts");
+
+let registered = false;
+function registerFonts() {
+  if (registered) return;
+  Font.register({
+    family: pdfFonts.body,
+    src: path.join(FONT_DIR, "Inter-Regular.ttf"),
+  });
+  Font.register({
+    family: pdfFonts.semi,
+    src: path.join(FONT_DIR, "Inter-SemiBold.ttf"),
+  });
+  Font.register({
+    family: pdfFonts.bold,
+    src: path.join(FONT_DIR, "Inter-Bold.ttf"),
+  });
+  registered = true;
+}
+
+registerFonts();
