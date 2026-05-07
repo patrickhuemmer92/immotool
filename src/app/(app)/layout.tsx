@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, listMemberships } from "@/lib/workspace";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
+import { NavLink } from "@/components/nav-link";
+import { Wordmark } from "@/components/wordmark";
 import { logout } from "@/app/(auth)/auth-actions";
 
 export default async function AppLayout({
@@ -42,12 +44,9 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950">
       <aside className="w-60 shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col">
-        <div className="px-5 py-5 border-b border-neutral-200 dark:border-neutral-800">
-          <Link
-            href="/"
-            className="text-lg font-semibold tracking-tight block"
-          >
-            {t("app.name")}
+        <div className="px-5 py-5 border-b border-neutral-200">
+          <Link href="/" aria-label={t("app.name")} className="block">
+            <Wordmark size="md" tagline />
           </Link>
         </div>
         <nav className="flex-1 p-3 space-y-0.5 text-sm">
@@ -117,19 +116,3 @@ function NavGroup({
   );
 }
 
-function NavLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="block rounded-md px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-    >
-      {children}
-    </Link>
-  );
-}

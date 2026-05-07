@@ -48,7 +48,7 @@ export default async function PropertyLoansPage({
         {canEdit(active.role) && (
           <Link
             href={`/objekte/${id}/darlehen/neu`}
-            className="rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium hover:opacity-90"
+            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
           >
             + {t("loans.new")}
           </Link>

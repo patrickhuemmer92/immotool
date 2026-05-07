@@ -231,6 +231,7 @@ export default async function PropertyFactsheetPage({
           href={`/objekte/${id}/investitionen`}
           label={t("investments.title")}
         />
+        <NavTab href={`/objekte/${id}/afa`} label={t("afa.title")} />
       </div>
 
       <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

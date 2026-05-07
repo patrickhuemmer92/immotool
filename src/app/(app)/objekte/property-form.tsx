@@ -259,7 +259,7 @@ export function PropertyForm({ defaults, propertyId, readOnly }: Props) {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             {pending
               ? t("common.loading")

@@ -156,7 +156,7 @@ export function OwnerShareEditor({
           <button
             type="submit"
             disabled={!canSubmit || pending}
-            className="rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {pending ? t("common.loading") : t("properties.owners_save")}
           </button>
