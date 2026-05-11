@@ -52,6 +52,37 @@ export async function insertPropertyImage(input: {
   return undefined;
 }
 
+const updateSchema = z.object({
+  category: z.enum(CATEGORIES),
+  caption: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim().length ? v.trim() : null)),
+});
+
+export async function updatePropertyImage(
+  imageId: string,
+  propertyId: string,
+  input: { category: string; caption?: string }
+): Promise<ImageActionState> {
+  const parsed = updateSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("property_images")
+    .update({
+      category: parsed.data.category,
+      caption: parsed.data.caption,
+    })
+    .eq("id", imageId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/objekte/${propertyId}/bilder`);
+  return undefined;
+}
+
 export async function deletePropertyImage(
   imageId: string,
   propertyId: string

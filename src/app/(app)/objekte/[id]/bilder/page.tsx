@@ -5,7 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
 import { ImageUploader } from "./image-uploader";
-import { DeleteImageButton } from "./delete-image-button";
+import { EditableImageCard } from "./editable-image-card";
+
+type ImageCategory =
+  | "exterior"
+  | "living_room"
+  | "bathroom"
+  | "kitchen"
+  | "bedroom"
+  | "other";
 
 const SIGNED_URL_TTL = 60 * 60;
 
@@ -78,47 +86,17 @@ export default async function PropertyImagesPage({
           </p>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {images.map((img) => {
-              const url = signedMap[img.storage_path];
-              return (
-                <div
-                  key={img.id}
-                  className="relative aspect-square rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 group"
-                >
-                  {url ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={url}
-                      alt={img.caption ?? ""}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs text-neutral-500">
-                      —
-                    </div>
-                  )}
-                  {editable && (
-                    <DeleteImageButton imageId={img.id} propertyId={id} />
-                  )}
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                    <p className="text-xs text-white/80">
-                      {t(`images.category_${img.category as
-                        | "exterior"
-                        | "living_room"
-                        | "bathroom"
-                        | "kitchen"
-                        | "bedroom"
-                        | "other"}`)}
-                    </p>
-                    {img.caption && (
-                      <p className="text-xs text-white truncate">
-                        {img.caption}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {images.map((img) => (
+              <EditableImageCard
+                key={img.id}
+                imageId={img.id}
+                propertyId={id}
+                url={signedMap[img.storage_path]}
+                initialCategory={img.category as ImageCategory}
+                initialCaption={img.caption ?? ""}
+                editable={editable}
+              />
+            ))}
           </div>
         )}
       </div>
