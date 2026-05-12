@@ -27,6 +27,8 @@ export function errorToTranslationKey(raw: string): {
       return { key: "errors.invalid_year" };
     case "duplicate_period":
       return { key: "pnl.duplicate_period" };
+    case "hausgeld_sum_invalid":
+      return { key: "pnl.hausgeld_sum_invalid" };
     default:
       return { key: "errors.generic" };
   }

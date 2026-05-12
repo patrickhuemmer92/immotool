@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildingAfaBasis, computePnL, periodMonths } from "@/lib/calculations/pnl";
+import {
+  buildingAfaBasis,
+  computePnL,
+  periodMonths,
+} from "@/lib/calculations/pnl";
 
 const PERIOD_2024 = {
   start: new Date(Date.UTC(2024, 0, 1)),
@@ -53,42 +57,82 @@ describe("buildingAfaBasis", () => {
   });
 });
 
-describe("computePnL", () => {
-  it("ohne Loans, mit Override-Annuität", () => {
+describe("computePnL — Spec-Formel", () => {
+  it("Tilgung und Rücklage sind NICHT in pretaxProfit (nur Cashflow)", () => {
+    // 1.000 €/Monat Kaltmiete, 200 €/Monat Hausgeld (Fallback ohne Split),
+    // 50 €/Monat Rücklage, 4.500 €/Periode-Annuität (Override),
+    // 3.000 € Zinsen, 1.500 € Tilgung über die Periode (Override per Monat
+    // wird × months hochgerechnet, also Werte hier so wählen, dass sie
+    // periodisch das Erwartete ergeben).
+    //
+    // Override-Inputs sind €/Monat → für 4.500/Periode 12 Monate: 375 €/Monat.
     const r = computePnL({
       period: PERIOD_2024,
-      coldRent: 12000,
-      ancillaryCosts: 2400,
-      maintenance: 600,
-      annuityOverride: 4500,
-      interestOverride: 3000,
-      principalOverride: 1500,
+      coldRent: 1000,
+      ancillaryCosts: 200,
+      maintenance: 50,
+      annuityOverride: 375,
+      interestOverride: 250,
+      principalOverride: 125,
       buildingAfaBasis: 100000,
       depreciationRate: 0.02,
       taxRate: 0.35,
     });
+
     expect(r.months).toBe(12);
     expect(r.rentTotal).toBe(12000);
-    expect(r.operatingCosts).toBe(3000);
+    expect(r.operatingCosts).toBe(2400 + 600);
+    expect(r.hausgeldTotal).toBe(2400);
+    expect(r.reserveContribution).toBe(600);
     expect(r.annuity).toBe(4500);
     expect(r.interest).toBe(3000);
     expect(r.principal).toBe(1500);
     expect(r.depreciation).toBeCloseTo(2000, 6);
-    expect(r.cashflowBeforeTax).toBe(12000 - 3000 - 4500);
-    expect(r.pretaxProfit).toBe(12000 - 3000 - 3000 - 2000);
-    expect(r.taxEffect).toBeCloseTo(4000 * 0.35, 6);
-    expect(r.afterTaxCashflow).toBeCloseTo(4500 - 4000 * 0.35, 6);
-    expect(r.source.annuity).toBe("override");
+
+    // Cashflow: 12000 − 4500 − 2400 − 600 = 4500
+    expect(r.cashflowBeforeTax).toBe(4500);
+    // Steuerlich: 12000 − 2400 − 3000 − 2000 = 4600 (Rücklage NICHT abgezogen!)
+    expect(r.pretaxProfit).toBe(4600);
+    // Steuer: 4600 × 0,35 = 1610
+    expect(r.taxEffect).toBeCloseTo(1610, 6);
+    // After-Tax: 4500 − 1610 = 2890
+    expect(r.afterTaxCashflow).toBeCloseTo(2890, 6);
+  });
+
+  it("Warmmiete = Kaltmiete + umlagefähiges Hausgeld (Split-Modus)", () => {
+    const r = computePnL({
+      period: PERIOD_2024,
+      coldRent: 1000,
+      propertyFeeRecoverable: 150,
+      propertyFeeNotRecoverable: 50,
+      maintenance: 0,
+      annuityOverride: 0,
+      interestOverride: 0,
+      principalOverride: 0,
+      buildingAfaBasis: 0,
+      depreciationRate: 0,
+      taxRate: 0.35,
+    });
+
+    expect(r.rentTotal).toBe((1000 + 150) * 12); // Warmmiete = 13.800
+    expect(r.hausgeldTotal).toBe(200 * 12); // 2.400
+    // Cashflow: 13800 − 0 − 2400 − 0 = 11400
+    expect(r.cashflowBeforeTax).toBe(11400);
+    // Steuerlich: 13800 − 2400 − 0 − 0 = 11400
+    expect(r.pretaxProfit).toBe(11400);
+    // Umlagefähig kürzt sich für Steuer + Cashflow: Saldo = Kaltmiete − Nicht-umlagef.
+    // Kaltmiete 12000 − Nicht-umlagef. 600 = 11400 ✓
   });
 
   it("Verlust → Steuereffekt negativ → after-tax > before-tax", () => {
     const r = computePnL({
       period: PERIOD_2024,
-      coldRent: 5000,
-      ancillaryCosts: 2000,
-      annuityOverride: 6000,
-      interestOverride: 4000,
-      principalOverride: 2000,
+      coldRent: 400,
+      ancillaryCosts: 200,
+      maintenance: 0,
+      annuityOverride: 500,
+      interestOverride: 350,
+      principalOverride: 150,
       buildingAfaBasis: 100000,
       depreciationRate: 0.02,
       taxRate: 0.42,
@@ -98,7 +142,7 @@ describe("computePnL", () => {
     expect(r.afterTaxCashflow).toBeGreaterThan(r.cashflowBeforeTax);
   });
 
-  it("Annuität automatisch aus Loan-Schedule", () => {
+  it("Annuität automatisch aus Loan-Schedule (period total)", () => {
     const r = computePnL({
       period: PERIOD_2024,
       coldRent: 0,
@@ -117,17 +161,18 @@ describe("computePnL", () => {
       ],
     });
     expect(r.source.annuity).toBe("auto");
-    expect(r.annuity).toBeCloseTo((100000 * 0.06) / 12 * 12, 0);
+    // Annuität monatlich = 100000 × 0.06 / 12 = 500 €/M → 6000 €/Periode.
+    expect(r.annuity).toBeCloseTo(6000, 0);
     expect(r.interest + r.principal).toBeCloseTo(r.annuity, 6);
   });
 
-  it("Quartal: AfA wird linear skaliert", () => {
+  it("Quartal: alle Inputs werden anteilig skaliert", () => {
     const r = computePnL({
       period: {
         start: new Date(Date.UTC(2024, 0, 1)),
         end: new Date(Date.UTC(2024, 2, 1)),
       },
-      coldRent: 3000,
+      coldRent: 1000,
       annuityOverride: 0,
       interestOverride: 0,
       principalOverride: 0,
@@ -136,11 +181,12 @@ describe("computePnL", () => {
       taxRate: 0.35,
     });
     expect(r.months).toBe(3);
-    expect(r.depreciation).toBeCloseTo((100000 * 0.02 * 3) / 12, 6);
+    expect(r.rentTotal).toBe(3000); // 1000 × 3
+    expect(r.depreciation).toBeCloseTo(500, 6); // 2000 × 3/12
   });
 });
 
 // Brief-Referenz: Reichelsdorfer cashflow=148.54, AfterTax=42.40.
-// Inputs nicht im Brief enthalten → siehe README; Test wird ergänzt sobald die
-// konkreten Werte (Kaltmiete, Hausgeld, Annuität, AfA-Basis) vorliegen.
+// Konkrete Excel-Inputs (Kaltmiete, Hausgeld, AfA-Basis, Steuersatz, Annuität)
+// noch nicht eingebaut → wird ergänzt sobald die Werte vorliegen.
 describe.todo("Reichelsdorfer Excel-Referenzwerte");

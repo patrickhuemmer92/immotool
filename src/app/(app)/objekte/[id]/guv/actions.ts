@@ -64,6 +64,16 @@ export async function createSnapshot(
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  // Sanity check: when user filled the total and the split, they must agree.
+  const total = parsed.data.ancillary_costs;
+  const rec = parsed.data.property_fee_recoverable;
+  const notRec = parsed.data.property_fee_not_recoverable;
+  if (total != null && rec != null && notRec != null) {
+    if (Math.abs(rec + notRec - total) > 0.01) {
+      return { error: "hausgeld_sum_invalid" };
+    }
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("pnl_snapshots")
