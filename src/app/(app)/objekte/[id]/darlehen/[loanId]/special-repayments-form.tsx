@@ -56,7 +56,7 @@ export function SpecialRepaymentsForm({
                 >
                   <Td>{s.payment_date}</Td>
                   <Td>
-                    {Number(s.amount).toLocaleString(undefined, {
+                    {Number(s.amount).toLocaleString("de-DE", {
                       style: "currency",
                       currency: "EUR",
                     })}

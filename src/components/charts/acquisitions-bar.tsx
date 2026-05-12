@@ -33,7 +33,7 @@ export function AcquisitionsBar({
                 const n = typeof v === "number" ? v : Number(v);
                 if (!Number.isFinite(n)) return "";
                 if (name === "sum") {
-                  return n.toLocaleString(undefined, {
+                  return n.toLocaleString("de-DE", {
                     style: "currency",
                     currency: "EUR",
                     maximumFractionDigits: 0,

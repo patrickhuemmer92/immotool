@@ -3,28 +3,38 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseDecimal } from "@/lib/format";
 
 export type ValuationState = { error?: string } | undefined;
 
 const optNum = z
   .string()
   .optional()
-  .transform((v) => {
-    if (!v || !v.length) return null;
-    const n = Number(v.replace(",", "."));
-    if (!Number.isFinite(n)) throw new Error(`invalid_number:${v}`);
-    return n;
-  });
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    if (parseDecimal(v) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => (v && v.length ? parseDecimal(v) : null));
 
 const optInt = z
   .string()
   .optional()
-  .transform((v) => {
-    if (!v || !v.length) return null;
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
     const n = parseInt(v, 10);
-    if (!Number.isInteger(n)) throw new Error("invalid_int");
-    return n;
-  });
+    if (!Number.isInteger(n)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => (v && v.length ? parseInt(v, 10) : null));
 
 const schema = z.object({
   valuation_date: z.string().min(1),
@@ -32,18 +42,15 @@ const schema = z.object({
   market_rent_per_sqm: optNum,
   multiple: optNum,
   building_value: optNum,
-  notes: z.string().optional().transform((v) => (v && v.length ? v : null)),
+  notes: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length ? v : null)),
 });
 
-function parse(formData: FormData) {
-  return {
-    valuation_date: formData.get("valuation_date") ?? undefined,
-    condition_score: formData.get("condition_score") ?? undefined,
-    market_rent_per_sqm: formData.get("market_rent_per_sqm") ?? undefined,
-    multiple: formData.get("multiple") ?? undefined,
-    building_value: formData.get("building_value") ?? undefined,
-    notes: formData.get("notes") ?? undefined,
-  };
+function getStr(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  return v === null ? undefined : (v as string);
 }
 
 export async function createValuation(
@@ -51,12 +58,14 @@ export async function createValuation(
   _prev: ValuationState,
   formData: FormData
 ): Promise<ValuationState> {
-  let parsed;
-  try {
-    parsed = schema.safeParse(parse(formData));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = schema.safeParse({
+    valuation_date: getStr(formData, "valuation_date"),
+    condition_score: getStr(formData, "condition_score"),
+    market_rent_per_sqm: getStr(formData, "market_rent_per_sqm"),
+    multiple: getStr(formData, "multiple"),
+    building_value: getStr(formData, "building_value"),
+    notes: getStr(formData, "notes"),
+  });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();

@@ -83,7 +83,7 @@ export default async function PropertyAfaPage({
         <Stat label={t("afa.afa_basis")} value={afaBasis === 0 ? "—" : eur(afaBasis)} />
         <Stat
           label={t("afa.afa_rate")}
-          value={`${(effectiveRate * 100).toLocaleString(undefined, {
+          value={`${(effectiveRate * 100).toLocaleString("de-DE", {
             maximumFractionDigits: 4,
           })} % (${rateSource})`}
           small
@@ -192,7 +192,7 @@ function Stat({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

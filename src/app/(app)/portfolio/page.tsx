@@ -139,7 +139,7 @@ export default async function PortfolioPage() {
         <Kpi label={t("portfolio.kpi_objects")} value={String(rows.length)} />
         <Kpi
           label={t("portfolio.kpi_sqm")}
-          value={totalSqm.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          value={totalSqm.toLocaleString("de-DE", { maximumFractionDigits: 0 })}
         />
         <Kpi label={t("portfolio.kpi_purchase_total")} value={eur(totalPurchase)} />
         <Kpi label={t("portfolio.kpi_value_combined")} value={eur(totalValue)} />
@@ -215,7 +215,7 @@ function Kpi({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

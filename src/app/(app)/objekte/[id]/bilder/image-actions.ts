@@ -83,6 +83,33 @@ export async function updatePropertyImage(
   return undefined;
 }
 
+/**
+ * Mark `imageId` as the property cover. The DB unique-partial index guarantees
+ * at most one cover per property, so we first clear any existing cover row.
+ */
+export async function setCoverImage(
+  imageId: string,
+  propertyId: string
+): Promise<ImageActionState> {
+  const supabase = await createClient();
+  const { error: clearErr } = await supabase
+    .from("property_images")
+    .update({ is_cover: false })
+    .eq("property_id", propertyId)
+    .eq("is_cover", true);
+  if (clearErr) return { error: clearErr.message };
+
+  const { error } = await supabase
+    .from("property_images")
+    .update({ is_cover: true })
+    .eq("id", imageId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/objekte/${propertyId}/bilder`);
+  revalidatePath(`/objekte/${propertyId}`);
+  return undefined;
+}
+
 export async function deletePropertyImage(
   imageId: string,
   propertyId: string

@@ -5,26 +5,63 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { parseDecimal } from "@/lib/format";
 
 export type PropertyFormState = { error?: string } | undefined;
 
-const optString = z.string().optional().transform((v) => (v && v.length ? v : null));
+const optString = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.length ? v : null));
+
 const optDate = z
   .string()
   .optional()
   .transform((v) => (v && v.length ? v : null));
 
+/** Optional decimal stored as-is (e.g. 1234.56). German "1.234,56" supported. */
 const optNumber = z
   .string()
   .optional()
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    if (parseDecimal(v) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => (v && v.length ? parseDecimal(v) : null));
+
+/**
+ * Optional percent input — user enters "2,5" for 2.5 %, stored as 0.025.
+ * Range guard: 0–100 inclusive.
+ */
+const optPercentInput = z
+  .string()
+  .optional()
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    const n = parseDecimal(v);
+    if (n === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_percent:${v}`,
+      });
+      return;
+    }
+    if (n < 0 || n > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_percent:${v}`,
+      });
+    }
+  })
   .transform((v) => {
     if (!v || !v.length) return null;
-    const normalized = v.replace(",", ".");
-    const n = Number(normalized);
-    if (!Number.isFinite(n)) {
-      throw new Error(`invalid_number:${v}`);
-    }
-    return n;
+    const n = parseDecimal(v);
+    return n === null ? null : n / 100;
   });
 
 const propertySchema = z.object({
@@ -43,41 +80,39 @@ const propertySchema = z.object({
   broker_fee: optNumber,
   notary_fee: optNumber,
   registration_cost: optNumber,
-  funding_cost: optNumber,
   land_value: optNumber,
-  building_value_share_pct: optNumber,
-  depreciation_rate: optNumber,
+  building_value_share_pct: optPercentInput,
+  depreciation_rate: optPercentInput,
   notes: optString,
 });
 
-function parseFormData(formData: FormData) {
-  const obj: Record<string, FormDataEntryValue | undefined> = {};
-  for (const key of [
-    "street",
-    "postal_code",
-    "city",
-    "location_detail",
-    "description",
-    "unit_number",
-    "sqm",
-    "notary_appointment",
-    "transfer_date",
-    "registration_date",
-    "purchase_price",
-    "transfer_tax",
-    "broker_fee",
-    "notary_fee",
-    "registration_cost",
-    "funding_cost",
-    "land_value",
-    "building_value_share_pct",
-    "depreciation_rate",
-    "notes",
-  ]) {
-    const v = formData.get(key);
-    obj[key] = v === null ? undefined : v;
-  }
-  return obj;
+function getStr(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  return v === null ? undefined : (v as string);
+}
+
+function readForm(formData: FormData) {
+  return {
+    street: getStr(formData, "street"),
+    postal_code: getStr(formData, "postal_code"),
+    city: getStr(formData, "city"),
+    location_detail: getStr(formData, "location_detail"),
+    description: getStr(formData, "description"),
+    unit_number: getStr(formData, "unit_number"),
+    sqm: getStr(formData, "sqm"),
+    notary_appointment: getStr(formData, "notary_appointment"),
+    transfer_date: getStr(formData, "transfer_date"),
+    registration_date: getStr(formData, "registration_date"),
+    purchase_price: getStr(formData, "purchase_price"),
+    transfer_tax: getStr(formData, "transfer_tax"),
+    broker_fee: getStr(formData, "broker_fee"),
+    notary_fee: getStr(formData, "notary_fee"),
+    registration_cost: getStr(formData, "registration_cost"),
+    land_value: getStr(formData, "land_value"),
+    building_value_share_pct: getStr(formData, "building_value_share_pct"),
+    depreciation_rate: getStr(formData, "depreciation_rate"),
+    notes: getStr(formData, "notes"),
+  };
 }
 
 export async function createProperty(
@@ -87,12 +122,7 @@ export async function createProperty(
   const active = await getActiveWorkspace();
   if (!active) return { error: "no_workspace" };
 
-  let parsed;
-  try {
-    parsed = propertySchema.safeParse(parseFormData(formData));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = propertySchema.safeParse(readForm(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();
@@ -113,12 +143,7 @@ export async function updateProperty(
   _prev: PropertyFormState,
   formData: FormData
 ): Promise<PropertyFormState> {
-  let parsed;
-  try {
-    parsed = propertySchema.safeParse(parseFormData(formData));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = propertySchema.safeParse(readForm(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();

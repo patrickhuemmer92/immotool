@@ -166,7 +166,7 @@ export default async function DashboardPage() {
         />
         <Kpi
           label={t("portfolio.kpi_sqm")}
-          value={totalSqm.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+          value={totalSqm.toLocaleString("de-DE", { maximumFractionDigits: 0 })}
         />
         <Kpi
           label={t("portfolio.kpi_purchase_total")}
@@ -247,7 +247,7 @@ function Kpi({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

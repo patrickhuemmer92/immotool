@@ -84,7 +84,7 @@ export default async function PropertyInvestmentsPage({
                         : i.year}
                     </Td>
                     <Td className="tabular-nums">
-                      {Number(i.amount).toLocaleString(undefined, {
+                      {Number(i.amount).toLocaleString("de-DE", {
                         style: "currency",
                         currency: "EUR",
                         maximumFractionDigits: 0,

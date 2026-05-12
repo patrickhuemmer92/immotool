@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/form-error";
 import { createSnapshot, type SnapshotState } from "./actions";
 
 export function SnapshotForm({
@@ -103,9 +104,7 @@ export function SnapshotForm({
         </div>
       </div>
 
-      {state?.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-      )}
+      <FormError raw={state?.error} />
 
       <button
         type="submit"

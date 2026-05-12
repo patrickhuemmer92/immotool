@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/form-error";
 import { createInvestment, type InvestmentState } from "./actions";
 
 const TYPES = [
@@ -21,6 +22,13 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
     undefined
   );
 
+  const yearOptions = useMemo(() => {
+    const thisYear = new Date().getFullYear();
+    const arr: number[] = [];
+    for (let y = thisYear - 5; y <= thisYear + 30; y++) arr.push(y);
+    return arr;
+  }, []);
+
   return (
     <form
       action={formAction}
@@ -31,14 +39,20 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
           <label className="text-xs font-medium block mb-1">
             {t("investments.year")}
           </label>
-          <input
+          <select
             name="year"
-            type="number"
-            placeholder={new Date().getFullYear().toString()}
             disabled={longTerm}
             required={!longTerm}
+            defaultValue={String(new Date().getFullYear())}
             className={`${inputClass} ${longTerm ? "opacity-50" : ""}`}
-          />
+          >
+            <option value="">—</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
         </div>
         <label className="flex items-center gap-2 mt-6 text-sm">
           <input
@@ -46,6 +60,7 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
             type="checkbox"
             checked={longTerm}
             onChange={(e) => setLongTerm(e.target.checked)}
+            className="accent-[var(--color-accent)]"
           />
           {t("investments.long_term")}
         </label>
@@ -57,6 +72,7 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
             name="amount"
             type="text"
             inputMode="decimal"
+            placeholder="z. B. 1.500,00"
             required
             className={inputClass}
           />
@@ -83,9 +99,7 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
         <input name="description" type="text" className={inputClass} />
       </div>
 
-      {state?.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-      )}
+      <FormError raw={state?.error} />
 
       <button
         type="submit"

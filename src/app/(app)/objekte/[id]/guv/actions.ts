@@ -4,18 +4,23 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseDecimal } from "@/lib/format";
 
 export type SnapshotState = { error?: string } | undefined;
 
 const optNum = z
   .string()
   .optional()
-  .transform((v) => {
-    if (!v || !v.length) return null;
-    const n = Number(v.replace(",", "."));
-    if (!Number.isFinite(n)) throw new Error(`invalid_number:${v}`);
-    return n;
-  });
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    if (parseDecimal(v) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => (v && v.length ? parseDecimal(v) : null));
 
 const schema = z.object({
   period_start: z.string().min(1),
@@ -28,28 +33,15 @@ const schema = z.object({
   property_fee_recoverable: optNum,
   property_fee_not_recoverable: optNum,
   maintenance: optNum,
-  notes: z.string().optional().transform((v) => (v && v.length ? v : null)),
+  notes: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length ? v : null)),
 });
 
-function parse(formData: FormData) {
-  const obj: Record<string, FormDataEntryValue | undefined> = {};
-  for (const k of [
-    "period_start",
-    "period_end",
-    "cold_rent",
-    "ancillary_costs",
-    "annuity_override",
-    "principal_override",
-    "interest_override",
-    "property_fee_recoverable",
-    "property_fee_not_recoverable",
-    "maintenance",
-    "notes",
-  ]) {
-    const v = formData.get(k);
-    obj[k] = v === null ? undefined : v;
-  }
-  return obj;
+function getStr(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  return v === null ? undefined : (v as string);
 }
 
 export async function createSnapshot(
@@ -57,12 +49,19 @@ export async function createSnapshot(
   _prev: SnapshotState,
   formData: FormData
 ): Promise<SnapshotState> {
-  let parsed;
-  try {
-    parsed = schema.safeParse(parse(formData));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = schema.safeParse({
+    period_start: getStr(formData, "period_start"),
+    period_end: getStr(formData, "period_end"),
+    cold_rent: getStr(formData, "cold_rent"),
+    ancillary_costs: getStr(formData, "ancillary_costs"),
+    annuity_override: getStr(formData, "annuity_override"),
+    principal_override: getStr(formData, "principal_override"),
+    interest_override: getStr(formData, "interest_override"),
+    property_fee_recoverable: getStr(formData, "property_fee_recoverable"),
+    property_fee_not_recoverable: getStr(formData, "property_fee_not_recoverable"),
+    maintenance: getStr(formData, "maintenance"),
+    notes: getStr(formData, "notes"),
+  });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();
@@ -70,7 +69,13 @@ export async function createSnapshot(
     .from("pnl_snapshots")
     .insert({ ...parsed.data, property_id: propertyId });
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Unique constraint pnl_snapshots_property_id_period_start_period_end_key.
+    if (error.code === "23505" || error.message.includes("duplicate")) {
+      return { error: "duplicate_period" };
+    }
+    return { error: error.message };
+  }
 
   revalidatePath(`/objekte/${propertyId}/guv`);
   revalidatePath(`/finanzen/guv`);

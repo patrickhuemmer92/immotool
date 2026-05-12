@@ -4,10 +4,25 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { parseDecimal } from "@/lib/format";
+
+const requiredPercentSetting = z
+  .string()
+  .min(1, "required")
+  .superRefine((v, ctx) => {
+    const n = parseDecimal(v);
+    if (n === null || n < 0 || n > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_percent:${v}`,
+      });
+    }
+  })
+  .transform((v) => (parseDecimal(v) as number) / 100);
 
 const settingsSchema = z.object({
-  tax_rate: z.coerce.number().min(0).max(1),
-  default_depreciation_rate: z.coerce.number().min(0).max(1),
+  tax_rate: requiredPercentSetting,
+  default_depreciation_rate: requiredPercentSetting,
   default_locale: z.enum(["de", "en"]),
   default_currency: z.string().min(3).max(3),
 });

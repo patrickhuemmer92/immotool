@@ -124,7 +124,7 @@ export default async function InvestmentsHeatmapPage() {
                             }}
                           >
                             {cell
-                              ? cell.value.toLocaleString(undefined, {
+                              ? cell.value.toLocaleString("de-DE", {
                                   style: "currency",
                                   currency: "EUR",
                                   maximumFractionDigits: 0,

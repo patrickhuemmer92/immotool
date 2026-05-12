@@ -51,7 +51,7 @@ export function DiversificationPie({
               formatter={(v) => {
                 const n = typeof v === "number" ? v : Number(v);
                 return Number.isFinite(n)
-                  ? n.toLocaleString(undefined, {
+                  ? n.toLocaleString("de-DE", {
                       style: "currency",
                       currency: "EUR",
                       maximumFractionDigits: 0,

@@ -131,7 +131,7 @@ export default async function PortfolioAfaPage() {
                 </Td>
                 <Td>{r.afaBasis === 0 ? "—" : eur(r.afaBasis)}</Td>
                 <Td>
-                  {(r.rate * 100).toLocaleString(undefined, {
+                  {(r.rate * 100).toLocaleString("de-DE", {
                     maximumFractionDigits: 4,
                   })}{" "}
                   %
@@ -180,7 +180,7 @@ function Kpi({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

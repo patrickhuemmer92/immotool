@@ -123,7 +123,9 @@ export function FactsheetDocument({
   locale: PdfLocale;
 }) {
   const t = loadDict(locale);
-  const cover = data.images.find((i) => i.signedUrl);
+  const cover =
+    data.images.find((i) => i.is_cover && i.signedUrl) ??
+    data.images.find((i) => i.signedUrl);
 
   return (
     <Document title={`Factsheet ${data.property.address}`}>

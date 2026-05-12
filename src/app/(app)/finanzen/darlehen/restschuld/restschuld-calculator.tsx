@@ -126,7 +126,7 @@ export function RestschuldCalculator({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

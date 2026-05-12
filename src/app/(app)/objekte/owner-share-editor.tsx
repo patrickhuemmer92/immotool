@@ -2,6 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import { parseDecimal } from "@/lib/format";
 import { setPropertyOwners, type OwnerShareState } from "./owner-share-actions";
 
 export type OwnerOption = { id: string; name: string };
@@ -26,7 +27,7 @@ export function OwnerShareEditor({
     initial.length > 0
       ? initial.map((s) => ({
           owner_id: s.owner_id,
-          share: formatShare(s.ownership_share),
+          share: formatPctInput(s.ownership_share * 100),
         }))
       : [{ owner_id: "", share: "" }]
   );
@@ -36,23 +37,24 @@ export function OwnerShareEditor({
     undefined
   );
 
-  const sum = useMemo(
+  /** Sum is computed in percent (0..100). */
+  const sumPct = useMemo(
     () =>
       rows.reduce((acc, r) => {
-        const n = parseShare(r.share);
+        const n = parseSharePct(r.share);
         return Number.isFinite(n) ? acc + n : acc;
       }, 0),
     [rows]
   );
 
-  const sumOk = Math.abs(sum - 1) < 0.0001;
+  const sumOk = Math.abs(sumPct - 100) < 0.01;
   const hasDuplicates = useMemo(() => {
     const ids = rows.map((r) => r.owner_id).filter(Boolean);
     return new Set(ids).size !== ids.length;
   }, [rows]);
 
   const validRows = rows.filter(
-    (r) => r.owner_id && parseShare(r.share) > 0
+    (r) => r.owner_id && parseSharePct(r.share) > 0
   );
 
   const canSubmit =
@@ -78,7 +80,7 @@ export function OwnerShareEditor({
         value={JSON.stringify({
           shares: validRows.map((r) => ({
             owner_id: r.owner_id,
-            ownership_share: parseShare(r.share),
+            ownership_share: parseSharePct(r.share) / 100,
           })),
         })}
       />
@@ -103,15 +105,20 @@ export function OwnerShareEditor({
                 </option>
               ))}
             </select>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={row.share}
-              onChange={(e) => updateRow(idx, "share", e.target.value)}
-              placeholder="0,60"
-              disabled={readOnly}
-              className="w-28 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="decimal"
+                value={row.share}
+                onChange={(e) => updateRow(idx, "share", e.target.value)}
+                placeholder="60"
+                disabled={readOnly}
+                className="w-28 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent pl-3 pr-8 py-2 text-sm"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">
+                %
+              </span>
+            </div>
             {!readOnly && rows.length > 1 && (
               <button
                 type="button"
@@ -146,10 +153,7 @@ export function OwnerShareEditor({
                 : "text-red-600 dark:text-red-400"
             }
           >
-            {sum.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 4,
-            })}
+            {formatPctDisplay(sumPct)} %
           </strong>
         </span>
         {!readOnly && (
@@ -171,10 +175,7 @@ export function OwnerShareEditor({
       {!sumOk && validRows.length > 0 && (
         <p className="text-sm text-red-600 dark:text-red-400">
           {t("properties.owners_share_invalid", {
-            sum: sum.toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 4,
-            }),
+            sum: formatPctDisplay(sumPct),
           })}
         </p>
       )}
@@ -199,15 +200,22 @@ export function OwnerShareEditor({
   }
 }
 
-function parseShare(s: string): number {
-  if (!s) return 0;
-  const n = Number(s.replace(",", "."));
-  return Number.isFinite(n) ? n : 0;
+function parseSharePct(s: string): number {
+  const n = parseDecimal(s);
+  return n === null ? 0 : n;
 }
 
-function formatShare(n: number): string {
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
+function formatPctInput(n: number): string {
+  return n.toLocaleString("de-DE", {
+    useGrouping: false,
+    minimumFractionDigits: 0,
     maximumFractionDigits: 4,
+  });
+}
+
+function formatPctDisplay(n: number): string {
+  return n.toLocaleString("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }

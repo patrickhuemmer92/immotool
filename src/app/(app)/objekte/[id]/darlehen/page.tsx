@@ -113,7 +113,7 @@ export default async function PropertyLoansPage({
 function formatCurrency(v: string | number | null): string {
   if (v === null) return "—";
   const n = typeof v === "number" ? v : Number(v);
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
@@ -123,7 +123,7 @@ function formatCurrency(v: string | number | null): string {
 function formatPct(v: string | number | null): string {
   if (v === null) return "—";
   const n = typeof v === "number" ? v : Number(v);
-  return (n * 100).toLocaleString(undefined, { maximumFractionDigits: 4 }) + " %";
+  return (n * 100).toLocaleString("de-DE", { maximumFractionDigits: 4 }) + " %";
 }
 
 function Th({ children }: { children?: React.ReactNode }) {

@@ -38,8 +38,9 @@ export default async function PropertyImagesPage({
 
   const { data: images } = await supabase
     .from("property_images")
-    .select("id, storage_path, category, caption, display_order, created_at")
+    .select("id, storage_path, category, caption, display_order, is_cover, created_at")
     .eq("property_id", id)
+    .order("is_cover", { ascending: false })
     .order("display_order")
     .order("created_at");
 
@@ -94,6 +95,7 @@ export default async function PropertyImagesPage({
                 url={signedMap[img.storage_path]}
                 initialCategory={img.category as ImageCategory}
                 initialCaption={img.caption ?? ""}
+                isCover={img.is_cover ?? false}
                 editable={editable}
               />
             ))}

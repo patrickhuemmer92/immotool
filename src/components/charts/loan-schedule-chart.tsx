@@ -40,7 +40,7 @@ export function LoanScheduleChart({ data }: { data: ScheduleSeriesPoint[] }) {
             />
             <YAxis
               tickFormatter={(v) =>
-                Number(v).toLocaleString(undefined, {
+                Number(v).toLocaleString("de-DE", {
                   notation: "compact",
                   maximumFractionDigits: 1,
                 })
@@ -51,7 +51,7 @@ export function LoanScheduleChart({ data }: { data: ScheduleSeriesPoint[] }) {
               formatter={(v) => {
                 const n = typeof v === "number" ? v : Number(v);
                 if (!Number.isFinite(n)) return "";
-                return n.toLocaleString(undefined, {
+                return n.toLocaleString("de-DE", {
                   style: "currency",
                   currency: "EUR",
                   maximumFractionDigits: 0,

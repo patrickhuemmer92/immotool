@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-import { updatePropertyImage, deletePropertyImage } from "./image-actions";
+import {
+  updatePropertyImage,
+  deletePropertyImage,
+  setCoverImage,
+} from "./image-actions";
 
 const CATEGORIES = [
   "exterior",
@@ -21,6 +25,7 @@ export function EditableImageCard({
   url,
   initialCategory,
   initialCaption,
+  isCover,
   editable,
 }: {
   imageId: string;
@@ -28,6 +33,7 @@ export function EditableImageCard({
   url: string | undefined;
   initialCategory: Category;
   initialCaption: string;
+  isCover: boolean;
   editable: boolean;
 }) {
   const t = useTranslations();
@@ -68,6 +74,18 @@ export function EditableImageCard({
     });
   }
 
+  function pickCover() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setCoverImage(imageId, propertyId);
+      if (result?.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 group">
       <div className="relative aspect-square">
@@ -84,8 +102,26 @@ export function EditableImageCard({
           </div>
         )}
 
+        {isCover && (
+          <div className="absolute top-2 left-2 rounded-full bg-accent text-accent-foreground text-[10px] uppercase tracking-wider font-bold px-2 py-0.5">
+            {t("images.cover_label")}
+          </div>
+        )}
+
         {editable && !editing && (
           <div className="absolute top-2 right-2 flex gap-1">
+            {!isCover && (
+              <button
+                type="button"
+                onClick={pickCover}
+                disabled={pending}
+                className="rounded-full bg-black/60 hover:bg-accent hover:text-accent-foreground text-white text-xs px-2 py-1 disabled:opacity-50"
+                aria-label={t("images.set_cover")}
+                title={t("images.set_cover")}
+              >
+                ★
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setEditing(true)}

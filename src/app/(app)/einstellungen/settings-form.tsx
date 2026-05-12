@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { decimalToPercentInput } from "@/lib/format";
+import { FormError } from "@/components/form-error";
 import { updateSettings, type FormState } from "./actions";
 
 export function SettingsForm({
@@ -33,11 +35,9 @@ export function SettingsForm({
           <input
             id="tax_rate"
             name="tax_rate"
-            type="number"
-            step="0.0001"
-            min="0"
-            max="1"
-            defaultValue={defaults.tax_rate}
+            type="text"
+            inputMode="decimal"
+            defaultValue={decimalToPercentInput(defaults.tax_rate)}
             required
             className={inputClass}
           />
@@ -51,11 +51,11 @@ export function SettingsForm({
           <input
             id="default_depreciation_rate"
             name="default_depreciation_rate"
-            type="number"
-            step="0.0001"
-            min="0"
-            max="1"
-            defaultValue={defaults.default_depreciation_rate}
+            type="text"
+            inputMode="decimal"
+            defaultValue={decimalToPercentInput(
+              defaults.default_depreciation_rate
+            )}
             required
             className={inputClass}
           />
@@ -85,11 +85,7 @@ export function SettingsForm({
           />
         </Field>
 
-        {state?.error && (
-          <p className="text-sm text-red-600 dark:text-red-400">
-            {state.error}
-          </p>
-        )}
+        <FormError raw={state?.error} />
         {state?.success && (
           <p className="text-sm text-emerald-600 dark:text-emerald-400">
             {t("common.saved")}

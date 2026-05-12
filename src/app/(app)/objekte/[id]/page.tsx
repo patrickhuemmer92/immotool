@@ -240,7 +240,7 @@ export default async function PropertyFactsheetPage({
           value={
             property.sqm == null
               ? "—"
-              : Number(property.sqm).toLocaleString(undefined, {
+              : Number(property.sqm).toLocaleString("de-DE", {
                   maximumFractionDigits: 1,
                 })
           }
@@ -492,7 +492,7 @@ function NavTab({
 }
 
 function eur(n: number): string {
-  return n.toLocaleString(undefined, {
+  return n.toLocaleString("de-DE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,

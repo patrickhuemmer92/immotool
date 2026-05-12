@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/form-error";
 import {
   createLoan,
   updateLoan,
@@ -179,9 +180,7 @@ export function LoanForm({
           />
         </Field>
 
-        {state?.error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-        )}
+        <FormError raw={state?.error} />
 
         <div className="flex gap-2">
           <button

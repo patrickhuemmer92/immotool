@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/form-error";
 import { addOtherDepreciationItem, type AfaItemState } from "./actions";
 
 export function AfaItemForm({ propertyId }: { propertyId: string }) {
@@ -60,9 +61,7 @@ export function AfaItemForm({ propertyId }: { propertyId: string }) {
         </div>
       </div>
 
-      {state?.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-      )}
+      <FormError raw={state?.error} />
 
       <button
         type="submit"

@@ -8,6 +8,7 @@ import {
   monthlyAnnuity,
   type LoanInput,
 } from "@/lib/calculations/loan";
+import { decimalToPercentInput, decimalToNumInput } from "@/lib/format";
 import { LoanForm, type LoanDefaults } from "../loan-form";
 import { LoanScheduleChart, type ScheduleSeriesPoint } from "@/components/charts/loan-schedule-chart";
 import { SpecialRepaymentsForm } from "./special-repayments-form";
@@ -42,14 +43,14 @@ export default async function LoanDetailPage({
     bank: loan.bank ?? "",
     loan_number: loan.loan_number ?? "",
     disbursement_date: loan.disbursement_date,
-    loan_amount: String(loan.loan_amount),
-    interest_rate_pa: String(loan.interest_rate_pa),
-    amortization_pa: String(loan.amortization_pa),
+    loan_amount: decimalToNumInput(Number(loan.loan_amount)),
+    interest_rate_pa: decimalToPercentInput(Number(loan.interest_rate_pa)),
+    amortization_pa: decimalToPercentInput(Number(loan.amortization_pa)),
     first_payment_date: loan.first_payment_date,
     rate_lock_until: loan.rate_lock_until ?? "",
     interest_share_first_rate:
       loan.interest_share_first_rate != null
-        ? String(loan.interest_share_first_rate)
+        ? decimalToNumInput(Number(loan.interest_share_first_rate))
         : "",
     notes: loan.notes ?? "",
   };
@@ -127,21 +128,21 @@ export default async function LoanDetailPage({
       <div className="mt-6 grid grid-cols-3 gap-4 max-w-3xl">
         <Stat
           label={t("loans.annuity")}
-          value={annuity.toLocaleString(undefined, {
+          value={annuity.toLocaleString("de-DE", {
             style: "currency",
             currency: "EUR",
           })}
         />
         <Stat
           label={t("loans.monthly_interest")}
-          value={monthlyInterestSeed.toLocaleString(undefined, {
+          value={monthlyInterestSeed.toLocaleString("de-DE", {
             style: "currency",
             currency: "EUR",
           })}
         />
         <Stat
           label={t("loans.monthly_principal")}
-          value={monthlyPrincipalSeed.toLocaleString(undefined, {
+          value={monthlyPrincipalSeed.toLocaleString("de-DE", {
             style: "currency",
             currency: "EUR",
           })}

@@ -24,7 +24,7 @@ export function TenantScoreBadge({
       />
       {score === null
         ? "—"
-        : score.toLocaleString(undefined, {
+        : score.toLocaleString("de-DE", {
             minimumFractionDigits: 1,
             maximumFractionDigits: 2,
           })}

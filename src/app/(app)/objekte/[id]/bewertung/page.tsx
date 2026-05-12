@@ -149,7 +149,7 @@ function Stat({
       >
         {value == null
           ? "—"
-          : value.toLocaleString(undefined, {
+          : value.toLocaleString("de-DE", {
               style: "currency",
               currency: "EUR",
               maximumFractionDigits: 0,

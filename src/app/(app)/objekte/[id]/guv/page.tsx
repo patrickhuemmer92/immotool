@@ -212,7 +212,7 @@ function ResultRow({
           strong ? "font-semibold" : ""
         } ${value < 0 ? "text-red-600 dark:text-red-400" : ""}`}
       >
-        {value.toLocaleString(undefined, {
+        {value.toLocaleString("de-DE", {
           style: "currency",
           currency: "EUR",
           maximumFractionDigits: 2,

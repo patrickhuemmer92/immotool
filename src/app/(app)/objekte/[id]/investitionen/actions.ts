@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseDecimal } from "@/lib/format";
 
 export type InvestmentState = { error?: string } | undefined;
 
@@ -15,28 +16,40 @@ const MEASURE_TYPES = [
   "optional_common_levy",
 ] as const;
 
-const num = z.string().transform((v) => {
-  const n = Number(v.replace(",", "."));
-  if (!Number.isFinite(n)) throw new Error(`invalid_number:${v}`);
-  return n;
-});
+const requiredAmount = z
+  .string()
+  .min(1, "required")
+  .superRefine((v, ctx) => {
+    if (parseDecimal(v) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => parseDecimal(v) as number);
 
 const schema = z
   .object({
     year: z
       .string()
       .optional()
-      .transform((v) => {
-        if (!v || !v.length) return null;
+      .superRefine((v, ctx) => {
+        if (!v || !v.length) return;
         const n = parseInt(v, 10);
-        if (!Number.isInteger(n)) throw new Error("invalid_year");
-        return n;
-      }),
+        if (!Number.isInteger(n) || n < 1900 || n > 2200) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "invalid_year",
+          });
+        }
+      })
+      .transform((v) => (v && v.length ? parseInt(v, 10) : null)),
     is_long_term: z
       .string()
       .optional()
       .transform((v) => v === "on" || v === "true"),
-    amount: num,
+    amount: requiredAmount,
     description: z
       .string()
       .optional()
@@ -50,27 +63,23 @@ const schema = z
     { message: "year_or_long_term" }
   );
 
+function getStr(formData: FormData, key: string): string | undefined {
+  const v = formData.get(key);
+  return v === null ? undefined : (v as string);
+}
+
 export async function createInvestment(
   propertyId: string,
   _prev: InvestmentState,
   formData: FormData
 ): Promise<InvestmentState> {
-  const get = (k: string): string | undefined => {
-    const v = formData.get(k);
-    return v === null ? undefined : (v as string);
-  };
-  let parsed;
-  try {
-    parsed = schema.safeParse({
-      year: get("year"),
-      is_long_term: get("is_long_term"),
-      amount: get("amount"),
-      description: get("description"),
-      measure_type: get("measure_type"),
-    });
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = schema.safeParse({
+    year: getStr(formData, "year"),
+    is_long_term: getStr(formData, "is_long_term"),
+    amount: getStr(formData, "amount"),
+    description: getStr(formData, "description"),
+    measure_type: getStr(formData, "measure_type"),
+  });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();

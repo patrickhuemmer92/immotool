@@ -13,6 +13,7 @@ export type PdfImage = {
   storage_path: string;
   category: string;
   caption: string | null;
+  is_cover: boolean;
   signedUrl: string | null;
 };
 
@@ -125,8 +126,9 @@ export async function fetchPropertyForPdf(
       .order("year"),
     supabase
       .from("property_images")
-      .select("storage_path, category, caption")
+      .select("storage_path, category, caption, is_cover")
       .eq("property_id", propertyId)
+      .order("is_cover", { ascending: false })
       .order("display_order")
       .limit(8),
     supabase
@@ -277,6 +279,7 @@ export async function fetchPropertyForPdf(
       storage_path: i.storage_path,
       category: i.category,
       caption: i.caption,
+      is_cover: i.is_cover ?? false,
       signedUrl: map.get(i.storage_path) ?? null,
     }));
   }

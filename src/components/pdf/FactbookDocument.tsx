@@ -213,7 +213,9 @@ export function FactbookDocument({
   locale: PdfLocale;
 }) {
   const t = loadDict(locale);
-  const cover = data.images.find((i) => i.signedUrl);
+  const cover =
+    data.images.find((i) => i.is_cover && i.signedUrl) ??
+    data.images.find((i) => i.signedUrl);
   const today = new Date().toLocaleDateString(
     locale === "de" ? "de-DE" : "en-US"
   );
