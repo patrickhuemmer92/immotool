@@ -195,9 +195,10 @@ export default async function DashboardPage() {
             title={t("portfolio.diversification_city")}
           />
         ) : (
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 text-sm text-neutral-500">
-            {t("properties.empty")}
-          </div>
+          <ChartPlaceholder
+            title={t("portfolio.diversification_city")}
+            message={t("portfolio.no_purchase_data")}
+          />
         )}
         {yearData.length > 0 ? (
           <AcquisitionsBar
@@ -205,9 +206,10 @@ export default async function DashboardPage() {
             title={t("portfolio.diversification_year")}
           />
         ) : (
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 text-sm text-neutral-500">
-            {t("properties.empty")}
-          </div>
+          <ChartPlaceholder
+            title={t("portfolio.diversification_year")}
+            message={t("portfolio.no_transfer_dates")}
+          />
         )}
       </div>
 
@@ -219,6 +221,25 @@ export default async function DashboardPage() {
           {t("properties.title")} →
         </Link>
       </div>
+    </div>
+  );
+}
+
+function ChartPlaceholder({
+  title,
+  message,
+}: {
+  title: string;
+  message: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
+      <h3 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+        {title}
+      </h3>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+        {message}
+      </p>
     </div>
   );
 }

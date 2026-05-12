@@ -294,7 +294,9 @@
     "kpi_equity": "Equity (value − loans)",
     "kpi_cashflow_after_tax": "Cashflow after tax (Σ latest entries)",
     "diversification_city": "Diversification by city",
-    "diversification_year": "Acquisitions per year"
+    "diversification_year": "Acquisitions per year",
+    "no_purchase_data": "No purchase prices recorded yet.",
+    "no_transfer_dates": "No transfer dates (\"Übergang Nutzen & Lasten\") recorded yet."
   },
   "factsheet": {
     "title": "Overview",
