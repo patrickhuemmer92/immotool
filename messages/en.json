@@ -39,6 +39,10 @@
     "settings": "Settings",
     "logout": "Sign out"
   },
+  "property_nav": {
+    "overview": "Overview",
+    "back_to_list": "All properties"
+  },
   "auth": {
     "login": "Sign in",
     "signup": "Sign up",

@@ -7,6 +7,7 @@ import { LocaleSwitcher } from "@/components/locale-switcher";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { NavLink } from "@/components/nav-link";
 import { Wordmark } from "@/components/wordmark";
+import { PropertySidebar } from "@/components/property-sidebar";
 import { logout } from "@/app/(auth)/auth-actions";
 
 export default async function AppLayout({
@@ -82,6 +83,7 @@ export default async function AppLayout({
           </form>
         </div>
       </aside>
+      <PropertySidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between gap-4">
           <WorkspaceSwitcher workspaces={memberships} active={active} />

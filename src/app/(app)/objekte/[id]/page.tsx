@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
+import { getActiveWorkspace, isOwner } from "@/lib/workspace";
 import { propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
@@ -87,7 +87,6 @@ export default async function PropertyFactsheetPage({
   if (!property) notFound();
 
   const today = new Date();
-  const editable = canEdit(active.role);
   const ownerEntries =
     (owners as unknown as {
       ownership_share: string | number;
@@ -294,20 +293,6 @@ export default async function PropertyFactsheetPage({
           {ownerSummary}
         </p>
       )}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <NavTab href={`/objekte/${id}/bearbeiten`} label={t("properties.go_to_edit")} editable={editable} />
-        <NavTab href={`/objekte/${id}/bilder`} label={t("properties.go_to_images")} />
-        <NavTab href={`/objekte/${id}/darlehen`} label={t("properties.go_to_loans")} />
-        <NavTab href={`/objekte/${id}/mieter`} label={t("tenants.title")} />
-        <NavTab href={`/objekte/${id}/guv`} label={t("pnl.title")} />
-        <NavTab href={`/objekte/${id}/bewertung`} label={t("valuation.title")} />
-        <NavTab
-          href={`/objekte/${id}/investitionen`}
-          label={t("investments.title")}
-        />
-        <NavTab href={`/objekte/${id}/afa`} label={t("afa.title")} />
-      </div>
 
       <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Kpi
@@ -580,22 +565,3 @@ function Empty() {
   return <p className="text-sm text-neutral-500 dark:text-neutral-400">—</p>;
 }
 
-function NavTab({
-  href,
-  label,
-  editable,
-}: {
-  href: string;
-  label: string;
-  editable?: boolean;
-}) {
-  if (editable === false) return null;
-  return (
-    <Link
-      href={href}
-      className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-    >
-      {label}
-    </Link>
-  );
-}

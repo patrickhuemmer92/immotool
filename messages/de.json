@@ -39,6 +39,10 @@
     "settings": "Einstellungen",
     "logout": "Abmelden"
   },
+  "property_nav": {
+    "overview": "Übersicht",
+    "back_to_list": "Alle Objekte"
+  },
   "auth": {
     "login": "Anmelden",
     "signup": "Registrieren",
