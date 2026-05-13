@@ -1,3 +1,12 @@
+export const PROPERTY_KINDS = [
+  "apartment",
+  "house",
+  "parking",
+  "commercial",
+  "other",
+] as const;
+export type PropertyKind = (typeof PROPERTY_KINDS)[number];
+
 export const PROPERTY_TEXT_FIELDS = [
   "street",
   "postal_code",
@@ -31,6 +40,8 @@ export type PropertyDateField = (typeof PROPERTY_DATE_FIELDS)[number];
 export type PropertyNumericField = (typeof PROPERTY_NUMERIC_FIELDS)[number];
 
 export type PropertyDefaults = {
+  kind: PropertyKind;
+  parent_property_id: string;
   street: string;
   postal_code: string;
   city: string;
@@ -55,6 +66,8 @@ export type PropertyDefaults = {
 };
 
 export const EMPTY_PROPERTY_DEFAULTS: PropertyDefaults = {
+  kind: "apartment",
+  parent_property_id: "",
   street: "",
   postal_code: "",
   city: "",
@@ -78,6 +91,8 @@ export const EMPTY_PROPERTY_DEFAULTS: PropertyDefaults = {
 
 export type PropertyRow = {
   id: string;
+  kind?: PropertyKind | null;
+  parent_property_id?: string | null;
   street: string;
   postal_code: string;
   city: string;
@@ -121,8 +136,10 @@ export function rowToDefaults(p: PropertyRow): PropertyDefaults {
       maximumFractionDigits: 4,
     });
   };
-  const str = (v: string | null): string => v ?? "";
+  const str = (v: string | null | undefined): string => v ?? "";
   return {
+    kind: (p.kind as PropertyKind | null | undefined) ?? "apartment",
+    parent_property_id: str(p.parent_property_id),
     street: p.street,
     postal_code: p.postal_code,
     city: p.city,

@@ -35,6 +35,14 @@ export function errorToTranslationKey(raw: string): {
       return { key: "auth.email_required" };
     case "weights_all_zero":
       return { key: "settings.weights_all_zero" };
+    case "first_name_required":
+    case "last_name_required":
+    case "name_required":
+      return { key: "errors.generic" };
+    case "person_required":
+      return { key: "owners.select_person" };
+    case "member_exists":
+      return { key: "errors.generic" };
     default:
       return { key: "errors.generic" };
   }

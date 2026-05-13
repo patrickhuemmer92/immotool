@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
-import { rowToDefaults, type PropertyRow } from "@/lib/properties";
+import {
+  formatPropertyAddress,
+  rowToDefaults,
+  type PropertyRow,
+} from "@/lib/properties";
 import { PropertyForm } from "../../property-form";
 import { OwnerShareEditor } from "../../owner-share-editor";
 
@@ -18,23 +22,38 @@ export default async function EditPropertyPage({
   if (!active) return null;
 
   const supabase = await createClient();
-  const [{ data: property }, { data: owners }, { data: shares }] =
-    await Promise.all([
-      supabase.from("properties").select("*").eq("id", id).maybeSingle(),
-      supabase
-        .from("owners")
-        .select("id, name")
-        .eq("workspace_id", active.id)
-        .order("name"),
-      supabase
-        .from("property_owners")
-        .select("owner_id, ownership_share")
-        .eq("property_id", id),
-    ]);
+  const [
+    { data: property },
+    { data: owners },
+    { data: shares },
+    { data: houses },
+  ] = await Promise.all([
+    supabase.from("properties").select("*").eq("id", id).maybeSingle(),
+    supabase
+      .from("owners")
+      .select("id, name")
+      .eq("workspace_id", active.id)
+      .order("name"),
+    supabase
+      .from("property_owners")
+      .select("owner_id, ownership_share")
+      .eq("property_id", id),
+    supabase
+      .from("properties")
+      .select("id, street, postal_code, city, location_detail, description")
+      .eq("workspace_id", active.id)
+      .eq("kind", "house")
+      .order("city")
+      .order("street"),
+  ]);
 
   if (!property) notFound();
 
   const readOnly = !canEdit(active.role);
+
+  const parentCandidates = (houses ?? [])
+    .filter((h) => h.id !== id)
+    .map((h) => ({ id: h.id, label: formatPropertyAddress(h) }));
 
   return (
     <div>
@@ -52,6 +71,7 @@ export default async function EditPropertyPage({
         <PropertyForm
           propertyId={id}
           defaults={rowToDefaults(property as PropertyRow)}
+          parentCandidates={parentCandidates}
           readOnly={readOnly}
         />
       </div>

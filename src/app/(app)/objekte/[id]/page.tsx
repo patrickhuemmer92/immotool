@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, isOwner } from "@/lib/workspace";
-import { propertyHeadline } from "@/lib/properties";
+import { formatPropertyAddress, propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
 import { readTenantScoreWeights, tenantScore } from "@/lib/calculations/tenant";
@@ -39,6 +39,7 @@ export default async function PropertyFactsheetPage({
     { data: investments },
     { data: settings },
     { data: images },
+    { data: childUnits },
   ] = await Promise.all([
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -82,9 +83,33 @@ export default async function PropertyFactsheetPage({
       .order("is_cover", { ascending: false })
       .order("display_order")
       .limit(7),
+    supabase
+      .from("properties")
+      .select("id, kind, street, postal_code, city, location_detail, description, sqm")
+      .eq("parent_property_id", id)
+      .order("city")
+      .order("street"),
   ]);
 
   if (!property) notFound();
+
+  // Resolve parent property label if this is a sub-unit.
+  let parent: {
+    id: string;
+    street: string;
+    postal_code: string;
+    city: string;
+    location_detail: string | null;
+    description: string | null;
+  } | null = null;
+  if (property.parent_property_id) {
+    const { data } = await supabase
+      .from("properties")
+      .select("id, street, postal_code, city, location_detail, description")
+      .eq("id", property.parent_property_id)
+      .maybeSingle();
+    parent = data ?? null;
+  }
 
   const today = new Date();
   const ownerEntries =
@@ -182,6 +207,32 @@ export default async function PropertyFactsheetPage({
       ? valuationResult.combined - totalRemaining
       : null;
 
+  // Σ Anschaffungskosten = Kaufpreis + Nebenkosten der Erwerbsphase.
+  const num = (v: string | number | null | undefined): number =>
+    v === null || v === undefined || v === ""
+      ? 0
+      : Number.isFinite(Number(v))
+        ? Number(v)
+        : 0;
+  const acquisitionTotal =
+    num(property.purchase_price) +
+    num(property.transfer_tax) +
+    num(property.broker_fee) +
+    num(property.notary_fee) +
+    num(property.registration_cost);
+
+  // Original FK (Σ Darlehensbetrag bei Auszahlung) und derived EK.
+  const totalDebtOriginal = loanRefs.reduce(
+    (acc, l) => acc + Number(l.loan_amount),
+    0
+  );
+  const equityInitial =
+    acquisitionTotal > 0
+      ? acquisitionTotal - totalDebtOriginal
+      : null;
+  const debtRatio =
+    acquisitionTotal > 0 ? totalDebtOriginal / acquisitionTotal : null;
+
   const investmentSum = (investments ?? []).reduce(
     (acc, i) => acc + Number(i.amount),
     0
@@ -244,6 +295,24 @@ export default async function PropertyFactsheetPage({
       {/* 3-line headline + actions */}
       <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
+          <div className="flex items-center gap-3 mb-1">
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+              {t(`properties.kind_${(property.kind ?? "apartment") as
+                | "apartment"
+                | "house"
+                | "parking"
+                | "commercial"
+                | "other"}`)}
+            </span>
+            {parent && (
+              <Link
+                href={`/objekte/${parent.id}`}
+                className="text-xs text-accent hover:underline"
+              >
+                ↳ {t("properties.part_of")}: {formatPropertyAddress(parent)}
+              </Link>
+            )}
+          </div>
           <h1 className="text-2xl font-bold tracking-tight">{headline.street}</h1>
           <p className="text-base text-neutral-700 dark:text-neutral-300 mt-1">
             {headline.cityLine}
@@ -444,6 +513,39 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
+        <Card title={t("factsheet.finance_summary")}>
+          {acquisitionTotal === 0 ? (
+            <Empty />
+          ) : (
+            <div className="text-sm space-y-1">
+              <Row
+                label={t("factsheet.acquisition_total")}
+                value={acquisitionTotal}
+                strong
+              />
+              <Row
+                label={t("factsheet.debt_original")}
+                value={totalDebtOriginal}
+              />
+              <Row
+                label={t("factsheet.equity_initial")}
+                value={equityInitial}
+              />
+              {debtRatio != null && (
+                <div className="flex justify-between text-neutral-500 dark:text-neutral-400">
+                  <span>{t("factsheet.debt_ratio")}</span>
+                  <span className="tabular-nums">
+                    {(debtRatio * 100).toLocaleString("de-DE", {
+                      maximumFractionDigits: 1,
+                    })}{" "}
+                    %
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
         <Card title={t("factsheet.investment_summary")}>
           {(investments ?? []).length === 0 ? (
             <Empty />
@@ -461,6 +563,51 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
       </div>
+
+      {/* Sub-units (when this property is a house with child units) */}
+      {(childUnits ?? []).length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+            {t("properties.units_in_house")}
+          </h2>
+          <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+            <table className="w-full text-sm">
+              <tbody>
+                {(childUnits ?? []).map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-t border-neutral-200 dark:border-neutral-800 first:border-t-0"
+                  >
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 mr-2">
+                        {t(`properties.kind_${(u.kind ?? "apartment") as
+                          | "apartment"
+                          | "house"
+                          | "parking"
+                          | "commercial"
+                          | "other"}`)}
+                      </span>
+                      <Link
+                        href={`/objekte/${u.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {formatPropertyAddress(u)}
+                      </Link>
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums text-neutral-500">
+                      {u.sqm == null
+                        ? ""
+                        : `${Number(u.sqm).toLocaleString("de-DE", {
+                            maximumFractionDigits: 1,
+                          })} m²`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Thumbnail strip — additional images, click to gallery */}
       {thumbnails.length > 0 && (

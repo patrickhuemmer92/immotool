@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
-import { OwnerForm } from "../owner-form";
+import { OwnerForm, EMPTY_OWNER_DEFAULTS } from "../owner-form";
 
 export default async function NewOwnerPage() {
   const t = await getTranslations();
@@ -23,10 +23,7 @@ export default async function NewOwnerPage() {
       </h1>
 
       <div className="mt-6">
-        <OwnerForm
-          defaults={{ name: "", tax_id: "", notes: "" }}
-          readOnly={false}
-        />
+        <OwnerForm defaults={EMPTY_OWNER_DEFAULTS} readOnly={false} />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
-import { formatPropertyAddress } from "@/lib/properties";
+import { formatPropertyAddress, type PropertyKind } from "@/lib/properties";
 
 export default async function PropertiesPage() {
   const t = await getTranslations();
@@ -13,7 +13,7 @@ export default async function PropertiesPage() {
   const { data: properties } = await supabase
     .from("properties")
     .select(
-      "id, street, postal_code, city, location_detail, description, sqm, purchase_price"
+      "id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price"
     )
     .eq("workspace_id", active.id)
     .order("city")
@@ -45,6 +45,7 @@ export default async function PropertiesPage() {
             <table className="w-full text-sm">
               <thead className="bg-neutral-50 dark:bg-neutral-900">
                 <tr className="text-left">
+                  <Th>{t("properties.kind_label")}</Th>
                   <Th>{t("properties.section_address")}</Th>
                   <Th>{t("properties.sqm")}</Th>
                   <Th>{t("properties.purchase_price")}</Th>
@@ -57,6 +58,12 @@ export default async function PropertiesPage() {
                     key={p.id}
                     className="border-t border-neutral-200 dark:border-neutral-800"
                   >
+                    <Td>
+                      <KindBadge
+                        kind={(p.kind as PropertyKind) ?? "apartment"}
+                        t={t}
+                      />
+                    </Td>
                     <Td>
                       <Link
                         href={`/objekte/${p.id}`}
@@ -102,6 +109,20 @@ function formatCurrency(v: string | number | null | undefined): string {
     currency: "EUR",
     maximumFractionDigits: 0,
   });
+}
+
+function KindBadge({
+  kind,
+  t,
+}: {
+  kind: PropertyKind;
+  t: (k: string) => string;
+}) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+      {t(`properties.kind_${kind}`)}
+    </span>
+  );
 }
 
 function Th({ children }: { children?: React.ReactNode }) {

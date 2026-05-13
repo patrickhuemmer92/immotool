@@ -65,6 +65,11 @@ const optPercentInput = z
   });
 
 const propertySchema = z.object({
+  kind: z.enum(["apartment", "house", "parking", "commercial", "other"]),
+  parent_property_id: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length ? v : null)),
   street: z.string().min(1, "street_required"),
   postal_code: z.string().min(1, "postal_code_required"),
   city: z.string().min(1, "city_required"),
@@ -93,6 +98,8 @@ function getStr(formData: FormData, key: string): string | undefined {
 
 function readForm(formData: FormData) {
   return {
+    kind: getStr(formData, "kind"),
+    parent_property_id: getStr(formData, "parent_property_id"),
     street: getStr(formData, "street"),
     postal_code: getStr(formData, "postal_code"),
     city: getStr(formData, "city"),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import {
@@ -8,16 +8,24 @@ import {
   updateProperty,
   type PropertyFormState,
 } from "./actions";
-import type { PropertyDefaults } from "@/lib/properties";
+import { PROPERTY_KINDS, type PropertyDefaults, type PropertyKind } from "@/lib/properties";
 
 type Props = {
   defaults: PropertyDefaults;
   propertyId?: string;
+  /** Top-level house entities the user can pick as parent. */
+  parentCandidates: { id: string; label: string }[];
   readOnly: boolean;
 };
 
-export function PropertyForm({ defaults, propertyId, readOnly }: Props) {
+export function PropertyForm({
+  defaults,
+  propertyId,
+  parentCandidates,
+  readOnly,
+}: Props) {
   const t = useTranslations();
+  const [kind, setKind] = useState<PropertyKind>(defaults.kind);
   const action = propertyId
     ? updateProperty.bind(null, propertyId)
     : createProperty;
@@ -26,9 +34,65 @@ export function PropertyForm({ defaults, propertyId, readOnly }: Props) {
     FormData
   >(action, undefined);
 
+  const canHaveParent = kind !== "house";
+
   return (
     <form action={formAction} className="space-y-8 max-w-3xl">
       <fieldset disabled={readOnly} className="space-y-8">
+        <Section title={t("properties.section_type")}>
+          <div>
+            <label className="text-sm font-medium block mb-2">
+              {t("properties.kind_label")}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {PROPERTY_KINDS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setKind(k)}
+                  className={
+                    "px-3 py-1.5 rounded-lg border text-sm transition-colors " +
+                    (kind === k
+                      ? "border-accent bg-accent text-accent-foreground font-medium"
+                      : "border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800")
+                  }
+                >
+                  {t(`properties.kind_${k}`)}
+                </button>
+              ))}
+            </div>
+            <input type="hidden" name="kind" value={kind} />
+          </div>
+
+          {canHaveParent && parentCandidates.length > 0 && (
+            <Field
+              id="parent_property_id"
+              label={t("properties.parent_property")}
+              hint={t("properties.parent_property_help")}
+            >
+              <select
+                id="parent_property_id"
+                name="parent_property_id"
+                defaultValue={defaults.parent_property_id}
+                className={inputClass}
+              >
+                <option value="">{t("properties.parent_none")}</option>
+                {parentCandidates
+                  .filter((p) => p.id !== propertyId)
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.label}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+          )}
+          {!canHaveParent && (
+            // Always submit empty parent for houses so the column gets cleared.
+            <input type="hidden" name="parent_property_id" value="" />
+          )}
+        </Section>
+
         <Section title={t("properties.section_address")}>
           <Grid>
             <Field id="street" label={t("properties.street")} required>
@@ -289,11 +353,13 @@ function Grid({ children }: { children: React.ReactNode }) {
 function Field({
   id,
   label,
+  hint,
   required,
   children,
 }: {
   id: string;
   label: string;
+  hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
@@ -304,6 +370,11 @@ function Field({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
+      {hint && (
+        <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }
