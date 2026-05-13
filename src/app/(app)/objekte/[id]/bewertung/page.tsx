@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
+import { dateDe } from "@/lib/format";
 import { ValuationForm } from "./valuation-form";
 
 export default async function PropertyValuationPage({
@@ -90,13 +91,9 @@ export default async function PropertyValuationPage({
                 >
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">
-                      {v.valuation_date}
+                      {dateDe(v.valuation_date)}
                     </h3>
-                    <span className="text-xs text-neutral-500">
-                      {v.condition_score
-                        ? `${t("valuation.condition_score")}: ${v.condition_score}/10`
-                        : ""}
-                    </span>
+                    <ConditionBadge score={v.condition_score} t={t} />
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-3">
                     <Stat
@@ -113,6 +110,9 @@ export default async function PropertyValuationPage({
                       strong
                     />
                   </div>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-3 leading-snug">
+                    {t("valuation.method_footnote")}
+                  </p>
                 </div>
               );
             })}
@@ -127,6 +127,33 @@ export default async function PropertyValuationPage({
         </div>
       )}
     </div>
+  );
+}
+
+function ConditionBadge({
+  score,
+  t,
+}: {
+  score: number | null;
+  t: (key: string) => string;
+}) {
+  if (score == null) return null;
+  // 1..10 → red (1-3) → amber (4-6) → emerald (7-10).
+  let color = "#ef4444";
+  if (score >= 7) color = "#10b981";
+  else if (score >= 4) color = "#f59e0b";
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
+      style={{ backgroundColor: `${color}26`, color }}
+      title={t("valuation.condition_score")}
+    >
+      <span
+        className="inline-block w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: color }}
+      />
+      {score}/10
+    </span>
   );
 }
 

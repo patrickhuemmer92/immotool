@@ -8,6 +8,7 @@ import {
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { formatPropertyAddress } from "@/lib/properties";
+import { dateDe } from "@/lib/format";
 
 export type PdfImage = {
   storage_path: string;
@@ -199,7 +200,7 @@ export async function fetchPropertyForPdf(
           settingsForCalc
         );
         return {
-          period: `${latestSnapshot.period_start} – ${latestSnapshot.period_end}`,
+          period: `${dateDe(latestSnapshot.period_start)} – ${dateDe(latestSnapshot.period_end)}`,
           rentTotal: r.rentTotal,
           operatingCosts: r.operatingCosts,
           interest: r.interest,
@@ -221,7 +222,7 @@ export async function fetchPropertyForPdf(
       settingsForCalc
     );
     return {
-      period: `${s.period_start} – ${s.period_end}`,
+      period: `${dateDe(s.period_start)} – ${dateDe(s.period_end)}`,
       rentTotal: r.rentTotal,
       afterTaxCashflow: r.afterTaxCashflow,
     };
@@ -251,7 +252,7 @@ export async function fetchPropertyForPdf(
   const tenantSummary = tenant
     ? {
         name: tenant.name,
-        contract_start: tenant.contract_start,
+        contract_start: tenant.contract_start ? dateDe(tenant.contract_start) : null,
         score: tenantScore({
           family_status: tenant.family_status,
           schufa: tenant.schufa,
@@ -309,7 +310,7 @@ export async function fetchPropertyForPdf(
     pnlSnapshots,
     latestValuation: valuationResult
       ? {
-          valuation_date: latestValuation!.valuation_date,
+          valuation_date: dateDe(latestValuation!.valuation_date),
           ertragswert: valuationResult.ertragswert,
           sachwert: valuationResult.sachwert,
           combined: valuationResult.combined,

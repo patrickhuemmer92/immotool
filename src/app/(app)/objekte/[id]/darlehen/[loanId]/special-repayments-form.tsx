@@ -3,6 +3,7 @@
 import { useActionState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import { dateDe } from "@/lib/format";
 import {
   addSpecialRepayment,
   deleteSpecialRepayment,
@@ -54,7 +55,7 @@ export function SpecialRepaymentsForm({
                   key={s.id}
                   className="border-t border-neutral-200 dark:border-neutral-800"
                 >
-                  <Td>{s.payment_date}</Td>
+                  <Td>{dateDe(s.payment_date)}</Td>
                   <Td>
                     {Number(s.amount).toLocaleString("de-DE", {
                       style: "currency",

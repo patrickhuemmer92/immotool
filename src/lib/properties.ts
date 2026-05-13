@@ -161,3 +161,35 @@ export function formatPropertyAddress(p: {
     .filter(Boolean)
     .join(", ");
 }
+
+export type PropertyHeadlineLines = {
+  /** Line 1 — street + house number. */
+  street: string;
+  /** Line 2 — postal code + city. */
+  cityLine: string;
+  /** Line 3 — designation + location detail (e.g. "2 Z. ETW · 2. OG links"). */
+  detail: string;
+};
+
+/**
+ * Three-line headline for property pages. Empty `detail` (no designation
+ * and no location detail) is returned as the empty string so the caller
+ * can conditionally render that row.
+ */
+export function propertyHeadline(p: {
+  street: string;
+  postal_code: string;
+  city: string;
+  location_detail?: string | null;
+  description?: string | null;
+}): PropertyHeadlineLines {
+  const detail = [p.description, p.location_detail]
+    .map((v) => (v && v.trim().length ? v.trim() : null))
+    .filter((v): v is string => Boolean(v))
+    .join(" · ");
+  return {
+    street: p.street,
+    cityLine: `${p.postal_code} ${p.city}`,
+    detail,
+  };
+}

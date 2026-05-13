@@ -10,6 +10,7 @@ import {
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { formatPropertyAddress } from "@/lib/properties";
+import { dateDe } from "@/lib/format";
 
 type SnapshotRow = SnapshotInputRow & {
   id: string;
@@ -98,7 +99,7 @@ export default async function PortfolioPnLPage() {
     rows.push({
       propertyId: p.id,
       label: formatPropertyAddress(p),
-      period: `${latest.period_start} – ${latest.period_end}`,
+      period: `${dateDe(latest.period_start)} – ${dateDe(latest.period_end)}`,
       cashflowBeforeTax: result.cashflowBeforeTax,
       afterTaxCashflow: result.afterTaxCashflow,
       rentTotal: result.rentTotal,

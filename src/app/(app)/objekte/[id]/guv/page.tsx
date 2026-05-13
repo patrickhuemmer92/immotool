@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
+import { dateDe } from "@/lib/format";
 import {
   computeSnapshotResult,
   type LoanForPnL,
@@ -103,7 +104,7 @@ export default async function PropertyPnLPage({
               >
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">
-                    {s.period_start} – {s.period_end}
+                    {dateDe(s.period_start)} – {dateDe(s.period_end)}
                   </h3>
                   {editable && (
                     <form action={deleteSnapshot.bind(null, s.id, id)}>

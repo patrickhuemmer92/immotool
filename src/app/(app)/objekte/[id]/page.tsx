@@ -3,17 +3,20 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
-import { formatPropertyAddress } from "@/lib/properties";
+import { propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
 import { tenantScore } from "@/lib/calculations/tenant";
 import { TenantScoreBadge } from "@/components/tenant-score-badge";
+import { dateDe, eur as fmtEur } from "@/lib/format";
 import {
   computeSnapshotResult,
   type LoanForPnL,
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { deleteProperty } from "../actions";
+
+const SIGNED_URL_TTL = 60 * 60;
 
 export default async function PropertyFactsheetPage({
   params,
@@ -35,6 +38,7 @@ export default async function PropertyFactsheetPage({
     { data: valuations },
     { data: investments },
     { data: settings },
+    { data: images },
   ] = await Promise.all([
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -71,6 +75,13 @@ export default async function PropertyFactsheetPage({
       .select("tax_rate, default_depreciation_rate")
       .eq("workspace_id", active.id)
       .maybeSingle(),
+    supabase
+      .from("property_images")
+      .select("id, storage_path, caption, is_cover")
+      .eq("property_id", id)
+      .order("is_cover", { ascending: false })
+      .order("display_order")
+      .limit(7),
   ]);
 
   if (!property) notFound();
@@ -171,6 +182,37 @@ export default async function PropertyFactsheetPage({
     0
   );
 
+  // Sign image URLs (1 cover + up to 6 thumbnails).
+  const imagePaths = (images ?? []).map((i) => i.storage_path);
+  let signed: Record<string, string> = {};
+  if (imagePaths.length > 0) {
+    const { data: urls } = await supabase.storage
+      .from("property-images")
+      .createSignedUrls(imagePaths, SIGNED_URL_TTL);
+    signed = Object.fromEntries(
+      (urls ?? [])
+        .filter((u) => u.path && u.signedUrl)
+        .map((u) => [u.path as string, u.signedUrl as string])
+    );
+  }
+  const coverImage = (images ?? []).find((i) => signed[i.storage_path]);
+  const thumbnails = (images ?? [])
+    .filter((i) => i.id !== coverImage?.id && signed[i.storage_path])
+    .slice(0, 6);
+
+  const headline = propertyHeadline(property);
+  const ownerSummary =
+    ownerEntries.length === 0
+      ? null
+      : ownerEntries
+          .map(
+            (e) =>
+              `${e.owner.name} (${(
+                Number(e.ownership_share) * 100
+              ).toLocaleString("de-DE", { maximumFractionDigits: 1 })} %)`
+          )
+          .join(" · ");
+
   return (
     <div>
       <Link
@@ -179,14 +221,31 @@ export default async function PropertyFactsheetPage({
       >
         ← {t("properties.title")}
       </Link>
-      <div className="mt-2 flex items-start justify-between gap-4">
+
+      {/* Cover image hero */}
+      {coverImage && signed[coverImage.storage_path] && (
+        <div className="mt-3 rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 relative">
+          <div className="aspect-[21/9] w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={signed[coverImage.storage_path]}
+              alt={coverImage.caption ?? ""}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 3-line headline + actions */}
+      <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {formatPropertyAddress(property)}
-          </h1>
-          {property.unit_number && (
+          <h1 className="text-2xl font-bold tracking-tight">{headline.street}</h1>
+          <p className="text-base text-neutral-700 dark:text-neutral-300 mt-1">
+            {headline.cityLine}
+          </p>
+          {headline.detail && (
             <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-              {t("properties.unit_number")}: {property.unit_number}
+              {headline.detail}
             </p>
           )}
         </div>
@@ -220,6 +279,16 @@ export default async function PropertyFactsheetPage({
         </div>
       </div>
 
+      {/* Quick metadata row */}
+      {ownerSummary && (
+        <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+          <span className="uppercase tracking-wider mr-2">
+            {t("properties.section_owners")}
+          </span>
+          {ownerSummary}
+        </p>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-2">
         <NavTab href={`/objekte/${id}/bearbeiten`} label={t("properties.go_to_edit")} editable={editable} />
         <NavTab href={`/objekte/${id}/bilder`} label={t("properties.go_to_images")} />
@@ -247,32 +316,28 @@ export default async function PropertyFactsheetPage({
         />
         <Kpi
           label={t("properties.purchase_price")}
-          value={
+          value={fmtEur(
             property.purchase_price == null
-              ? "—"
-              : eur(Number(property.purchase_price))
-          }
+              ? null
+              : Number(property.purchase_price)
+          )}
         />
         <Kpi
           label={t("valuation.combined")}
-          value={
-            valuationResult?.combined == null
-              ? "—"
-              : eur(valuationResult.combined)
-          }
+          value={fmtEur(valuationResult?.combined ?? null)}
         />
         <Kpi
           label={t("loans.remaining_balance")}
-          value={loanRefs.length === 0 ? "—" : eur(totalRemaining)}
+          value={loanRefs.length === 0 ? "—" : fmtEur(totalRemaining)}
         />
         <Kpi
           label={t("portfolio.kpi_equity")}
-          value={equity == null ? "—" : eur(equity)}
+          value={equity == null ? "—" : fmtEur(equity)}
           strong
         />
         <Kpi
           label={t("pnl.after_tax_cashflow")}
-          value={snapshotResult ? eur(snapshotResult.afterTaxCashflow) : "—"}
+          value={snapshotResult ? fmtEur(snapshotResult.afterTaxCashflow) : "—"}
         />
       </div>
 
@@ -286,10 +351,9 @@ export default async function PropertyFactsheetPage({
                 <li key={e.owner.id} className="flex justify-between">
                   <span>{e.owner.name}</span>
                   <span className="tabular-nums">
-                    {(Number(e.ownership_share) * 100).toLocaleString(
-                      undefined,
-                      { maximumFractionDigits: 2 }
-                    )}{" "}
+                    {(Number(e.ownership_share) * 100).toLocaleString("de-DE", {
+                      maximumFractionDigits: 2,
+                    })}{" "}
                     %
                   </span>
                 </li>
@@ -307,7 +371,7 @@ export default async function PropertyFactsheetPage({
               </div>
               {tenant.contract_start && (
                 <div className="text-neutral-500 dark:text-neutral-400">
-                  {t("tenants.contract_start")}: {tenant.contract_start}
+                  {t("tenants.contract_start")}: {dateDe(tenant.contract_start)}
                 </div>
               )}
             </div>
@@ -326,12 +390,14 @@ export default async function PropertyFactsheetPage({
               {loanRefs.map((l) => (
                 <li key={l.id} className="flex justify-between">
                   <span className="truncate">{l.designation}</span>
-                  <span className="tabular-nums">{eur(Number(l.loan_amount))}</span>
+                  <span className="tabular-nums">
+                    {fmtEur(Number(l.loan_amount))}
+                  </span>
                 </li>
               ))}
               <li className="flex justify-between border-t border-neutral-200 dark:border-neutral-800 pt-1 mt-1 font-semibold">
                 <span>{t("loans.annuity")}</span>
-                <span className="tabular-nums">{eur(totalAnnuity)}/M</span>
+                <span className="tabular-nums">{fmtEur(totalAnnuity)}/M</span>
               </li>
             </ul>
           )}
@@ -341,7 +407,8 @@ export default async function PropertyFactsheetPage({
           {snapshotResult && latestSnapshot ? (
             <div className="text-sm space-y-1">
               <div className="text-xs text-neutral-500">
-                {latestSnapshot.period_start} – {latestSnapshot.period_end}
+                {dateDe(latestSnapshot.period_start)} –{" "}
+                {dateDe(latestSnapshot.period_end)}
               </div>
               <Row
                 label={t("pnl.cashflow_before_tax")}
@@ -362,7 +429,7 @@ export default async function PropertyFactsheetPage({
           {valuationResult && latestValuation ? (
             <div className="text-sm space-y-1">
               <div className="text-xs text-neutral-500">
-                {latestValuation.valuation_date}
+                {dateDe(latestValuation.valuation_date)}
               </div>
               <Row
                 label={t("valuation.ertragswert")}
@@ -377,6 +444,9 @@ export default async function PropertyFactsheetPage({
                 value={valuationResult.combined}
                 strong
               />
+              <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 leading-snug">
+                {t("valuation.method_footnote")}
+              </p>
             </div>
           ) : (
             <Empty />
@@ -400,6 +470,39 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
       </div>
+
+      {/* Thumbnail strip — additional images, click to gallery */}
+      {thumbnails.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+              {t("images.title")}
+            </h2>
+            <Link
+              href={`/objekte/${id}/bilder`}
+              className="text-xs text-accent hover:underline"
+            >
+              {t("factsheet.see_all_images")} →
+            </Link>
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+            {thumbnails.map((img) => (
+              <Link
+                key={img.id}
+                href={`/objekte/${id}/bilder`}
+                className="aspect-square rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800 hover:opacity-90 transition-opacity"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={signed[img.storage_path]}
+                  alt={img.caption ?? ""}
+                  className="w-full h-full object-cover"
+                />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -461,7 +564,7 @@ function Row({
           (value ?? 0) < 0 ? "text-red-600 dark:text-red-400" : ""
         }`}
       >
-        {value == null ? "—" : eur(value)}
+        {fmtEur(value)}
       </span>
     </div>
   );
@@ -489,12 +592,4 @@ function NavTab({
       {label}
     </Link>
   );
-}
-
-function eur(n: number): string {
-  return n.toLocaleString("de-DE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  });
 }

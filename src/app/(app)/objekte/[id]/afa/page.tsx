@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
 import { buildingAfaBasis } from "@/lib/calculations/pnl";
+import { dateDe } from "@/lib/format";
 import { AfaItemForm } from "./afa-item-form";
 import { DeleteAfaItemButton } from "./delete-button";
 
@@ -137,7 +138,7 @@ export default async function PropertyAfaPage({
                       className="border-t border-neutral-200 dark:border-neutral-800"
                     >
                       <Td>{i.item_name}</Td>
-                      <Td>{i.acquisition_date}</Td>
+                      <Td>{dateDe(i.acquisition_date)}</Td>
                       <Td>{eur(Number(i.acquisition_cost))}</Td>
                       <Td>{i.duration_years}</Td>
                       <Td className="font-semibold">{eur(annual)}</Td>

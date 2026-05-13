@@ -223,7 +223,8 @@
     "no_valuations": "No valuations yet.",
     "no_sqm_warning": "Living area missing — income value cannot be calculated.",
     "no_land_value_warning": "Land value missing — replacement value incomplete.",
-    "delete": "Delete valuation"
+    "delete": "Delete valuation",
+    "method_footnote": "Methodology: Income value = sqm × market rent €/m² × 12 × multiple. Replacement value = land value + building value. Market value = 50 % income + 50 % replacement. Not a certified appraisal — internal orientation only (e.g. bank conversations)."
   },
   "pnl": {
     "title": "Cashflow",
@@ -323,7 +324,8 @@
     "investment_summary": "Investments",
     "no_data": "—",
     "download_factsheet": "Factsheet PDF",
-    "download_factbook": "Factbook PDF"
+    "download_factbook": "Factbook PDF",
+    "see_all_images": "See all images"
   },
   "images": {
     "title": "Images",
