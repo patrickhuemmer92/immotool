@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
-import { tenantScore } from "@/lib/calculations/tenant";
+import {
+  readTenantScoreWeights,
+  tenantScore,
+} from "@/lib/calculations/tenant";
 import {
   computeSnapshotResult,
   type LoanForPnL,
@@ -134,7 +137,7 @@ export async function fetchPropertyForPdf(
       .limit(8),
     supabase
       .from("settings")
-      .select("tax_rate, default_depreciation_rate")
+      .select("tax_rate, default_depreciation_rate, tenant_score_weights")
       .eq("workspace_id", workspaceId)
       .maybeSingle(),
   ]);
@@ -253,14 +256,17 @@ export async function fetchPropertyForPdf(
     ? {
         name: tenant.name,
         contract_start: tenant.contract_start ? dateDe(tenant.contract_start) : null,
-        score: tenantScore({
-          family_status: tenant.family_status,
-          schufa: tenant.schufa,
-          rental_duration: tenant.rental_duration,
-          personal_impression: tenant.personal_impression,
-          employment_status: tenant.employment_status,
-          income_level: tenant.income_level,
-        }),
+        score: tenantScore(
+          {
+            family_status: tenant.family_status,
+            schufa: tenant.schufa,
+            rental_duration: tenant.rental_duration,
+            personal_impression: tenant.personal_impression,
+            employment_status: tenant.employment_status,
+            income_level: tenant.income_level,
+          },
+          readTenantScoreWeights(settings?.tenant_score_weights)
+        ),
       }
     : null;
 

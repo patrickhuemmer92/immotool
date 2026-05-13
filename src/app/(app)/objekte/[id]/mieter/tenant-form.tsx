@@ -4,7 +4,11 @@ import { useActionState, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { upsertTenant, type TenantFormState } from "./actions";
-import { tenantScore } from "@/lib/calculations/tenant";
+import {
+  tenantScore,
+  type TenantScoreWeights,
+  DEFAULT_TENANT_SCORE_WEIGHTS,
+} from "@/lib/calculations/tenant";
 import { TenantScoreBadge } from "@/components/tenant-score-badge";
 
 const FACTORS = [
@@ -43,10 +47,12 @@ export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
 export function TenantForm({
   propertyId,
   defaults,
+  weights = DEFAULT_TENANT_SCORE_WEIGHTS,
   readOnly,
 }: {
   propertyId: string;
   defaults: TenantDefaults;
+  weights?: TenantScoreWeights;
   readOnly: boolean;
 }) {
   const t = useTranslations();
@@ -70,8 +76,8 @@ export function TenantForm({
       const v = scores[f];
       obj[f] = v ? Number(v) : null;
     }
-    return tenantScore(obj);
-  }, [scores]);
+    return tenantScore(obj, weights);
+  }, [scores, weights]);
 
   return (
     <form action={formAction} className="space-y-6 max-w-3xl">

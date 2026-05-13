@@ -99,7 +99,10 @@
     "members_revoke": "Zurückziehen",
     "members_invite_link": "Einladungslink",
     "members_copy_link": "Link kopieren",
-    "members_link_copied": "Link kopiert"
+    "members_link_copied": "Link kopiert",
+    "tenant_score_section": "Mieterscore — Gewichtungen",
+    "tenant_score_help": "Jeder Faktor wird mit seinem Gewicht multipliziert. Alle gleich (= 1) ergibt den klassischen Mittelwert. Gewicht 0 schließt einen Faktor aus.",
+    "weights_all_zero": "Mindestens ein Faktor muss ein Gewicht > 0 haben."
   },
   "owners": {
     "title": "Eigentümer",
@@ -224,7 +227,12 @@
     "no_sqm_warning": "Wohnfläche fehlt — Ertragswert kann nicht berechnet werden.",
     "no_land_value_warning": "Bodenwert fehlt — Sachwert unvollständig.",
     "delete": "Bewertung löschen",
-    "method_footnote": "Methodik: Ertragswert = Wohnfläche × Marktmiete €/m² × 12 × Faktor. Sachwert = Bodenwert + Gebäudewert. Marktwert = 50 % Ertrags- + 50 % Sachwert. Kein zertifiziertes Gutachten — Orientierungshilfe für interne Zwecke (z. B. Bankgespräch)."
+    "method_footnote": "Methodik: Ertragswert = Wohnfläche × Marktmiete €/m² × 12 × Faktor. Sachwert = Bodenwert + Gebäudewert. Marktwert = 50 % Ertrags- + 50 % Sachwert. Kein zertifiziertes Gutachten — Orientierungshilfe für interne Zwecke (z. B. Bankgespräch).",
+    "help_condition": "Subjektive Einschätzung 1 (sanierungsbedürftig) bis 10 (Neubau-Niveau).",
+    "help_market_rent": "Ortsübliche Vergleichsmiete €/m² (Mietspiegel, ImmoScout-Vergleich, Sachverständigen-Einschätzung) — NICHT die tatsächlich erhobene Miete.",
+    "help_multiple": "Vervielfältiger der Jahres-Nettomiete (Reinertrag-Faktor). Übliche Range 15–30, abhängig von Lage und Restnutzungsdauer.",
+    "help_building_value": "Reproduktionswert Gebäude (Sachwertverfahren §§ 21–25 ImmoWertV): Normalherstellungskosten × BGF × Indexierung − Alterswertminderung.",
+    "source_footnote": "Methodik orientiert sich an ImmoWertV (Immobilienwertermittlungsverordnung). Die App liefert eine indikative Bandbreite, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen."
   },
   "pnl": {
     "title": "Cashflow-Rechner",

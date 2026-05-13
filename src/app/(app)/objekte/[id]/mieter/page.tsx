@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
+import { readTenantScoreWeights } from "@/lib/calculations/tenant";
 import {
   TenantForm,
   EMPTY_TENANT_DEFAULTS,
@@ -22,14 +23,22 @@ export default async function PropertyTenantPage({
   if (!active) return null;
 
   const supabase = await createClient();
-  const [{ data: property }, { data: tenant }] = await Promise.all([
-    supabase
-      .from("properties")
-      .select("id, street, postal_code, city, location_detail, description")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase.from("tenants").select("*").eq("property_id", id).maybeSingle(),
-  ]);
+  const [{ data: property }, { data: tenant }, { data: settings }] =
+    await Promise.all([
+      supabase
+        .from("properties")
+        .select("id, street, postal_code, city, location_detail, description")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("tenants").select("*").eq("property_id", id).maybeSingle(),
+      supabase
+        .from("settings")
+        .select("tenant_score_weights")
+        .eq("workspace_id", active.id)
+        .maybeSingle(),
+    ]);
+
+  const weights = readTenantScoreWeights(settings?.tenant_score_weights);
 
   if (!property) notFound();
 
@@ -76,6 +85,7 @@ export default async function PropertyTenantPage({
         <TenantForm
           propertyId={id}
           defaults={defaults}
+          weights={weights}
           readOnly={readOnly}
         />
       </div>

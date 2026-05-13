@@ -6,7 +6,7 @@ import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
 import { propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
-import { tenantScore } from "@/lib/calculations/tenant";
+import { readTenantScoreWeights, tenantScore } from "@/lib/calculations/tenant";
 import { TenantScoreBadge } from "@/components/tenant-score-badge";
 import { dateDe, eur as fmtEur } from "@/lib/format";
 import {
@@ -72,7 +72,7 @@ export default async function PropertyFactsheetPage({
       .eq("property_id", id),
     supabase
       .from("settings")
-      .select("tax_rate, default_depreciation_rate")
+      .select("tax_rate, default_depreciation_rate, tenant_score_weights")
       .eq("workspace_id", active.id)
       .maybeSingle(),
     supabase
@@ -125,15 +125,21 @@ export default async function PropertyFactsheetPage({
     totalAnnuity += monthlyAnnuity(input);
   }
 
+  const tenantWeights = readTenantScoreWeights(
+    settings?.tenant_score_weights
+  );
   const tenantSc = tenant
-    ? tenantScore({
-        family_status: tenant.family_status,
-        schufa: tenant.schufa,
-        rental_duration: tenant.rental_duration,
-        personal_impression: tenant.personal_impression,
-        employment_status: tenant.employment_status,
-        income_level: tenant.income_level,
-      })
+    ? tenantScore(
+        {
+          family_status: tenant.family_status,
+          schufa: tenant.schufa,
+          rental_duration: tenant.rental_duration,
+          personal_impression: tenant.personal_impression,
+          employment_status: tenant.employment_status,
+          income_level: tenant.income_level,
+        },
+        tenantWeights
+      )
     : null;
 
   const latestSnapshot = (snapshots ?? [])[0];

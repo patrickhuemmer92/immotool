@@ -11,16 +11,42 @@ export type TenantScoreField = (typeof TENANT_SCORE_FIELDS)[number];
 
 export type TenantScores = Partial<Record<TenantScoreField, number | null>>;
 
+/** Per-factor weight. Missing entries default to 1 — i.e. unweighted. */
+export type TenantScoreWeights = Partial<Record<TenantScoreField, number>>;
+
+export const DEFAULT_TENANT_SCORE_WEIGHTS: Record<TenantScoreField, number> = {
+  family_status: 1,
+  schufa: 1,
+  rental_duration: 1,
+  personal_impression: 1,
+  employment_status: 1,
+  income_level: 1,
+};
+
 /**
- * Mittelwert über alle gesetzten Score-Felder (1-5). null/undefined ignoriert.
- * Gibt null zurück, wenn kein Feld gesetzt ist.
+ * Weighted average of all set score fields (1..5). null/undefined values are
+ * ignored — they neither contribute to the sum nor to the weight divisor.
+ * Returns null when nothing is filled.
+ *
+ * Pass `weights` to bias factors. Equal weights (or omitted) reproduce the
+ * previous simple-average behavior.
  */
-export function tenantScore(t: TenantScores): number | null {
-  const vals = TENANT_SCORE_FIELDS.map((f) => t[f]).filter(
-    (v): v is number => typeof v === "number" && Number.isFinite(v)
-  );
-  if (vals.length === 0) return null;
-  return vals.reduce((a, b) => a + b, 0) / vals.length;
+export function tenantScore(
+  t: TenantScores,
+  weights: TenantScoreWeights = {}
+): number | null {
+  let weightedSum = 0;
+  let totalWeight = 0;
+  for (const f of TENANT_SCORE_FIELDS) {
+    const v = t[f];
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    const w = weights[f] ?? 1;
+    if (w <= 0) continue;
+    weightedSum += v * w;
+    totalWeight += w;
+  }
+  if (totalWeight === 0) return null;
+  return weightedSum / totalWeight;
 }
 
 /** Liefert eine farb- und labelfähige Bandbreite für einen Score 1..5. */
@@ -32,4 +58,21 @@ export function tenantScoreBand(score: number | null): {
   if (score >= 4) return { label: "high", color: "#10b981" };
   if (score >= 3) return { label: "medium", color: "#f59e0b" };
   return { label: "low", color: "#ef4444" };
+}
+
+/**
+ * Coerce a value from `settings.tenant_score_weights` (DB JSONB) into a clean
+ * weights object. Missing or invalid entries fall back to 1.
+ */
+export function readTenantScoreWeights(
+  value: unknown
+): Record<TenantScoreField, number> {
+  const out = { ...DEFAULT_TENANT_SCORE_WEIGHTS };
+  if (!value || typeof value !== "object") return out;
+  for (const f of TENANT_SCORE_FIELDS) {
+    const raw = (value as Record<string, unknown>)[f];
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (Number.isFinite(n) && n >= 0) out[f] = n;
+  }
+  return out;
 }

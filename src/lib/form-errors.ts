@@ -33,6 +33,8 @@ export function errorToTranslationKey(raw: string): {
       return { key: "auth.password_too_short" };
     case "email_required":
       return { key: "auth.email_required" };
+    case "weights_all_zero":
+      return { key: "settings.weights_all_zero" };
     default:
       return { key: "errors.generic" };
   }

@@ -99,7 +99,10 @@
     "members_revoke": "Revoke",
     "members_invite_link": "Invite link",
     "members_copy_link": "Copy link",
-    "members_link_copied": "Link copied"
+    "members_link_copied": "Link copied",
+    "tenant_score_section": "Tenant score — weights",
+    "tenant_score_help": "Each factor is multiplied by its weight. All equal (= 1) yields the classic average. Weight 0 excludes a factor.",
+    "weights_all_zero": "At least one factor must have a weight > 0."
   },
   "owners": {
     "title": "Owners",
@@ -224,7 +227,12 @@
     "no_sqm_warning": "Living area missing — income value cannot be calculated.",
     "no_land_value_warning": "Land value missing — replacement value incomplete.",
     "delete": "Delete valuation",
-    "method_footnote": "Methodology: Income value = sqm × market rent €/m² × 12 × multiple. Replacement value = land value + building value. Market value = 50 % income + 50 % replacement. Not a certified appraisal — internal orientation only (e.g. bank conversations)."
+    "method_footnote": "Methodology: Income value = sqm × market rent €/m² × 12 × multiple. Replacement value = land value + building value. Market value = 50 % income + 50 % replacement. Not a certified appraisal — internal orientation only (e.g. bank conversations).",
+    "help_condition": "Subjective rating 1 (needs renovation) to 10 (new-build standard).",
+    "help_market_rent": "Local comparison rent €/m² (rent index, listing comparison, expert estimate) — NOT the actually-collected rent.",
+    "help_multiple": "Multiple of annual net rent (gross income factor). Typical range 15–30, depending on location and remaining useful life.",
+    "help_building_value": "Reproduction value of the building (cost approach §§ 21–25 ImmoWertV): standard construction cost × gross area × indexing − age depreciation.",
+    "source_footnote": "Methodology follows ImmoWertV (German real-estate valuation regulation). The app delivers an indicative range, not an official valuation report — for bank/tax purposes consider adding a certified expert appraisal."
   },
   "pnl": {
     "title": "Cashflow",

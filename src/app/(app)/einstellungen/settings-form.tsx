@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { decimalToPercentInput } from "@/lib/format";
 import { FormError } from "@/components/form-error";
+import { TENANT_SCORE_FIELDS } from "@/lib/calculations/tenant";
 import { updateSettings, type FormState } from "./actions";
 
 export function SettingsForm({
@@ -15,6 +16,7 @@ export function SettingsForm({
     default_depreciation_rate: number;
     default_locale: "de" | "en";
     default_currency: string;
+    tenant_score_weights: Record<string, number>;
   };
   readOnly: boolean;
 }) {
@@ -25,7 +27,7 @@ export function SettingsForm({
   );
 
   return (
-    <form action={action} className="space-y-6">
+    <form action={action} className="space-y-8">
       <fieldset disabled={readOnly} className="space-y-6">
         <Field
           id="tax_rate"
@@ -84,22 +86,52 @@ export function SettingsForm({
             className={inputClass}
           />
         </Field>
-
-        <FormError raw={state?.error} />
-        {state?.success && (
-          <p className="text-sm text-emerald-600 dark:text-emerald-400">
-            {t("common.saved")}
-          </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          {pending ? t("common.loading") : t("common.save")}
-        </button>
       </fieldset>
+
+      <fieldset disabled={readOnly} className="space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-6">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            {t("settings.tenant_score_section")}
+          </h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            {t("settings.tenant_score_help")}
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {TENANT_SCORE_FIELDS.map((f) => (
+            <Field
+              key={f}
+              id={`weight_${f}`}
+              label={t(`tenants.factor_${f}`)}
+            >
+              <input
+                id={`weight_${f}`}
+                name={`weight_${f}`}
+                type="text"
+                inputMode="decimal"
+                defaultValue={(defaults.tenant_score_weights[f] ?? 1).toString().replace(".", ",")}
+                required
+                className={inputClass}
+              />
+            </Field>
+          ))}
+        </div>
+      </fieldset>
+
+      <FormError raw={state?.error} />
+      {state?.success && (
+        <p className="text-sm text-emerald-600 dark:text-emerald-400">
+          {t("common.saved")}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        {pending ? t("common.loading") : t("common.save")}
+      </button>
     </form>
   );
 }

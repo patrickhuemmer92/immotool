@@ -29,7 +29,11 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             className={inputClass}
           />
         </Field>
-        <Field id="condition_score" label={t("valuation.condition_score")}>
+        <Field
+          id="condition_score"
+          label={t("valuation.condition_score")}
+          help={t("valuation.help_condition")}
+        >
           <input
             id="condition_score"
             name="condition_score"
@@ -39,25 +43,39 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             className={inputClass}
           />
         </Field>
-        <Field id="market_rent_per_sqm" label={t("valuation.market_rent_per_sqm")}>
+        <Field
+          id="market_rent_per_sqm"
+          label={t("valuation.market_rent_per_sqm")}
+          help={t("valuation.help_market_rent")}
+        >
           <input
             id="market_rent_per_sqm"
             name="market_rent_per_sqm"
             type="text"
             inputMode="decimal"
+            placeholder="z. B. 9,50"
             className={inputClass}
           />
         </Field>
-        <Field id="multiple" label={t("valuation.multiple")}>
+        <Field
+          id="multiple"
+          label={t("valuation.multiple")}
+          help={t("valuation.help_multiple")}
+        >
           <input
             id="multiple"
             name="multiple"
             type="text"
             inputMode="decimal"
+            placeholder="z. B. 22"
             className={inputClass}
           />
         </Field>
-        <Field id="building_value" label={t("valuation.building_value")}>
+        <Field
+          id="building_value"
+          label={t("valuation.building_value")}
+          help={t("valuation.help_building_value")}
+        >
           <input
             id="building_value"
             name="building_value"
@@ -77,6 +95,10 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
       >
         {pending ? t("common.loading") : t("valuation.new")}
       </button>
+
+      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug pt-2 border-t border-neutral-200 dark:border-neutral-800">
+        {t("valuation.source_footnote")}
+      </p>
     </form>
   );
 }
@@ -87,10 +109,12 @@ const inputClass =
 function Field({
   id,
   label,
+  help,
   children,
 }: {
   id: string;
   label: string;
+  help?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -99,6 +123,11 @@ function Field({
         {label}
       </label>
       {children}
+      {help && (
+        <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          {help}
+        </p>
+      )}
     </div>
   );
 }
