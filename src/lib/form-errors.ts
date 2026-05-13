@@ -29,6 +29,10 @@ export function errorToTranslationKey(raw: string): {
       return { key: "pnl.duplicate_period" };
     case "hausgeld_sum_invalid":
       return { key: "pnl.hausgeld_sum_invalid" };
+    case "password_too_short":
+      return { key: "auth.password_too_short" };
+    case "email_required":
+      return { key: "auth.email_required" };
     default:
       return { key: "errors.generic" };
   }

@@ -1,25 +1,33 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
-import { signup, type AuthState } from "../auth-actions";
+import { updatePassword, type AuthState } from "../auth-actions";
 
-export function SignupForm({ redirectTo }: { redirectTo: string }) {
+export function ResetUpdateForm() {
   const t = useTranslations();
+  const router = useRouter();
   const [state, action, pending] = useActionState<AuthState, FormData>(
-    signup,
+    updatePassword,
     undefined
   );
 
-  if (state?.emailSent) {
+  useEffect(() => {
+    if (state?.success) {
+      // Recovery session is now a regular session — drop the user on the
+      // dashboard. Small delay so they see the success message.
+      const id = setTimeout(() => router.push("/"), 800);
+      return () => clearTimeout(id);
+    }
+  }, [state?.success, router]);
+
+  if (state?.success) {
     return (
       <div className="rounded-lg border border-accent bg-accent-soft p-4 text-sm">
         <p className="font-medium text-accent-foreground">
-          {t("auth.verify_sent_title")}
-        </p>
-        <p className="mt-1 text-neutral-700">
-          {t("auth.verify_sent_body")}
+          {t("auth.reset_update_done")}
         </p>
       </div>
     );
@@ -27,25 +35,9 @@ export function SignupForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form action={action} className="space-y-4">
-      <input type="hidden" name="redirect_to" value={redirectTo} />
-
-      <div className="space-y-1">
-        <label htmlFor="email" className="text-sm font-medium">
-          {t("auth.email")}
-        </label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          className={inputClass}
-        />
-      </div>
-
       <div className="space-y-1">
         <label htmlFor="password" className="text-sm font-medium">
-          {t("auth.password")}
+          {t("auth.password_new")}
         </label>
         <input
           id="password"
@@ -54,7 +46,7 @@ export function SignupForm({ redirectTo }: { redirectTo: string }) {
           autoComplete="new-password"
           required
           minLength={6}
-          className={inputClass}
+          className="w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent"
         />
       </div>
 
@@ -65,11 +57,8 @@ export function SignupForm({ redirectTo }: { redirectTo: string }) {
         disabled={pending}
         className="w-full rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? t("auth.signing_up") : t("auth.signup")}
+        {pending ? t("common.loading") : t("auth.reset_update_action")}
       </button>
     </form>
   );
 }
-
-const inputClass =
-  "w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent";

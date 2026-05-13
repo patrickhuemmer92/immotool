@@ -1,7 +1,9 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { FormError } from "@/components/form-error";
 import { login, type AuthState } from "../auth-actions";
 
 export function LoginForm({ redirectTo }: { redirectTo: string }) {
@@ -26,7 +28,18 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         />
       </Field>
 
-      <Field id="password" label={t("auth.password")}>
+      <Field
+        id="password"
+        label={t("auth.password")}
+        trailing={
+          <Link
+            href="/passwort-vergessen"
+            className="text-xs text-accent hover:underline"
+          >
+            {t("auth.forgot_password")}
+          </Link>
+        }
+      >
         <input
           id="password"
           name="password"
@@ -38,9 +51,7 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
         />
       </Field>
 
-      {state?.error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{state.error}</p>
-      )}
+      <FormError raw={state?.error} />
 
       <button
         type="submit"
@@ -54,22 +65,27 @@ export function LoginForm({ redirectTo }: { redirectTo: string }) {
 }
 
 const inputClass =
-  "w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-100";
+  "w-full rounded-lg border border-neutral-300 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent";
 
 function Field({
   id,
   label,
+  trailing,
   children,
 }: {
   id: string;
   label: string;
+  trailing?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className="text-sm font-medium">
+          {label}
+        </label>
+        {trailing}
+      </div>
       {children}
     </div>
   );
