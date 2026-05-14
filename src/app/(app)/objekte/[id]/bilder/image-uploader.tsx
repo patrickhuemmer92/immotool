@@ -4,6 +4,7 @@ import { useState, useTransition, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { ImageCropModal } from "@/components/image-crop-modal";
 import { insertPropertyImage } from "./image-actions";
 
 const CATEGORIES = [
@@ -19,6 +20,11 @@ type Category = (typeof CATEGORIES)[number];
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 
+type Pending = {
+  file: File;
+  objectUrl: string;
+};
+
 export function ImageUploader({
   workspaceId,
   propertyId,
@@ -33,6 +39,10 @@ export function ImageUploader({
   const [caption, setCaption] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Queue of files to process one-by-one through the crop modal.
+  const [queue, setQueue] = useState<Pending[]>([]);
+  const current = queue[0] ?? null;
 
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 space-y-3">
@@ -93,6 +103,26 @@ export function ImageUploader({
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
+
+      {current && (
+        <ImageCropModal
+          open
+          src={current.objectUrl}
+          filename={current.file.name}
+          aspect={4 / 3}
+          onConfirm={(cropped) => {
+            uploadSingle(cropped);
+            advanceQueue();
+          }}
+          onSkip={() => {
+            uploadSingle(current.file);
+            advanceQueue();
+          }}
+          onClose={() => {
+            advanceQueue();
+          }}
+        />
+      )}
     </div>
   );
 
@@ -100,47 +130,60 @@ export function ImageUploader({
     if (!files || files.length === 0) return;
     setError(null);
 
+    const validated: Pending[] = [];
+    for (const file of Array.from(files)) {
+      if (!ALLOWED.includes(file.type)) {
+        setError(`Unsupported type: ${file.type}`);
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        setError(`File too large: ${file.name}`);
+        continue;
+      }
+      validated.push({ file, objectUrl: URL.createObjectURL(file) });
+    }
+    setQueue((q) => [...q, ...validated]);
+
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  function advanceQueue() {
+    setQueue((q) => {
+      const [done, ...rest] = q;
+      if (done) URL.revokeObjectURL(done.objectUrl);
+      return rest;
+    });
+  }
+
+  function uploadSingle(file: File) {
     startTransition(async () => {
       const supabase = createClient();
-      for (const file of Array.from(files)) {
-        if (!ALLOWED.includes(file.type)) {
-          setError(`Unsupported type: ${file.type}`);
-          continue;
-        }
-        if (file.size > MAX_BYTES) {
-          setError(`File too large: ${file.name}`);
-          continue;
-        }
+      const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
+      const filename = `${crypto.randomUUID()}.${ext}`;
+      const path = `${workspaceId}/${propertyId}/${filename}`;
 
-        const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
-        const filename = `${crypto.randomUUID()}.${ext}`;
-        const path = `${workspaceId}/${propertyId}/${filename}`;
-
-        const { error: upErr } = await supabase.storage
-          .from("property-images")
-          .upload(path, file, {
-            contentType: file.type,
-            upsert: false,
-          });
-        if (upErr) {
-          setError(upErr.message);
-          continue;
-        }
-
-        const result = await insertPropertyImage({
-          property_id: propertyId,
-          storage_path: path,
-          category,
-          caption: caption || undefined,
+      const { error: upErr } = await supabase.storage
+        .from("property-images")
+        .upload(path, file, {
+          contentType: file.type,
+          upsert: false,
         });
-        if (result?.error) {
-          setError(result.error);
-          await supabase.storage.from("property-images").remove([path]);
-          continue;
-        }
+      if (upErr) {
+        setError(upErr.message);
+        return;
       }
 
-      if (fileRef.current) fileRef.current.value = "";
+      const result = await insertPropertyImage({
+        property_id: propertyId,
+        storage_path: path,
+        category,
+        caption: caption || undefined,
+      });
+      if (result?.error) {
+        setError(result.error);
+        await supabase.storage.from("property-images").remove([path]);
+        return;
+      }
       router.refresh();
     });
   }

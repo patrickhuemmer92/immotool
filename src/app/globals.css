@@ -3,13 +3,14 @@
 /* ----------------------------------------------------------------------
    Estateably brand palette — applied via Tailwind v4 theme tokens so the
    existing `neutral-*` utility classes pick up the brand colors with no
-   call-site changes. Dark variant is disabled (brand is light-only).
+   call-site changes. The `dark:` variant maps to a `.dark` class on
+   <html>; ThemeToggle (components/theme-toggle.tsx) flips it.
 ---------------------------------------------------------------------- */
 @theme {
   --font-sans: var(--font-inter);
   --font-mono: var(--font-inter-mono);
 
-  /* Neutral scale rebound to Estateably's cool-slate palette. */
+  /* Neutral scale rebound to Estateably's cool-slate palette (light). */
   --color-neutral-50: #f5f7fa;
   --color-neutral-100: #edf1f7;
   --color-neutral-200: #c8d4e3;
@@ -29,15 +30,38 @@
   --color-navy: #1e3a5f;
 }
 
-/* Disable dark-mode media-query variant entirely. The codebase still
-   carries `dark:` classes; with the variant pointed at `.dark *` and the
-   class never set, those rules become inert. */
+/* The dark variant is now active. All `dark:` Tailwind utilities trigger
+   whenever a `.dark` class is set on (or above) the element — typically
+   on the <html> tag. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   --background: var(--color-neutral-50);
   --foreground: var(--color-neutral-900);
   color-scheme: light;
+}
+
+/* Dark theme: invert the neutral scale so existing `bg-neutral-50` /
+   `text-neutral-900` semantics still read correctly visually. Light
+   surfaces (50/100) become deep navy; foreground reads near-white. */
+html.dark {
+  --color-neutral-50: #0a1628;
+  --color-neutral-100: #0f1e32;
+  --color-neutral-200: #152538;
+  --color-neutral-300: #1e3a5f;
+  --color-neutral-400: #52688a;
+  --color-neutral-500: #7b8fa8;
+  --color-neutral-600: #a8bad0;
+  --color-neutral-700: #c8d4e3;
+  --color-neutral-800: #edf1f7;
+  --color-neutral-900: #f5f7fa;
+  --color-neutral-950: #ffffff;
+
+  --color-accent-soft: #1a3a3a;
+
+  --background: #050b14;
+  --foreground: #edf1f7;
+  color-scheme: dark;
 }
 
 html {

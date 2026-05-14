@@ -27,6 +27,7 @@ export default async function EditPropertyPage({
     { data: owners },
     { data: shares },
     { data: houses },
+    { data: loans },
   ] = await Promise.all([
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -45,6 +46,10 @@ export default async function EditPropertyPage({
       .eq("kind", "house")
       .order("city")
       .order("street"),
+    supabase
+      .from("loans")
+      .select("loan_amount")
+      .eq("property_id", id),
   ]);
 
   if (!property) notFound();
@@ -54,6 +59,11 @@ export default async function EditPropertyPage({
   const parentCandidates = (houses ?? [])
     .filter((h) => h.id !== id)
     .map((h) => ({ id: h.id, label: formatPropertyAddress(h) }));
+
+  const loansSum = (loans ?? []).reduce(
+    (acc, l) => acc + Number(l.loan_amount ?? 0),
+    0
+  );
 
   return (
     <div>
@@ -72,6 +82,7 @@ export default async function EditPropertyPage({
           propertyId={id}
           defaults={rowToDefaults(property as PropertyRow)}
           parentCandidates={parentCandidates}
+          loansSum={loansSum}
           readOnly={readOnly}
         />
       </div>

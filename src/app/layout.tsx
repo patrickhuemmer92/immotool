@@ -15,6 +15,18 @@ export const metadata: Metadata = {
   description: "Das digitale Factbook für Immobilien",
 };
 
+/**
+ * Inline pre-hydration script — runs before React paints, so the page never
+ * flashes light before flipping to dark (or vice versa). Reads the same
+ * localStorage key as <ThemeToggle>.
+ */
+const themeBootstrap = `
+(function(){try{
+  var s = localStorage.getItem('estateably-theme') || 'system';
+  var dark = s === 'dark' || (s === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (dark) document.documentElement.classList.add('dark');
+}catch(_){}})();`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +39,11 @@ export default async function RootLayout({
     <html
       lang={locale}
       className={`${inter.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>
           {children}
