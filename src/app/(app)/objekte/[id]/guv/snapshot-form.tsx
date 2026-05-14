@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
+import { MoneyInput } from "@/components/money-input";
 import { createSnapshot, type SnapshotState } from "./actions";
 
 export function SnapshotForm({
@@ -20,6 +21,18 @@ export function SnapshotForm({
     createSnapshot.bind(null, propertyId),
     undefined
   );
+
+  // Q12 — live check that umlage + nicht-umlage matches the total
+  const [totalAncillary, setTotalAncillary] = useState<number | null>(null);
+  const [recoverable, setRecoverable] = useState<number | null>(null);
+  const [notRecoverable, setNotRecoverable] = useState<number | null>(null);
+
+  const summed =
+    recoverable != null || notRecoverable != null
+      ? (recoverable ?? 0) + (notRecoverable ?? 0)
+      : null;
+  const showMismatch =
+    totalAncillary != null && summed != null && Math.abs(summed - totalAncillary) > 0.01;
 
   return (
     <form action={formAction} className="space-y-6 max-w-3xl">
@@ -52,56 +65,54 @@ export function SnapshotForm({
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field id="cold_rent" label={t("pnl.cold_rent")}>
-            <input id="cold_rent" name="cold_rent" {...numProps} />
+            <MoneyInput id="cold_rent" name="cold_rent" />
           </Field>
           <Field id="ancillary_costs" label={t("pnl.ancillary_costs")}>
-            <input id="ancillary_costs" name="ancillary_costs" {...numProps} />
+            <MoneyInput
+              id="ancillary_costs"
+              name="ancillary_costs"
+              onValueChange={setTotalAncillary}
+            />
           </Field>
           <Field
             id="property_fee_recoverable"
             label={t("pnl.property_fee_recoverable")}
           >
-            <input
+            <MoneyInput
               id="property_fee_recoverable"
               name="property_fee_recoverable"
-              {...numProps}
+              onValueChange={setRecoverable}
             />
           </Field>
           <Field
             id="property_fee_not_recoverable"
             label={t("pnl.property_fee_not_recoverable")}
           >
-            <input
+            <MoneyInput
               id="property_fee_not_recoverable"
               name="property_fee_not_recoverable"
-              {...numProps}
+              onValueChange={setNotRecoverable}
             />
           </Field>
           <Field id="maintenance" label={t("pnl.maintenance")}>
-            <input id="maintenance" name="maintenance" {...numProps} />
+            <MoneyInput id="maintenance" name="maintenance" />
           </Field>
           <Field id="annuity_override" label={t("pnl.annuity_override")}>
-            <input
-              id="annuity_override"
-              name="annuity_override"
-              {...numProps}
-            />
+            <MoneyInput id="annuity_override" name="annuity_override" />
           </Field>
           <Field id="interest_override" label={t("pnl.interest_override")}>
-            <input
-              id="interest_override"
-              name="interest_override"
-              {...numProps}
-            />
+            <MoneyInput id="interest_override" name="interest_override" />
           </Field>
           <Field id="principal_override" label={t("pnl.principal_override")}>
-            <input
-              id="principal_override"
-              name="principal_override"
-              {...numProps}
-            />
+            <MoneyInput id="principal_override" name="principal_override" />
           </Field>
         </div>
+
+        {showMismatch && (
+          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+            {t("pnl.hausgeld_sum_invalid")}
+          </p>
+        )}
       </div>
 
       <FormError raw={state?.error} />
@@ -119,11 +130,6 @@ export function SnapshotForm({
 
 const inputClass =
   "w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm";
-const numProps = {
-  type: "text" as const,
-  inputMode: "decimal" as const,
-  className: inputClass,
-};
 
 function Field({
   id,

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { parseDecimal } from "@/lib/format";
+import { buildAutoDescription } from "@/lib/properties";
 
 export type PropertyFormState = { error?: string } | undefined;
 
@@ -75,6 +76,10 @@ const propertySchema = z.object({
   city: z.string().min(1, "city_required"),
   location_detail: optString,
   description: optString,
+  description_auto: z
+    .string()
+    .optional()
+    .transform((v) => v === "true" || v === "on"),
   unit_number: optString,
   sqm: optNumber,
   notary_appointment: optDate,
@@ -85,6 +90,8 @@ const propertySchema = z.object({
   broker_fee: optNumber,
   notary_fee: optNumber,
   registration_cost: optNumber,
+  funding_cost: optNumber,
+  equity_amount: optNumber,
   land_value: optNumber,
   building_value_share_pct: optPercentInput,
   depreciation_rate: optPercentInput,
@@ -105,6 +112,7 @@ function readForm(formData: FormData) {
     city: getStr(formData, "city"),
     location_detail: getStr(formData, "location_detail"),
     description: getStr(formData, "description"),
+    description_auto: getStr(formData, "description_auto"),
     unit_number: getStr(formData, "unit_number"),
     sqm: getStr(formData, "sqm"),
     notary_appointment: getStr(formData, "notary_appointment"),
@@ -115,11 +123,32 @@ function readForm(formData: FormData) {
     broker_fee: getStr(formData, "broker_fee"),
     notary_fee: getStr(formData, "notary_fee"),
     registration_cost: getStr(formData, "registration_cost"),
+    funding_cost: getStr(formData, "funding_cost"),
+    equity_amount: getStr(formData, "equity_amount"),
     land_value: getStr(formData, "land_value"),
     building_value_share_pct: getStr(formData, "building_value_share_pct"),
     depreciation_rate: getStr(formData, "depreciation_rate"),
     notes: getStr(formData, "notes"),
   };
+}
+
+/** Apply auto-description if the toggle says so. */
+function applyAutoDescription<
+  T extends {
+    description: string | null;
+    description_auto: boolean;
+    street: string;
+    location_detail: string | null;
+  },
+>(data: T): T {
+  if (data.description_auto) {
+    const auto = buildAutoDescription({
+      street: data.street,
+      location_detail: data.location_detail,
+    });
+    return { ...data, description: auto.length ? auto : null };
+  }
+  return data;
 }
 
 export async function createProperty(
@@ -132,10 +161,12 @@ export async function createProperty(
   const parsed = propertySchema.safeParse(readForm(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const payload = applyAutoDescription(parsed.data);
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("properties")
-    .insert({ ...parsed.data, workspace_id: active.id })
+    .insert({ ...payload, workspace_id: active.id })
     .select("id")
     .single();
 
@@ -153,10 +184,12 @@ export async function updateProperty(
   const parsed = propertySchema.safeParse(readForm(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const payload = applyAutoDescription(parsed.data);
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("properties")
-    .update(parsed.data)
+    .update(payload)
     .eq("id", id);
 
   if (error) return { error: error.message };

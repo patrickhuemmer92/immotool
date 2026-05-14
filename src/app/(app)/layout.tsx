@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, listMemberships } from "@/lib/workspace";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { NavLink } from "@/components/nav-link";
 import { Wordmark } from "@/components/wordmark";
@@ -88,6 +89,7 @@ export default async function AppLayout({
         <header className="h-14 px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between gap-4">
           <WorkspaceSwitcher workspaces={memberships} active={active} />
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <LocaleSwitcher />
           </div>
         </header>

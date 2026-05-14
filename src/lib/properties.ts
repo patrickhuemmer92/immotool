@@ -30,6 +30,8 @@ export const PROPERTY_NUMERIC_FIELDS = [
   "broker_fee",
   "notary_fee",
   "registration_cost",
+  "funding_cost",
+  "equity_amount",
   "land_value",
   "building_value_share_pct",
   "depreciation_rate",
@@ -47,6 +49,7 @@ export type PropertyDefaults = {
   city: string;
   location_detail: string;
   description: string;
+  description_auto: boolean;
   unit_number: string;
   sqm: string;
   notary_appointment: string;
@@ -57,6 +60,8 @@ export type PropertyDefaults = {
   broker_fee: string;
   notary_fee: string;
   registration_cost: string;
+  funding_cost: string;
+  equity_amount: string;
   land_value: string;
   /** Percent input (1..100 string). */
   building_value_share_pct: string;
@@ -73,6 +78,7 @@ export const EMPTY_PROPERTY_DEFAULTS: PropertyDefaults = {
   city: "",
   location_detail: "",
   description: "",
+  description_auto: true,
   unit_number: "",
   sqm: "",
   notary_appointment: "",
@@ -83,6 +89,8 @@ export const EMPTY_PROPERTY_DEFAULTS: PropertyDefaults = {
   broker_fee: "",
   notary_fee: "",
   registration_cost: "",
+  funding_cost: "",
+  equity_amount: "",
   land_value: "",
   building_value_share_pct: "",
   depreciation_rate: "",
@@ -98,6 +106,7 @@ export type PropertyRow = {
   city: string;
   location_detail: string | null;
   description: string | null;
+  description_auto?: boolean | null;
   unit_number: string | null;
   sqm: string | number | null;
   notary_appointment: string | null;
@@ -109,6 +118,7 @@ export type PropertyRow = {
   notary_fee: string | number | null;
   registration_cost: string | number | null;
   funding_cost: string | number | null;
+  equity_amount?: string | number | null;
   land_value: string | number | null;
   building_value_share_pct: string | number | null;
   depreciation_rate: string | number | null;
@@ -116,7 +126,7 @@ export type PropertyRow = {
 };
 
 export function rowToDefaults(p: PropertyRow): PropertyDefaults {
-  const numStr = (v: string | number | null): string => {
+  const numStr = (v: string | number | null | undefined): string => {
     if (v === null || v === undefined || v === "") return "";
     const n = typeof v === "number" ? v : Number(v);
     if (!Number.isFinite(n)) return "";
@@ -145,6 +155,7 @@ export function rowToDefaults(p: PropertyRow): PropertyDefaults {
     city: p.city,
     location_detail: str(p.location_detail),
     description: str(p.description),
+    description_auto: p.description_auto ?? true,
     unit_number: str(p.unit_number),
     sqm: numStr(p.sqm),
     notary_appointment: str(p.notary_appointment),
@@ -155,6 +166,8 @@ export function rowToDefaults(p: PropertyRow): PropertyDefaults {
     broker_fee: numStr(p.broker_fee),
     notary_fee: numStr(p.notary_fee),
     registration_cost: numStr(p.registration_cost),
+    funding_cost: numStr(p.funding_cost),
+    equity_amount: numStr(p.equity_amount),
     land_value: numStr(p.land_value),
     building_value_share_pct: pctStr(p.building_value_share_pct),
     depreciation_rate: pctStr(p.depreciation_rate),
@@ -209,4 +222,20 @@ export function propertyHeadline(p: {
     cityLine: `${p.postal_code} ${p.city}`,
     detail,
   };
+}
+
+/**
+ * Auto-build the "Bezeichnung" the same way the property headline detail line
+ * is built — street + house number + location detail (if any).
+ * Kept in lib so it can be reused server-side (e.g. when saving with
+ * description_auto = true).
+ */
+export function buildAutoDescription(p: {
+  street: string;
+  location_detail?: string | null;
+}): string {
+  const street = (p.street ?? "").trim();
+  const loc = (p.location_detail ?? "").trim();
+  if (street && loc) return `${street}, ${loc}`;
+  return street || loc;
 }
