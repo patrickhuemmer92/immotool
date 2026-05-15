@@ -170,7 +170,6 @@ const styles = StyleSheet.create({
     fontSize: 7.5,
     color: pdfColors.muted,
     marginBottom: 4,
-    fontStyle: "italic",
   },
   chartWrap: {
     marginTop: 8,
