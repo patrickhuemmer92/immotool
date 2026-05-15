@@ -211,17 +211,6 @@ export function FactsheetDocument({
                       </Text>
                     </View>
                   )}
-                  <View style={styles.row}>
-                    <Text style={styles.label}>{t("tenants.score")}</Text>
-                    <Text style={styles.value}>
-                      {data.tenant.score == null
-                        ? "—"
-                        : data.tenant.score.toLocaleString("de-DE", {
-                            minimumFractionDigits: 1,
-                            maximumFractionDigits: 2,
-                          })}
-                    </Text>
-                  </View>
                 </>
               ) : (
                 <Text style={styles.label}>{t("tenants.no_tenant")}</Text>

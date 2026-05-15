@@ -1,24 +1,9 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { upsertTenant, type TenantFormState } from "./actions";
-import {
-  tenantScore,
-  type TenantScoreWeights,
-  DEFAULT_TENANT_SCORE_WEIGHTS,
-} from "@/lib/calculations/tenant";
-import { TenantScoreBadge } from "@/components/tenant-score-badge";
-
-const FACTORS = [
-  "family_status",
-  "schufa",
-  "rental_duration",
-  "personal_impression",
-  "employment_status",
-  "income_level",
-] as const;
 
 export type TenantDefaults = {
   name: string;
@@ -47,37 +32,17 @@ export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
 export function TenantForm({
   propertyId,
   defaults,
-  weights = DEFAULT_TENANT_SCORE_WEIGHTS,
   readOnly,
 }: {
   propertyId: string;
   defaults: TenantDefaults;
-  weights?: TenantScoreWeights;
   readOnly: boolean;
 }) {
   const t = useTranslations();
-  const [scores, setScores] = useState<Record<string, string>>({
-    family_status: defaults.family_status,
-    schufa: defaults.schufa,
-    rental_duration: defaults.rental_duration,
-    personal_impression: defaults.personal_impression,
-    employment_status: defaults.employment_status,
-    income_level: defaults.income_level,
-  });
-
   const [state, formAction, pending] = useActionState<
     TenantFormState,
     FormData
   >(upsertTenant.bind(null, propertyId), undefined);
-
-  const currentScore = useMemo(() => {
-    const obj: Record<string, number | null> = {};
-    for (const f of FACTORS) {
-      const v = scores[f];
-      obj[f] = v ? Number(v) : null;
-    }
-    return tenantScore(obj, weights);
-  }, [scores, weights]);
 
   return (
     <form action={formAction} className="space-y-6 max-w-3xl">
@@ -102,29 +67,6 @@ export function TenantForm({
               className={inputClass}
             />
           </Field>
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              {t("tenants.score")}
-            </h2>
-            <TenantScoreBadge score={currentScore} size="lg" />
-          </div>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-            {t("tenants.factor_help")}
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {FACTORS.map((f) => (
-              <ScoreField
-                key={f}
-                id={f}
-                label={t(`tenants.factor_${f}`)}
-                value={scores[f]}
-                onChange={(v) => setScores((prev) => ({ ...prev, [f]: v }))}
-              />
-            ))}
-          </div>
         </div>
 
         <Field id="notes" label={t("tenants.notes")}>
@@ -178,36 +120,3 @@ function Field({
   );
 }
 
-function ScoreField({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <label htmlFor={id} className="text-sm flex-1">
-        {label}
-      </label>
-      <select
-        id={id}
-        name={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-2 py-1.5 text-sm w-20"
-      >
-        <option value="">—</option>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <option key={n} value={n}>
-            {n}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}

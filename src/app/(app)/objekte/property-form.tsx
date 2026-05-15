@@ -26,8 +26,12 @@ type Props = {
   parentCandidates: { id: string; label: string }[];
   /** Sum of all loan_amount values currently linked to this property — €. */
   loansSum?: number | null;
+  /** Owners available for assignment (only used in create mode). */
+  availableOwners?: { id: string; name: string }[];
   readOnly: boolean;
 };
+
+type OwnerRow = { owner_id: string; share: string };
 
 type SplitMode = "eur" | "pct";
 
@@ -36,6 +40,7 @@ export function PropertyForm({
   propertyId,
   parentCandidates,
   loansSum,
+  availableOwners = [],
   readOnly,
 }: Props) {
   const t = useTranslations();
@@ -122,6 +127,11 @@ export function PropertyForm({
     return null;
   }, [splitMode, buildingPct, landValue, buildingEur, purchasePrice]);
 
+  const isCreate = !propertyId;
+  const [ownerRows, setOwnerRows] = useState<OwnerRow[]>(() =>
+    isCreate ? [{ owner_id: "", share: "" }] : []
+  );
+
   const action = propertyId
     ? updateProperty.bind(null, propertyId)
     : createProperty;
@@ -129,6 +139,32 @@ export function PropertyForm({
     PropertyFormState,
     FormData
   >(action, undefined);
+
+  const parseShareLocal = (s: string): number => {
+    if (!s) return 0;
+    const n = Number(s.replace(",", "."));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const validOwnerRows = ownerRows.filter(
+    (r) => r.owner_id && parseShareLocal(r.share) > 0
+  );
+  const ownerShareSum = ownerRows.reduce(
+    (acc, r) => acc + parseShareLocal(r.share),
+    0
+  );
+  const ownersSumOk = Math.abs(ownerShareSum - 1) < 0.0001;
+  const ownerIdsSelected = ownerRows.map((r) => r.owner_id).filter(Boolean);
+  const ownerHasDuplicates =
+    new Set(ownerIdsSelected).size !== ownerIdsSelected.length;
+  const ownersHaveAnyInput = ownerRows.some(
+    (r) => r.owner_id || r.share
+  );
+  const ownersPayload = JSON.stringify({
+    shares: validOwnerRows.map((r) => ({
+      owner_id: r.owner_id,
+      ownership_share: parseShareLocal(r.share),
+    })),
+  });
 
   const canHaveParent = kind !== "house";
 
@@ -612,6 +648,127 @@ export function PropertyForm({
           )}
         </Section>
 
+        {isCreate && (
+          <Section title={t("properties.section_owners")}>
+            <input type="hidden" name="owners_payload" value={ownersPayload} />
+            {availableOwners.length === 0 ? (
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                {t("properties.owners_no_owners")}
+              </p>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {t("properties.owners_share_help")}
+                </p>
+                <div className="space-y-2">
+                  {ownerRows.map((row, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <select
+                        value={row.owner_id}
+                        onChange={(e) =>
+                          setOwnerRows((prev) =>
+                            prev.map((r, i) =>
+                              i === idx
+                                ? { ...r, owner_id: e.target.value }
+                                : r
+                            )
+                          )
+                        }
+                        className="flex-1 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm"
+                      >
+                        <option value="">
+                          {t("properties.owners_select_owner")}
+                        </option>
+                        {availableOwners.map((o) => (
+                          <option key={o.id} value={o.id}>
+                            {o.name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={row.share}
+                        onChange={(e) =>
+                          setOwnerRows((prev) =>
+                            prev.map((r, i) =>
+                              i === idx
+                                ? { ...r, share: e.target.value }
+                                : r
+                            )
+                          )
+                        }
+                        placeholder="0,60"
+                        className="w-28 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm"
+                      />
+                      {ownerRows.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOwnerRows((prev) =>
+                              prev.filter((_, i) => i !== idx)
+                            )
+                          }
+                          className="text-sm text-neutral-500 hover:text-red-600 px-2 py-2"
+                          aria-label="remove"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOwnerRows((prev) => [
+                      ...prev,
+                      { owner_id: "", share: "" },
+                    ])
+                  }
+                  className="text-sm text-neutral-700 dark:text-neutral-300 hover:underline"
+                >
+                  {t("properties.owners_add_row")}
+                </button>
+                {ownersHaveAnyInput && (
+                  <div className="flex items-center justify-between border-t border-neutral-200 dark:border-neutral-800 pt-2 text-sm">
+                    <span className="text-neutral-500 dark:text-neutral-400">
+                      {t("properties.owners_share_sum")}:{" "}
+                      <strong
+                        className={
+                          ownersSumOk
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-red-600 dark:text-red-400"
+                        }
+                      >
+                        {ownerShareSum.toLocaleString("de-DE", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 4,
+                        })}
+                      </strong>
+                    </span>
+                  </div>
+                )}
+                {ownerHasDuplicates && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {t("properties.owners_duplicate")}
+                  </p>
+                )}
+                {ownersHaveAnyInput && !ownersSumOk && (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {t("properties.owners_share_invalid", {
+                      sum: ownerShareSum.toLocaleString("de-DE", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 4,
+                      }),
+                    })}
+                  </p>
+                )}
+              </div>
+            )}
+          </Section>
+        )}
+
         <Section title={t("properties.section_meta")}>
           <Field id="notes" label={t("properties.notes")}>
             <textarea
@@ -629,8 +786,13 @@ export function PropertyForm({
         <div className="flex gap-2">
           <button
             type="submit"
-            disabled={pending}
-            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            disabled={
+              pending ||
+              (isCreate &&
+                ownersHaveAnyInput &&
+                (!ownersSumOk || ownerHasDuplicates))
+            }
+            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pending
               ? t("common.loading")

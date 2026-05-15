@@ -63,7 +63,6 @@ export default async function AppLayout({
             <NavLink href="/finanzen/afa">{t("nav.depreciation")}</NavLink>
           </NavGroup>
           <NavSection>
-            <NavLink href="/portfolio">{t("nav.portfolio")}</NavLink>
             <NavLink href="/investitionen">{t("nav.investments")}</NavLink>
           </NavSection>
           <NavSection>

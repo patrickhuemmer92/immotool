@@ -17,10 +17,14 @@ export type ValuationResult = {
   combined: number | null;
 };
 
-export const COMBINATION_WEIGHT_INCOME = 0.5;
-export const COMBINATION_WEIGHT_REPLACEMENT = 0.5;
+export const DEFAULT_INCOME_WEIGHT = 0.5;
 
-export function computeValuation(input: ValuationInput): ValuationResult {
+export function computeValuation(
+  input: ValuationInput,
+  incomeWeight: number = DEFAULT_INCOME_WEIGHT
+): ValuationResult {
+  const w = Math.min(1, Math.max(0, incomeWeight));
+
   let ertragswert: number | null = null;
   if (
     input.sqm != null &&
@@ -40,9 +44,7 @@ export function computeValuation(input: ValuationInput): ValuationResult {
 
   let combined: number | null = null;
   if (ertragswert != null && sachwert != null) {
-    combined =
-      ertragswert * COMBINATION_WEIGHT_INCOME +
-      sachwert * COMBINATION_WEIGHT_REPLACEMENT;
+    combined = ertragswert * w + sachwert * (1 - w);
   } else if (ertragswert != null) {
     combined = ertragswert;
   } else if (sachwert != null) {

@@ -16,13 +16,20 @@ export default async function NewPropertyPage() {
   if (!canEdit(active.role)) redirect("/objekte");
 
   const supabase = await createClient();
-  const { data: houses } = await supabase
-    .from("properties")
-    .select("id, street, postal_code, city, location_detail, description")
-    .eq("workspace_id", active.id)
-    .eq("kind", "house")
-    .order("city")
-    .order("street");
+  const [{ data: houses }, { data: owners }] = await Promise.all([
+    supabase
+      .from("properties")
+      .select("id, street, postal_code, city, location_detail, description")
+      .eq("workspace_id", active.id)
+      .eq("kind", "house")
+      .order("city")
+      .order("street"),
+    supabase
+      .from("owners")
+      .select("id, name")
+      .eq("workspace_id", active.id)
+      .order("name"),
+  ]);
 
   const parentCandidates = (houses ?? []).map((h) => ({
     id: h.id,
@@ -45,6 +52,7 @@ export default async function NewPropertyPage() {
         <PropertyForm
           defaults={EMPTY_PROPERTY_DEFAULTS}
           parentCandidates={parentCandidates}
+          availableOwners={owners ?? []}
           readOnly={false}
         />
       </div>

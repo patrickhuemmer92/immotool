@@ -359,17 +359,6 @@ export function FactbookDocument({
                 <Text style={styles.cellRight}>{data.tenant.contract_start}</Text>
               </View>
             )}
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("tenants.score")}</Text>
-              <Text style={styles.cellRight}>
-                {data.tenant.score == null
-                  ? "—"
-                  : data.tenant.score.toLocaleString("de-DE", {
-                      minimumFractionDigits: 1,
-                      maximumFractionDigits: 2,
-                    })}
-              </Text>
-            </View>
           </View>
         ) : (
           <Text>{t("tenants.no_tenant")}</Text>
