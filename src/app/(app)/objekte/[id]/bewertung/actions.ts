@@ -36,12 +36,28 @@ const optInt = z
   })
   .transform((v) => (v && v.length ? parseInt(v, 10) : null));
 
+const weightSchema = z
+  .string()
+  .optional()
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    const n = parseDecimal(v);
+    if (n === null || n < 0 || n > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_weight:${v}`,
+      });
+    }
+  })
+  .transform((v) => (v && v.length ? parseDecimal(v) : null));
+
 const schema = z.object({
   valuation_date: z.string().min(1),
   condition_score: optInt,
   market_rent_per_sqm: optNum,
   multiple: optNum,
   building_value: optNum,
+  income_weight: weightSchema,
   notes: z
     .string()
     .optional()
@@ -64,19 +80,23 @@ export async function createValuation(
     market_rent_per_sqm: getStr(formData, "market_rent_per_sqm"),
     multiple: getStr(formData, "multiple"),
     building_value: getStr(formData, "building_value"),
+    income_weight: getStr(formData, "income_weight"),
     notes: getStr(formData, "notes"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
+  const { income_weight, ...rest } = parsed.data;
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("portfolio_valuations")
-    .insert({ ...parsed.data, property_id: propertyId });
+  const { error } = await supabase.from("portfolio_valuations").insert({
+    ...rest,
+    property_id: propertyId,
+    income_weight: income_weight ?? 0.5,
+  });
 
   if (error) return { error: error.message };
 
   revalidatePath(`/objekte/${propertyId}/bewertung`);
-  revalidatePath(`/portfolio`);
+  revalidatePath(`/objekte`);
   return undefined;
 }
 
@@ -84,5 +104,5 @@ export async function deleteValuation(id: string, propertyId: string) {
   const supabase = await createClient();
   await supabase.from("portfolio_valuations").delete().eq("id", id);
   revalidatePath(`/objekte/${propertyId}/bewertung`);
-  revalidatePath(`/portfolio`);
+  revalidatePath(`/objekte`);
 }

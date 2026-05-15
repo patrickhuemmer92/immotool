@@ -6,8 +6,6 @@ import { getActiveWorkspace, isOwner } from "@/lib/workspace";
 import { formatPropertyAddress, propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
-import { readTenantScoreWeights, tenantScore } from "@/lib/calculations/tenant";
-import { TenantScoreBadge } from "@/components/tenant-score-badge";
 import { dateDe, eur as fmtEur } from "@/lib/format";
 import {
   computeSnapshotResult,
@@ -62,7 +60,7 @@ export default async function PropertyFactsheetPage({
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, market_rent_per_sqm, multiple, building_value"
+        "id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight"
       )
       .eq("property_id", id)
       .order("valuation_date", { ascending: false })
@@ -73,7 +71,7 @@ export default async function PropertyFactsheetPage({
       .eq("property_id", id),
     supabase
       .from("settings")
-      .select("tax_rate, default_depreciation_rate, tenant_score_weights")
+      .select("tax_rate, default_depreciation_rate")
       .eq("workspace_id", active.id)
       .maybeSingle(),
     supabase
@@ -149,23 +147,6 @@ export default async function PropertyFactsheetPage({
     totalAnnuity += monthlyAnnuity(input);
   }
 
-  const tenantWeights = readTenantScoreWeights(
-    settings?.tenant_score_weights
-  );
-  const tenantSc = tenant
-    ? tenantScore(
-        {
-          family_status: tenant.family_status,
-          schufa: tenant.schufa,
-          rental_duration: tenant.rental_duration,
-          personal_impression: tenant.personal_impression,
-          employment_status: tenant.employment_status,
-          income_level: tenant.income_level,
-        },
-        tenantWeights
-      )
-    : null;
-
   const latestSnapshot = (snapshots ?? [])[0];
   const latestValuation = (valuations ?? [])[0];
   const settingsForCalc = settings ?? {
@@ -183,23 +164,28 @@ export default async function PropertyFactsheetPage({
     : null;
 
   const valuationResult = latestValuation
-    ? computeValuation({
-        sqm: property.sqm == null ? null : Number(property.sqm),
-        marketRentPerSqm:
-          latestValuation.market_rent_per_sqm == null
-            ? null
-            : Number(latestValuation.market_rent_per_sqm),
-        multiple:
-          latestValuation.multiple == null
-            ? null
-            : Number(latestValuation.multiple),
-        landValue:
-          property.land_value == null ? null : Number(property.land_value),
-        buildingValue:
-          latestValuation.building_value == null
-            ? null
-            : Number(latestValuation.building_value),
-      })
+    ? computeValuation(
+        {
+          sqm: property.sqm == null ? null : Number(property.sqm),
+          marketRentPerSqm:
+            latestValuation.market_rent_per_sqm == null
+              ? null
+              : Number(latestValuation.market_rent_per_sqm),
+          multiple:
+            latestValuation.multiple == null
+              ? null
+              : Number(latestValuation.multiple),
+          landValue:
+            property.land_value == null ? null : Number(property.land_value),
+          buildingValue:
+            latestValuation.building_value == null
+              ? null
+              : Number(latestValuation.building_value),
+        },
+        latestValuation.income_weight == null
+          ? 0.5
+          : Number(latestValuation.income_weight)
+      )
     : null;
 
   const equity =
@@ -425,10 +411,7 @@ export default async function PropertyFactsheetPage({
         <Card title={t("factsheet.tenant_summary")}>
           {tenant ? (
             <div className="space-y-1 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{tenant.name}</span>
-                <TenantScoreBadge score={tenantSc} />
-              </div>
+              <span className="font-medium">{tenant.name}</span>
               {tenant.contract_start && (
                 <div className="text-neutral-500 dark:text-neutral-400">
                   {t("tenants.contract_start")}: {dateDe(tenant.contract_start)}

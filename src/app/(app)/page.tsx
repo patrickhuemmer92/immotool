@@ -4,13 +4,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance } from "@/lib/calculations/loan";
+import { formatPropertyAddress } from "@/lib/properties";
 import {
   computeSnapshotResult,
   type LoanForPnL,
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
-import { DiversificationPie } from "@/components/charts/diversification-pie";
-import { AcquisitionsBar } from "@/components/charts/acquisitions-bar";
+import {
+  PortfolioBalanceBar,
+  type PortfolioBalanceRow,
+} from "@/components/charts/portfolio-balance-bar";
 
 export default async function DashboardPage() {
   const t = await getTranslations();
@@ -24,7 +27,7 @@ export default async function DashboardPage() {
       .select(
         `id, street, postal_code, city, location_detail, description, sqm, land_value, purchase_price, transfer_date,
          building_value_share_pct, depreciation_rate,
-         portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value),
+         portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight),
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate,
                special_repayments(payment_date, amount)),
          pnl_snapshots(id, period_start, period_end, cold_rent, ancillary_costs, property_fee_recoverable, property_fee_not_recoverable, maintenance, annuity_override, interest_override, principal_override)`
@@ -44,8 +47,7 @@ export default async function DashboardPage() {
   let totalLoans = 0;
   let totalAfterTax = 0;
 
-  const cityBuckets = new Map<string, number>();
-  const yearBuckets = new Map<string, { count: number; sum: number }>();
+  const balanceRows: PortfolioBalanceRow[] = [];
 
   const settingsForCalc = settings ?? {
     tax_rate: 0.35,
@@ -63,31 +65,38 @@ export default async function DashboardPage() {
         market_rent_per_sqm: string | number | null;
         multiple: string | number | null;
         building_value: string | number | null;
+        income_weight: string | number | null;
       }[]) ?? [];
     const latestVal = valuations
       .slice()
       .sort((a, b) => b.valuation_date.localeCompare(a.valuation_date))[0];
     if (latestVal) {
-      const r = computeValuation({
-        sqm: p.sqm == null ? null : Number(p.sqm),
-        marketRentPerSqm:
-          latestVal.market_rent_per_sqm == null
-            ? null
-            : Number(latestVal.market_rent_per_sqm),
-        multiple: latestVal.multiple == null ? null : Number(latestVal.multiple),
-        landValue: p.land_value == null ? null : Number(p.land_value),
-        buildingValue:
-          latestVal.building_value == null
-            ? null
-            : Number(latestVal.building_value),
-      });
+      const r = computeValuation(
+        {
+          sqm: p.sqm == null ? null : Number(p.sqm),
+          marketRentPerSqm:
+            latestVal.market_rent_per_sqm == null
+              ? null
+              : Number(latestVal.market_rent_per_sqm),
+          multiple: latestVal.multiple == null ? null : Number(latestVal.multiple),
+          landValue: p.land_value == null ? null : Number(p.land_value),
+          buildingValue:
+            latestVal.building_value == null
+              ? null
+              : Number(latestVal.building_value),
+        },
+        latestVal.income_weight == null
+          ? 0.5
+          : Number(latestVal.income_weight)
+      );
       if (r.combined != null) totalValue += r.combined;
     }
 
     const loans =
       (p.loans as unknown as (LoanForPnL & { id?: string })[]) ?? [];
+    let propertyRemaining = 0;
     for (const l of loans) {
-      totalLoans += loanBalance(
+      const r = loanBalance(
         {
           loanAmount: Number(l.loan_amount),
           interestRatePa: Number(l.interest_rate_pa),
@@ -104,7 +113,15 @@ export default async function DashboardPage() {
           amount: Number(s.amount),
         }))
       );
+      propertyRemaining += r;
+      totalLoans += r;
     }
+    balanceRows.push({
+      label: formatPropertyAddress(p),
+      purchase,
+      remaining: propertyRemaining,
+      equity: purchase - propertyRemaining,
+    });
 
     const snaps =
       (p.pnl_snapshots as unknown as SnapshotInputRow[]) ?? [];
@@ -121,32 +138,9 @@ export default async function DashboardPage() {
       totalAfterTax += r.afterTaxCashflow;
     }
 
-    const cityVal = (p.purchase_price == null
-      ? 0
-      : Number(p.purchase_price)) || 0;
-    cityBuckets.set(
-      p.city,
-      (cityBuckets.get(p.city) ?? 0) + cityVal
-    );
-
-    if (p.transfer_date) {
-      const year = new Date(p.transfer_date).getFullYear().toString();
-      const cur = yearBuckets.get(year) ?? { count: 0, sum: 0 };
-      yearBuckets.set(year, {
-        count: cur.count + 1,
-        sum: cur.sum + (purchase || 0),
-      });
-    }
   }
 
-  const cityData = Array.from(cityBuckets.entries())
-    .filter(([, v]) => v > 0)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
-
-  const yearData = Array.from(yearBuckets.entries())
-    .map(([year, v]) => ({ year, count: v.count, sum: v.sum }))
-    .sort((a, b) => a.year.localeCompare(b.year));
+  balanceRows.sort((a, b) => b.purchase - a.purchase);
 
   return (
     <div>
@@ -154,9 +148,19 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("nav.dashboard")}
         </h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {active.name}
-        </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/api/pdf/factbook/portfolio"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+          >
+            {t("factsheet.download_factbook")}
+          </a>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            {active.name}
+          </p>
+        </div>
       </div>
 
       <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -188,27 +192,21 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {cityData.length > 0 ? (
-          <DiversificationPie
-            data={cityData}
-            title={t("portfolio.diversification_city")}
+      <div className="mt-8">
+        {balanceRows.length > 0 ? (
+          <PortfolioBalanceBar
+            data={balanceRows}
+            title={t("portfolio.balance_chart_title")}
+            labels={{
+              purchase: t("portfolio.kpi_purchase_total_short"),
+              remaining: t("portfolio.kpi_remaining_loans_short"),
+              equity: t("portfolio.kpi_equity_short"),
+            }}
           />
         ) : (
           <ChartPlaceholder
-            title={t("portfolio.diversification_city")}
+            title={t("portfolio.balance_chart_title")}
             message={t("portfolio.no_purchase_data")}
-          />
-        )}
-        {yearData.length > 0 ? (
-          <AcquisitionsBar
-            data={yearData}
-            title={t("portfolio.diversification_year")}
-          />
-        ) : (
-          <ChartPlaceholder
-            title={t("portfolio.diversification_year")}
-            message={t("portfolio.no_transfer_dates")}
           />
         )}
       </div>

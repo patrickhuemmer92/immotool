@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { createValuation, type ValuationState } from "./actions";
+
+const WEIGHT_PRESETS = [0, 0.25, 0.5, 0.75, 1] as const;
 
 export function ValuationForm({ propertyId }: { propertyId: string }) {
   const t = useTranslations();
@@ -12,6 +14,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
     undefined
   );
   const today = new Date().toISOString().slice(0, 10);
+  const [incomeWeight, setIncomeWeight] = useState<number>(0.5);
 
   return (
     <form
@@ -84,6 +87,37 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             className={inputClass}
           />
         </Field>
+      </div>
+
+      <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">
+        <input type="hidden" name="income_weight" value={incomeWeight} />
+        <label className="text-sm font-medium block mb-2">
+          {t("valuation.weighting")}
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {WEIGHT_PRESETS.map((w) => {
+            const active = Math.abs(w - incomeWeight) < 0.001;
+            return (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setIncomeWeight(w)}
+                className={
+                  "rounded-lg px-3 py-1.5 text-sm border " +
+                  (active
+                    ? "bg-accent text-accent-foreground border-transparent"
+                    : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800")
+                }
+              >
+                {Math.round(w * 100)}% {t("valuation.ertragswert")} /{" "}
+                {Math.round((1 - w) * 100)}% {t("valuation.sachwert")}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+          {t("valuation.weighting_help")}
+        </p>
       </div>
 
       <FormError raw={state?.error} />

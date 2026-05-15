@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress, type PropertyKind } from "@/lib/properties";
+import { computeValuation } from "@/lib/calculations/valuation";
 
 export default async function PropertiesPage() {
   const t = await getTranslations();
@@ -13,11 +14,46 @@ export default async function PropertiesPage() {
   const { data: properties } = await supabase
     .from("properties")
     .select(
-      "id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price"
+      `id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price, land_value,
+       portfolio_valuations(valuation_date, market_rent_per_sqm, multiple, building_value, income_weight)`
     )
     .eq("workspace_id", active.id)
     .order("city")
     .order("street");
+
+  type Valuation = {
+    valuation_date: string;
+    market_rent_per_sqm: string | number | null;
+    multiple: string | number | null;
+    building_value: string | number | null;
+    income_weight: string | number | null;
+  };
+  const marketValue = new Map<string, number | null>();
+  for (const p of properties ?? []) {
+    const vals = ((p.portfolio_valuations as unknown) as Valuation[]) ?? [];
+    if (vals.length === 0) {
+      marketValue.set(p.id, null);
+      continue;
+    }
+    const latest = vals
+      .slice()
+      .sort((a, b) => b.valuation_date.localeCompare(a.valuation_date))[0];
+    const r = computeValuation(
+      {
+        sqm: p.sqm == null ? null : Number(p.sqm),
+        marketRentPerSqm:
+          latest.market_rent_per_sqm == null
+            ? null
+            : Number(latest.market_rent_per_sqm),
+        multiple: latest.multiple == null ? null : Number(latest.multiple),
+        landValue: p.land_value == null ? null : Number(p.land_value),
+        buildingValue:
+          latest.building_value == null ? null : Number(latest.building_value),
+      },
+      latest.income_weight == null ? 0.5 : Number(latest.income_weight)
+    );
+    marketValue.set(p.id, r.combined);
+  }
 
   return (
     <div>
@@ -25,14 +61,24 @@ export default async function PropertiesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("properties.title")}
         </h1>
-        {canEdit(active.role) && (
-          <Link
-            href="/objekte/neu"
-            className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+        <div className="flex items-center gap-2">
+          <a
+            href="/api/pdf/factbook/portfolio"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
           >
-            + {t("properties.new")}
-          </Link>
-        )}
+            {t("factsheet.download_factbook")}
+          </a>
+          {canEdit(active.role) && (
+            <Link
+              href="/objekte/neu"
+              className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+            >
+              + {t("properties.new")}
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="mt-6">
@@ -49,6 +95,7 @@ export default async function PropertiesPage() {
                   <Th>{t("properties.section_address")}</Th>
                   <Th>{t("properties.sqm")}</Th>
                   <Th>{t("properties.purchase_price")}</Th>
+                  <Th>{t("valuation.combined")}</Th>
                   <Th></Th>
                 </tr>
               </thead>
@@ -74,6 +121,7 @@ export default async function PropertiesPage() {
                     </Td>
                     <Td>{formatNumber(p.sqm)}</Td>
                     <Td>{formatCurrency(p.purchase_price)}</Td>
+                    <Td>{formatCurrency(marketValue.get(p.id) ?? null)}</Td>
                     <Td>
                       <Link
                         href={`/objekte/${p.id}`}

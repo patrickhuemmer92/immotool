@@ -30,7 +30,7 @@ export type PdfPropertyData = {
     purchase_price: number | null;
     transfer_date: string | null;
   };
-  owners: { name: string; share: number }[];
+  owners: { id: string; name: string; share: number }[];
   loans: {
     id: string;
     designation: string;
@@ -100,7 +100,7 @@ export async function fetchPropertyForPdf(
     supabase.from("properties").select("*").eq("id", propertyId).maybeSingle(),
     supabase
       .from("property_owners")
-      .select("ownership_share, owner:owners!inner(name)")
+      .select("ownership_share, owner:owners!inner(id, name)")
       .eq("property_id", propertyId),
     supabase
       .from("loans")
@@ -117,7 +117,7 @@ export async function fetchPropertyForPdf(
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, market_rent_per_sqm, multiple, building_value"
+        "id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight"
       )
       .eq("property_id", propertyId)
       .order("valuation_date", { ascending: false })
@@ -231,25 +231,39 @@ export async function fetchPropertyForPdf(
     };
   });
 
-  const latestValuation = (valuations ?? [])[0];
+  const latestValuation = (valuations ?? [])[0] as
+    | {
+        id: string;
+        valuation_date: string;
+        market_rent_per_sqm: string | number | null;
+        multiple: string | number | null;
+        building_value: string | number | null;
+        income_weight: string | number | null;
+      }
+    | undefined;
   const valuationResult = latestValuation
-    ? computeValuation({
-        sqm: property.sqm == null ? null : Number(property.sqm),
-        marketRentPerSqm:
-          latestValuation.market_rent_per_sqm == null
-            ? null
-            : Number(latestValuation.market_rent_per_sqm),
-        multiple:
-          latestValuation.multiple == null
-            ? null
-            : Number(latestValuation.multiple),
-        landValue:
-          property.land_value == null ? null : Number(property.land_value),
-        buildingValue:
-          latestValuation.building_value == null
-            ? null
-            : Number(latestValuation.building_value),
-      })
+    ? computeValuation(
+        {
+          sqm: property.sqm == null ? null : Number(property.sqm),
+          marketRentPerSqm:
+            latestValuation.market_rent_per_sqm == null
+              ? null
+              : Number(latestValuation.market_rent_per_sqm),
+          multiple:
+            latestValuation.multiple == null
+              ? null
+              : Number(latestValuation.multiple),
+          landValue:
+            property.land_value == null ? null : Number(property.land_value),
+          buildingValue:
+            latestValuation.building_value == null
+              ? null
+              : Number(latestValuation.building_value),
+        },
+        latestValuation.income_weight == null
+          ? 0.5
+          : Number(latestValuation.income_weight)
+      )
     : null;
 
   const tenantSummary = tenant
@@ -303,8 +317,9 @@ export async function fetchPropertyForPdf(
     },
     owners: ((owners as unknown) as {
       ownership_share: string | number;
-      owner: { name: string };
+      owner: { id: string; name: string };
     }[] ?? []).map((o) => ({
+      id: o.owner.id,
       name: o.owner.name,
       share: Number(o.ownership_share),
     })),

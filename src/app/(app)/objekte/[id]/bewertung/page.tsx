@@ -30,7 +30,7 @@ export default async function PropertyValuationPage({
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, notes"
+        "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, income_weight, notes"
       )
       .eq("property_id", id)
       .order("valuation_date", { ascending: false }),
@@ -73,17 +73,22 @@ export default async function PropertyValuationPage({
         ) : (
           <div className="space-y-4">
             {(valuations ?? []).map((v) => {
-              const result = computeValuation({
-                sqm,
-                marketRentPerSqm:
-                  v.market_rent_per_sqm == null
-                    ? null
-                    : Number(v.market_rent_per_sqm),
-                multiple: v.multiple == null ? null : Number(v.multiple),
-                landValue,
-                buildingValue:
-                  v.building_value == null ? null : Number(v.building_value),
-              });
+              const w =
+                v.income_weight == null ? 0.5 : Number(v.income_weight);
+              const result = computeValuation(
+                {
+                  sqm,
+                  marketRentPerSqm:
+                    v.market_rent_per_sqm == null
+                      ? null
+                      : Number(v.market_rent_per_sqm),
+                  multiple: v.multiple == null ? null : Number(v.multiple),
+                  landValue,
+                  buildingValue:
+                    v.building_value == null ? null : Number(v.building_value),
+                },
+                w
+              );
               return (
                 <div
                   key={v.id}
@@ -93,7 +98,12 @@ export default async function PropertyValuationPage({
                     <h3 className="text-sm font-semibold">
                       {dateDe(v.valuation_date)}
                     </h3>
-                    <ConditionBadge score={v.condition_score} t={t} />
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-neutral-500 dark:text-neutral-400 tabular-nums">
+                        {Math.round(w * 100)}/{Math.round((1 - w) * 100)}
+                      </span>
+                      <ConditionBadge score={v.condition_score} t={t} />
+                    </div>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-3">
                     <Stat

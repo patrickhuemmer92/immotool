@@ -151,6 +151,28 @@ function applyAutoDescription<
   return data;
 }
 
+const ownerShareSchema = z.object({
+  owner_id: z.string().uuid("invalid_owner_id"),
+  ownership_share: z.number().gt(0, "share_range").lte(1, "share_range"),
+});
+
+const ownersPayloadSchema = z.object({
+  shares: z.array(ownerShareSchema),
+});
+
+function parseOwnersPayload(
+  raw: FormDataEntryValue | null
+): { shares: { owner_id: string; ownership_share: number }[] } | null {
+  if (typeof raw !== "string" || raw.length === 0) return { shares: [] };
+  try {
+    const json = JSON.parse(raw);
+    const r = ownersPayloadSchema.safeParse(json);
+    return r.success ? r.data : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function createProperty(
   _prev: PropertyFormState,
   formData: FormData
@@ -160,6 +182,22 @@ export async function createProperty(
 
   const parsed = propertySchema.safeParse(readForm(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const ownersPayload = parseOwnersPayload(formData.get("owners_payload"));
+  if (ownersPayload === null) return { error: "invalid_owners_payload" };
+
+  if (ownersPayload.shares.length > 0) {
+    const ids = new Set<string>();
+    for (const s of ownersPayload.shares) {
+      if (ids.has(s.owner_id)) return { error: "duplicate_owner" };
+      ids.add(s.owner_id);
+    }
+    const sum = ownersPayload.shares.reduce(
+      (acc, s) => acc + s.ownership_share,
+      0
+    );
+    if (Math.abs(sum - 1) > 0.0001) return { error: "sum_not_one" };
+  }
 
   const payload = applyAutoDescription(parsed.data);
 
@@ -171,6 +209,14 @@ export async function createProperty(
     .single();
 
   if (error) return { error: error.message };
+
+  if (ownersPayload.shares.length > 0) {
+    const { error: rpcError } = await supabase.rpc("set_property_owners", {
+      p_property_id: data.id,
+      p_shares: ownersPayload.shares,
+    });
+    if (rpcError) return { error: rpcError.message };
+  }
 
   revalidatePath("/objekte");
   redirect(`/objekte/${data.id}`);
