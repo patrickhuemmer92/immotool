@@ -318,14 +318,6 @@ export default async function PropertyFactsheetPage({
           >
             {t("factsheet.download_factsheet")}
           </a>
-          <a
-            href={`/api/pdf/factbook/property/${id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          >
-            {t("factsheet.download_factbook")}
-          </a>
           {isOwner(active.role) && (
             <form action={deleteProperty.bind(null, property.id)}>
               <button

@@ -100,6 +100,37 @@ export async function createValuation(
   return undefined;
 }
 
+export async function updateValuation(
+  valuationId: string,
+  propertyId: string,
+  _prev: ValuationState,
+  formData: FormData
+): Promise<ValuationState> {
+  const parsed = schema.safeParse({
+    valuation_date: getStr(formData, "valuation_date"),
+    condition_score: getStr(formData, "condition_score"),
+    market_rent_per_sqm: getStr(formData, "market_rent_per_sqm"),
+    multiple: getStr(formData, "multiple"),
+    building_value: getStr(formData, "building_value"),
+    income_weight: getStr(formData, "income_weight"),
+    notes: getStr(formData, "notes"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const { income_weight, ...rest } = parsed.data;
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("portfolio_valuations")
+    .update({ ...rest, income_weight: income_weight ?? 0.5 })
+    .eq("id", valuationId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/objekte/${propertyId}/bewertung`);
+  revalidatePath(`/objekte`);
+  return undefined;
+}
+
 export async function deleteValuation(id: string, propertyId: string) {
   const supabase = await createClient();
   await supabase.from("portfolio_valuations").delete().eq("id", id);

@@ -48,6 +48,7 @@ export default async function LoanDetailPage({
     amortization_pa: decimalToPercentInput(Number(loan.amortization_pa)),
     first_payment_date: loan.first_payment_date,
     rate_lock_until: loan.rate_lock_until ?? "",
+    maturity_date: loan.maturity_date ?? "",
     interest_share_first_rate:
       loan.interest_share_first_rate != null
         ? decimalToNumInput(Number(loan.interest_share_first_rate))

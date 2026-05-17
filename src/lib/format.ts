@@ -85,21 +85,38 @@ export function parseDecimal(raw: string | null | undefined): number | null {
   // Strip currency / percent symbols and whitespace.
   let s = trimmed.replace(/[\s€%]/g, "");
 
+  const dotCount = (s.match(/\./g) ?? []).length;
+  const commaCount = (s.match(/,/g) ?? []).length;
   const lastDot = s.lastIndexOf(".");
   const lastComma = s.lastIndexOf(",");
 
-  if (lastDot !== -1 && lastComma !== -1) {
+  if (dotCount > 0 && commaCount > 0) {
     // Both present — the later one is the decimal separator.
     if (lastComma > lastDot) {
       s = s.replace(/\./g, "").replace(",", ".");
     } else {
       s = s.replace(/,/g, "");
     }
-  } else if (lastComma !== -1) {
+  } else if (commaCount > 0) {
     // Only comma: treat as German decimal separator.
     s = s.replace(/\./g, "").replace(",", ".");
+  } else if (dotCount > 1) {
+    // Multiple dots, no comma → all thousand separators ("1.234.567").
+    s = s.replace(/\./g, "");
+  } else if (dotCount === 1) {
+    // Single dot, no comma — disambiguate German thousand separator vs. decimal.
+    // "90.000" / "1.500" → thousand. "0.5" / "1.5" / "22.5" / "0.123" → decimal.
+    const beforeStr = s.slice(0, lastDot);
+    const afterStr = s.slice(lastDot + 1);
+    const looksLikeThousand =
+      afterStr.length === 3 &&
+      beforeStr.length >= 1 &&
+      beforeStr.length <= 3 &&
+      beforeStr !== "0";
+    if (looksLikeThousand) {
+      s = s.replace(".", "");
+    }
   }
-  // Only dot (or neither): nothing to do.
 
   const n = Number(s);
   return Number.isFinite(n) ? n : null;

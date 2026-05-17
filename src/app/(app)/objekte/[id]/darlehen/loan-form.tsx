@@ -19,6 +19,7 @@ export type LoanDefaults = {
   amortization_pa: string;
   first_payment_date: string;
   rate_lock_until: string;
+  maturity_date: string;
   interest_share_first_rate: string;
   notes: string;
 };
@@ -33,6 +34,7 @@ export const EMPTY_LOAN_DEFAULTS: LoanDefaults = {
   amortization_pa: "",
   first_payment_date: "",
   rate_lock_until: "",
+  maturity_date: "",
   interest_share_first_rate: "",
   notes: "",
 };
@@ -152,6 +154,15 @@ export function LoanForm({
               name="rate_lock_until"
               type="date"
               defaultValue={defaults.rate_lock_until}
+              className={inputClass}
+            />
+          </Field>
+          <Field id="maturity_date" label={t("loans.maturity_date")}>
+            <input
+              id="maturity_date"
+              name="maturity_date"
+              type="date"
+              defaultValue={defaults.maturity_date}
               className={inputClass}
             />
           </Field>
