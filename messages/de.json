@@ -174,7 +174,7 @@
     "section_financing": "Finanzierung",
     "equity_amount": "Eigenkapital (€)",
     "loans_sum_label": "Summe Darlehen",
-    "financing_target": "Soll: Anschaffung − Eigenkapital",
+    "financing_target": "Soll: Anschaffungskosten gesamt − Eigenkapital",
     "financing_match_ok": "Stimmt mit Summe Darlehen überein.",
     "financing_match_warn": "Summe Darlehen weicht ab (Differenz: {diff}).",
     "acquisition_total": "Anschaffungskosten gesamt",

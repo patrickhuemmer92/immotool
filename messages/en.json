@@ -174,7 +174,7 @@
     "section_financing": "Financing",
     "equity_amount": "Equity (€)",
     "loans_sum_label": "Sum of loans",
-    "financing_target": "Target: acquisition − equity",
+    "financing_target": "Target: total acquisition cost − equity",
     "financing_match_ok": "Matches sum of loans.",
     "financing_match_warn": "Sum of loans diverges (diff: {diff}).",
     "acquisition_total": "Acquisition cost total",

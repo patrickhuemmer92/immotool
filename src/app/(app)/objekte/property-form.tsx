@@ -86,11 +86,11 @@ export function PropertyForm({
     [purchasePrice, transferTax, brokerFee, notaryFee, registrationCost]
   );
 
-  // Financing target: purchase_price - equity should match Σ loans
+  // Financing target: acquisition cost total (incl. Nebenkosten) − equity should match Σ loans
   const financingTarget = useMemo(() => {
-    if (purchasePrice == null) return null;
-    return purchasePrice - (equity ?? 0);
-  }, [purchasePrice, equity]);
+    if (acquisitionTotal === 0) return null;
+    return acquisitionTotal - (equity ?? 0);
+  }, [acquisitionTotal, equity]);
   const financingDiff = useMemo(() => {
     if (financingTarget == null || loansSum == null) return null;
     return Math.round((loansSum - financingTarget) * 100) / 100;
