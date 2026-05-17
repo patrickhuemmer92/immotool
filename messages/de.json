@@ -220,6 +220,7 @@
     "amortization_pa": "Tilgung p. a. (%)",
     "first_payment_date": "Erste Rate",
     "rate_lock_until": "Zinsbindung bis",
+    "maturity_date": "Endfälligkeit",
     "interest_share_first_rate": "Zinsanteil 1. Rate (€)",
     "annuity": "Annuität (monatlich)",
     "monthly_principal": "Tilgung (monatlich)",

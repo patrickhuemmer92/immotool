@@ -220,6 +220,7 @@
     "amortization_pa": "Amortization p.a. (%)",
     "first_payment_date": "First payment",
     "rate_lock_until": "Rate locked until",
+    "maturity_date": "Maturity",
     "interest_share_first_rate": "Interest share of 1st payment (€)",
     "annuity": "Annuity (monthly)",
     "monthly_principal": "Principal (monthly)",

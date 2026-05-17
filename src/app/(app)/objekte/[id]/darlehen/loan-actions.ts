@@ -71,6 +71,7 @@ const loanSchema = z.object({
   amortization_pa: requiredPercent,
   first_payment_date: z.string().min(1, "first_payment_date_required"),
   rate_lock_until: optDate,
+  maturity_date: optDate,
   interest_share_first_rate: optNumber,
   notes: z
     .string()
@@ -94,6 +95,7 @@ function readForm(formData: FormData) {
     amortization_pa: getStr(formData, "amortization_pa"),
     first_payment_date: getStr(formData, "first_payment_date"),
     rate_lock_until: getStr(formData, "rate_lock_until"),
+    maturity_date: getStr(formData, "maturity_date"),
     interest_share_first_rate: getStr(formData, "interest_share_first_rate"),
     notes: getStr(formData, "notes"),
   };

@@ -7,6 +7,7 @@ import { formatPropertyAddress } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { dateDe } from "@/lib/format";
 import { ValuationForm } from "./valuation-form";
+import { deleteValuation } from "./actions";
 
 export default async function PropertyValuationPage({
   params,
@@ -105,6 +106,41 @@ export default async function PropertyValuationPage({
                       <ConditionBadge score={v.condition_score} t={t} />
                     </div>
                   </div>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+                    {v.market_rent_per_sqm != null && (
+                      <span>
+                        {t("valuation.market_rent_per_sqm")}:{" "}
+                        <strong className="text-neutral-700 dark:text-neutral-200 tabular-nums">
+                          {Number(v.market_rent_per_sqm).toLocaleString(
+                            "de-DE",
+                            { maximumFractionDigits: 2 }
+                          )}
+                        </strong>
+                      </span>
+                    )}
+                    {v.multiple != null && (
+                      <span>
+                        {t("valuation.multiple")}:{" "}
+                        <strong className="text-neutral-700 dark:text-neutral-200 tabular-nums">
+                          {Number(v.multiple).toLocaleString("de-DE", {
+                            maximumFractionDigits: 2,
+                          })}
+                        </strong>
+                      </span>
+                    )}
+                    {v.building_value != null && (
+                      <span>
+                        {t("valuation.building_value")}:{" "}
+                        <strong className="text-neutral-700 dark:text-neutral-200 tabular-nums">
+                          {Number(v.building_value).toLocaleString("de-DE", {
+                            style: "currency",
+                            currency: "EUR",
+                            maximumFractionDigits: 0,
+                          })}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-3 grid grid-cols-3 gap-3">
                     <Stat
                       label={t("valuation.ertragswert")}
@@ -123,6 +159,27 @@ export default async function PropertyValuationPage({
                   <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-3 leading-snug">
                     {t("valuation.method_footnote")}
                   </p>
+                  {editable && (
+                    <div className="mt-3 flex items-center gap-3 border-t border-neutral-200 dark:border-neutral-800 pt-3">
+                      <Link
+                        href={`/objekte/${id}/bewertung/${v.id}/bearbeiten`}
+                        className="text-sm text-neutral-700 dark:text-neutral-300 hover:underline"
+                      >
+                        {t("common.edit")} →
+                      </Link>
+                      <form
+                        action={deleteValuation.bind(null, v.id, id)}
+                        className="ml-auto"
+                      >
+                        <button
+                          type="submit"
+                          className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                        >
+                          {t("valuation.delete")}
+                        </button>
+                      </form>
+                    </div>
+                  )}
                 </div>
               );
             })}

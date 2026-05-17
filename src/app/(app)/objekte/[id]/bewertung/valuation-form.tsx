@@ -3,18 +3,50 @@
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
-import { createValuation, type ValuationState } from "./actions";
+import {
+  createValuation,
+  updateValuation,
+  type ValuationState,
+} from "./actions";
 
 const WEIGHT_PRESETS = [0, 0.25, 0.5, 0.75, 1] as const;
 
-export function ValuationForm({ propertyId }: { propertyId: string }) {
+export type ValuationDefaults = {
+  valuation_date: string;
+  condition_score: string;
+  market_rent_per_sqm: string;
+  multiple: string;
+  building_value: string;
+  income_weight: number;
+};
+
+export function ValuationForm({
+  propertyId,
+  valuationId,
+  defaults,
+}: {
+  propertyId: string;
+  valuationId?: string;
+  defaults?: ValuationDefaults;
+}) {
   const t = useTranslations();
+  const today = new Date().toISOString().slice(0, 10);
+  const initial: ValuationDefaults = defaults ?? {
+    valuation_date: today,
+    condition_score: "",
+    market_rent_per_sqm: "",
+    multiple: "",
+    building_value: "",
+    income_weight: 0.5,
+  };
+  const action = valuationId
+    ? updateValuation.bind(null, valuationId, propertyId)
+    : createValuation.bind(null, propertyId);
   const [state, formAction, pending] = useActionState<ValuationState, FormData>(
-    createValuation.bind(null, propertyId),
+    action,
     undefined
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const [incomeWeight, setIncomeWeight] = useState<number>(0.5);
+  const [incomeWeight, setIncomeWeight] = useState<number>(initial.income_weight);
 
   return (
     <form
@@ -27,7 +59,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             id="valuation_date"
             name="valuation_date"
             type="date"
-            defaultValue={today}
+            defaultValue={initial.valuation_date}
             required
             className={inputClass}
           />
@@ -43,6 +75,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             type="number"
             min={1}
             max={10}
+            defaultValue={initial.condition_score}
             className={inputClass}
           />
         </Field>
@@ -57,6 +90,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             type="text"
             inputMode="decimal"
             placeholder="z. B. 9,50"
+            defaultValue={initial.market_rent_per_sqm}
             className={inputClass}
           />
         </Field>
@@ -71,6 +105,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             type="text"
             inputMode="decimal"
             placeholder="z. B. 22"
+            defaultValue={initial.multiple}
             className={inputClass}
           />
         </Field>
@@ -84,6 +119,7 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
             name="building_value"
             type="text"
             inputMode="decimal"
+            defaultValue={initial.building_value}
             className={inputClass}
           />
         </Field>
@@ -127,7 +163,11 @@ export function ValuationForm({ propertyId }: { propertyId: string }) {
         disabled={pending}
         className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
-        {pending ? t("common.loading") : t("valuation.new")}
+        {pending
+          ? t("common.loading")
+          : valuationId
+            ? t("common.save")
+            : t("valuation.new")}
       </button>
 
       <p className="text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug pt-2 border-t border-neutral-200 dark:border-neutral-800">
