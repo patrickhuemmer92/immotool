@@ -214,16 +214,51 @@ export function computePnL(input: PnLInput): PnLResult {
  * Convenience for properties: compute the AfA basis (annual building share to
  * be depreciated) from purchase price and incidentals.
  */
+/**
+ * AfA-Bemessungsgrundlage nach § 7 Abs. 4 EStG:
+ * Gebäudeanteil am Kaufpreis PLUS anteilige Anschaffungsnebenkosten
+ * (Grunderwerbsteuer, Maklerprovision, Notar, Grundbuch).
+ * Nebenkosten werden im selben Verhältnis wie der Kaufpreis aufgeteilt.
+ * Geldbeschaffungskosten gehören NICHT dazu (Werbungskosten, § 9 EStG).
+ */
+export function buildingAfaBreakdown(args: {
+  purchasePrice: number | null;
+  buildingValueSharePct: number | null;
+  landValue: number | null;
+  ancillaryCosts?: number | null;
+}): {
+  basis: number;
+  buildingShare: number;
+  fromPurchase: number;
+  fromAncillary: number;
+  ancillary: number;
+} {
+  let buildingShare = 0;
+  let fromPurchase = 0;
+  if (args.buildingValueSharePct != null && args.purchasePrice != null) {
+    buildingShare = args.buildingValueSharePct;
+    fromPurchase = args.purchasePrice * buildingShare;
+  } else if (args.landValue != null && args.purchasePrice != null) {
+    fromPurchase = Math.max(0, args.purchasePrice - args.landValue);
+    buildingShare =
+      args.purchasePrice > 0 ? fromPurchase / args.purchasePrice : 0;
+  }
+  const ancillary = args.ancillaryCosts ?? 0;
+  const fromAncillary = ancillary * buildingShare;
+  return {
+    basis: fromPurchase + fromAncillary,
+    buildingShare,
+    fromPurchase,
+    fromAncillary,
+    ancillary,
+  };
+}
+
 export function buildingAfaBasis(args: {
   purchasePrice: number | null;
   buildingValueSharePct: number | null;
   landValue: number | null;
+  ancillaryCosts?: number | null;
 }): number {
-  if (args.buildingValueSharePct != null && args.purchasePrice != null) {
-    return args.purchasePrice * args.buildingValueSharePct;
-  }
-  if (args.landValue != null && args.purchasePrice != null) {
-    return Math.max(0, args.purchasePrice - args.landValue);
-  }
-  return 0;
+  return buildingAfaBreakdown(args).basis;
 }

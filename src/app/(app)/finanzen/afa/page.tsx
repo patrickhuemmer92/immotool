@@ -17,6 +17,7 @@ export default async function PortfolioAfaPage() {
       .select(
         `id, street, postal_code, city, location_detail, description,
          purchase_price, building_value_share_pct, land_value, depreciation_rate,
+         transfer_tax, broker_fee, notary_fee, registration_cost,
          other_depreciation_items(acquisition_cost, duration_years)`
       )
       .eq("workspace_id", active.id)
@@ -53,10 +54,16 @@ export default async function PortfolioAfaPage() {
   let totalOther = 0;
 
   for (const p of properties ?? []) {
+    const ancillary =
+      (num(p.transfer_tax) ?? 0) +
+      (num(p.broker_fee) ?? 0) +
+      (num(p.notary_fee) ?? 0) +
+      (num(p.registration_cost) ?? 0);
     const afaBasis = buildingAfaBasis({
       purchasePrice: num(p.purchase_price),
       buildingValueSharePct: num(p.building_value_share_pct),
       landValue: num(p.land_value),
+      ancillaryCosts: ancillary || null,
     });
     const rate = num(p.depreciation_rate) ?? defaultRate;
     const annualBuilding = afaBasis * rate;

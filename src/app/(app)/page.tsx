@@ -26,6 +26,7 @@ export default async function DashboardPage() {
       .from("properties")
       .select(
         `id, street, postal_code, city, location_detail, description, sqm, land_value, purchase_price, transfer_date,
+         transfer_tax, broker_fee, notary_fee, registration_cost,
          building_value_share_pct, depreciation_rate,
          portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight),
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate,

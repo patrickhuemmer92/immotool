@@ -11,6 +11,10 @@ export type PropertyForPnL = {
   building_value_share_pct: string | number | null;
   land_value: string | number | null;
   depreciation_rate: string | number | null;
+  transfer_tax?: string | number | null;
+  broker_fee?: string | number | null;
+  notary_fee?: string | number | null;
+  registration_cost?: string | number | null;
 };
 
 export type LoanForPnL = {
@@ -54,10 +58,16 @@ export function buildPnLInput(
 ): PnLInput {
   const depreciationRate =
     num(property.depreciation_rate) ?? num(settings.default_depreciation_rate) ?? 0;
+  const ancillary =
+    (num(property.transfer_tax) ?? 0) +
+    (num(property.broker_fee) ?? 0) +
+    (num(property.notary_fee) ?? 0) +
+    (num(property.registration_cost) ?? 0);
   const afaBasis = buildingAfaBasis({
     purchasePrice: num(property.purchase_price),
     buildingValueSharePct: num(property.building_value_share_pct),
     landValue: num(property.land_value),
+    ancillaryCosts: ancillary || null,
   });
 
   const loansMapped = loans.map((l) => {
