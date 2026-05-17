@@ -71,6 +71,7 @@ export default async function PropertyLoansPage({
                   <Th>{t("loans.interest_rate_pa")}</Th>
                   <Th>{t("loans.amortization_pa")}</Th>
                   <Th></Th>
+                  <Th></Th>
                 </tr>
               </thead>
               <tbody>
@@ -97,6 +98,14 @@ export default async function PropertyLoansPage({
                         className="text-sm hover:underline"
                       >
                         {t("common.edit")} →
+                      </Link>
+                    </Td>
+                    <Td>
+                      <Link
+                        href={`/objekte/${id}/darlehen/${l.id}/tilgungsplan`}
+                        className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-2 py-1 text-xs hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                      >
+                        {t("loans.amortization_plan")}
                       </Link>
                     </Td>
                   </tr>
