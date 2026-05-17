@@ -40,6 +40,7 @@ export default async function PortfolioPnLPage() {
       .select(
         `id, street, postal_code, city, location_detail, description,
          purchase_price, building_value_share_pct, land_value, depreciation_rate,
+         transfer_tax, broker_fee, notary_fee, registration_cost,
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate, special_repayments(payment_date, amount)),
          pnl_snapshots(id, period_start, period_end, cold_rent, ancillary_costs, property_fee_recoverable, property_fee_not_recoverable, maintenance, annuity_override, interest_override, principal_override)`
       )

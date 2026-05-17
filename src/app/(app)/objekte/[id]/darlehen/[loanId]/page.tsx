@@ -126,7 +126,10 @@ export default async function LoanDetailPage({
         )}
       </div>
 
-      <div className="mt-6 grid grid-cols-3 gap-4 max-w-3xl">
+      <p className="mt-6 text-xs text-neutral-500 dark:text-neutral-400 max-w-3xl">
+        {t("loans.first_rate_note")}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-4 max-w-3xl">
         <Stat
           label={t("loans.annuity")}
           value={annuity.toLocaleString("de-DE", {
@@ -148,6 +151,14 @@ export default async function LoanDetailPage({
             currency: "EUR",
           })}
         />
+      </div>
+      <div className="mt-4 max-w-3xl">
+        <Link
+          href={`/objekte/${id}/darlehen/${loanId}/tilgungsplan`}
+          className="inline-flex items-center text-sm text-neutral-700 dark:text-neutral-300 hover:underline"
+        >
+          {t("loans.amortization_plan")} →
+        </Link>
       </div>
 
       <div className="mt-8 max-w-3xl">

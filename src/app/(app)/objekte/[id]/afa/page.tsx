@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
-import { buildingAfaBasis } from "@/lib/calculations/pnl";
+import { buildingAfaBreakdown } from "@/lib/calculations/pnl";
 import { dateDe } from "@/lib/format";
 import { AfaItemForm } from "./afa-item-form";
 import { DeleteAfaItemButton } from "./delete-button";
@@ -45,11 +45,18 @@ export default async function PropertyAfaPage({
         ? Number(v)
         : null;
 
-  const afaBasis = buildingAfaBasis({
+  const ancillary =
+    (num(property.transfer_tax) ?? 0) +
+    (num(property.broker_fee) ?? 0) +
+    (num(property.notary_fee) ?? 0) +
+    (num(property.registration_cost) ?? 0);
+  const breakdown = buildingAfaBreakdown({
     purchasePrice: num(property.purchase_price),
     buildingValueSharePct: num(property.building_value_share_pct),
     landValue: num(property.land_value),
+    ancillaryCosts: ancillary || null,
   });
+  const afaBasis = breakdown.basis;
 
   const propertyRate = num(property.depreciation_rate);
   const defaultRate =
@@ -99,6 +106,41 @@ export default async function PropertyAfaPage({
           strong
         />
       </div>
+
+      {afaBasis > 0 && (
+        <div className="mt-3 max-w-3xl rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 text-sm">
+          <h3 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2">
+            {t("afa.basis_breakdown")}
+          </h3>
+          <div className="space-y-1.5 tabular-nums">
+            <BreakdownRow
+              label={t("afa.basis_from_purchase")}
+              value={breakdown.fromPurchase}
+              sub={`${(breakdown.buildingShare * 100).toLocaleString("de-DE", {
+                maximumFractionDigits: 2,
+              })} % ${t("afa.building_share")}`}
+            />
+            <BreakdownRow
+              label={t("afa.basis_from_ancillary")}
+              value={breakdown.fromAncillary}
+              sub={
+                breakdown.ancillary > 0
+                  ? `${eur(breakdown.ancillary)} × ${(
+                      breakdown.buildingShare * 100
+                    ).toLocaleString("de-DE", { maximumFractionDigits: 2 })} %`
+                  : t("afa.no_ancillary")
+              }
+            />
+            <div className="flex justify-between border-t border-neutral-200 dark:border-neutral-800 pt-1.5 mt-1 font-semibold">
+              <span>{t("afa.afa_basis")}</span>
+              <span>{eur(afaBasis)}</span>
+            </div>
+          </div>
+          <p className="mt-3 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+            {t("afa.basis_footnote")}
+          </p>
+        </div>
+      )}
 
       {afaBasis === 0 && (
         <p className="mt-4 text-sm text-amber-600 dark:text-amber-400">
@@ -161,6 +203,30 @@ export default async function PropertyAfaPage({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function BreakdownRow({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: number;
+  sub?: string;
+}) {
+  return (
+    <div className="flex justify-between items-baseline">
+      <div>
+        <span>{label}</span>
+        {sub && (
+          <span className="ml-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+            ({sub})
+          </span>
+        )}
+      </div>
+      <span>{eur(value)}</span>
     </div>
   );
 }
