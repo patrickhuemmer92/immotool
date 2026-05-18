@@ -16,7 +16,8 @@ import {
 } from "@/lib/pnl-context";
 import { loanBalance } from "@/lib/calculations/loan";
 import { computeValuation } from "@/lib/calculations/valuation";
-import { SnapshotForm, buildEmptyDefaults } from "./snapshot-form";
+import { SnapshotForm } from "./snapshot-form";
+import { buildEmptyDefaults } from "./snapshot-defaults";
 import { deleteSnapshot } from "./actions";
 import { CashflowResultCard } from "./cashflow-result-card";
 import { TaxProjectionCard } from "./tax-projection-card";
