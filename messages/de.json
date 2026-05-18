@@ -306,6 +306,15 @@
     "source_footnote": "Methodik orientiert sich an ImmoWertV (Immobilienwertermittlungsverordnung). Die App liefert eine indikative Bandbreite, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen."
   },
   "pnl": {
+    "section_rent": "Mieteinnahmen",
+    "section_hausgeld": "Hausgeld & Rücklage",
+    "section_other_costs": "Sonstige Betriebskosten",
+    "section_loan_overrides": "Darlehen — manuelle Werte",
+    "hausgeld_mode_total": "Gesamtbetrag",
+    "hausgeld_mode_split": "Aufgeteilt (umlagefähig / nicht)",
+    "hausgeld_mode_help": "Du kannst das Hausgeld entweder als einen Gesamtbetrag erfassen oder in umlagefähig (Heizung, Wasser, Müll, …) und nicht umlagefähig (Verwalter, Versicherung, …) splitten — nicht beides. Die Aufteilung ist nur fürs steuerliche Reporting relevant; im Cashflow ergibt sich derselbe Saldo.",
+    "hausgeld_total_help": "Volles Hausgeld inkl. umlagefähiger Teile — Rücklage trägst du separat unten ein.",
+    "hausgeld_split_sum": "Summe Hausgeld: {sum}",
     "section_cashflow": "Cashflow",
     "section_tax": "Steuerliche Überleitung",
     "tax_section_help": "AfA und Steuereffekt sind keine Cashflow-Posten im Sinne eines Geldabflusses — AfA ist kalkulatorisch, der Steuereffekt ist die tatsächliche Steuer, die ans Finanzamt fließt. Tilgung und Rücklage sind im Cashflow oben enthalten, mindern aber NICHT die Steuerbasis.",

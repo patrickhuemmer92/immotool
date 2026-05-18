@@ -6,6 +6,8 @@ import { FormError } from "@/components/form-error";
 import { MoneyInput } from "@/components/money-input";
 import { createSnapshot, type SnapshotState } from "./actions";
 
+type HausgeldMode = "total" | "split";
+
 export function SnapshotForm({
   propertyId,
   defaults,
@@ -22,20 +24,16 @@ export function SnapshotForm({
     undefined
   );
 
-  // Q12 — live check that umlage + nicht-umlage matches the total
-  const [totalAncillary, setTotalAncillary] = useState<number | null>(null);
+  // Hausgeld-Modus: Gesamtbetrag ODER Aufteilung in umlagef./nicht-umlagef.
+  const [hausgeldMode, setHausgeldMode] = useState<HausgeldMode>("total");
   const [recoverable, setRecoverable] = useState<number | null>(null);
   const [notRecoverable, setNotRecoverable] = useState<number | null>(null);
-
-  const summed =
-    recoverable != null || notRecoverable != null
-      ? (recoverable ?? 0) + (notRecoverable ?? 0)
-      : null;
-  const showMismatch =
-    totalAncillary != null && summed != null && Math.abs(summed - totalAncillary) > 0.01;
+  const splitSum =
+    (recoverable ?? 0) + (notRecoverable ?? 0);
 
   return (
-    <form action={formAction} className="space-y-6 max-w-3xl">
+    <form action={formAction} className="space-y-8 max-w-3xl">
+      {/* ============ Periode ============ */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field id="period_start" label={t("pnl.period_start")} required>
           <input
@@ -59,44 +57,98 @@ export function SnapshotForm({
         </Field>
       </div>
 
-      <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-          {t("pnl.section_inputs")}
-        </h3>
+      {/* ============ Einnahmen ============ */}
+      <Section title={t("pnl.section_rent")}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field id="cold_rent" label={t("pnl.cold_rent")}>
             <MoneyInput id="cold_rent" name="cold_rent" />
           </Field>
-          <Field id="ancillary_costs" label={t("pnl.ancillary_costs")}>
-            <MoneyInput
+        </div>
+      </Section>
+
+      {/* ============ Hausgeld ============ */}
+      <Section
+        title={t("pnl.section_hausgeld")}
+        subtitle={t("pnl.hausgeld_mode_help")}
+      >
+        <div className="inline-flex rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs overflow-hidden mb-4">
+          <ModeBtn
+            active={hausgeldMode === "total"}
+            onClick={() => setHausgeldMode("total")}
+          >
+            {t("pnl.hausgeld_mode_total")}
+          </ModeBtn>
+          <ModeBtn
+            active={hausgeldMode === "split"}
+            onClick={() => setHausgeldMode("split")}
+          >
+            {t("pnl.hausgeld_mode_split")}
+          </ModeBtn>
+        </div>
+
+        {hausgeldMode === "total" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field
               id="ancillary_costs"
-              name="ancillary_costs"
-              onValueChange={setTotalAncillary}
-            />
-          </Field>
-          <Field
-            id="property_fee_recoverable"
-            label={t("pnl.property_fee_recoverable")}
-          >
-            <MoneyInput
-              id="property_fee_recoverable"
-              name="property_fee_recoverable"
-              onValueChange={setRecoverable}
-            />
-          </Field>
-          <Field
-            id="property_fee_not_recoverable"
-            label={t("pnl.property_fee_not_recoverable")}
-          >
-            <MoneyInput
-              id="property_fee_not_recoverable"
-              name="property_fee_not_recoverable"
-              onValueChange={setNotRecoverable}
-            />
-          </Field>
+              label={t("pnl.ancillary_costs")}
+              hint={t("pnl.hausgeld_total_help")}
+            >
+              <MoneyInput id="ancillary_costs" name="ancillary_costs" />
+            </Field>
+            {/* Split-Felder ausgeblendet, aber leer gesendet, damit Server nicht den
+                ggf. alten Wert sieht. */}
+            <input type="hidden" name="property_fee_recoverable" value="" />
+            <input type="hidden" name="property_fee_not_recoverable" value="" />
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field
+                id="property_fee_recoverable"
+                label={t("pnl.property_fee_recoverable")}
+              >
+                <MoneyInput
+                  id="property_fee_recoverable"
+                  name="property_fee_recoverable"
+                  onValueChange={setRecoverable}
+                />
+              </Field>
+              <Field
+                id="property_fee_not_recoverable"
+                label={t("pnl.property_fee_not_recoverable")}
+              >
+                <MoneyInput
+                  id="property_fee_not_recoverable"
+                  name="property_fee_not_recoverable"
+                  onValueChange={setNotRecoverable}
+                />
+              </Field>
+            </div>
+            <input type="hidden" name="ancillary_costs" value="" />
+            {(recoverable != null || notRecoverable != null) && (
+              <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">
+                {t("pnl.hausgeld_split_sum", {
+                  sum: splitSum.toLocaleString("de-DE", {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 2,
+                  }),
+                })}
+              </p>
+            )}
+          </>
+        )}
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field id="maintenance" label={t("pnl.maintenance")}>
             <MoneyInput id="maintenance" name="maintenance" />
           </Field>
+        </div>
+      </Section>
+
+      {/* ============ Sonstige Betriebskosten ============ */}
+      <Section title={t("pnl.section_other_costs")}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             id="management_costs"
             label={t("pnl.management_costs")}
@@ -111,6 +163,15 @@ export function SnapshotForm({
           >
             <MoneyInput id="vacancy_risk_amount" name="vacancy_risk_amount" />
           </Field>
+        </div>
+      </Section>
+
+      {/* ============ Darlehen-Overrides ============ */}
+      <Section
+        title={t("pnl.section_loan_overrides")}
+        subtitle={t("pnl.section_inputs")}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field id="annuity_override" label={t("pnl.annuity_override")}>
             <MoneyInput id="annuity_override" name="annuity_override" />
           </Field>
@@ -121,13 +182,7 @@ export function SnapshotForm({
             <MoneyInput id="principal_override" name="principal_override" />
           </Field>
         </div>
-
-        {showMismatch && (
-          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-            {t("pnl.hausgeld_sum_invalid")}
-          </p>
-        )}
-      </div>
+      </Section>
 
       <FormError raw={state?.error} />
 
@@ -139,6 +194,55 @@ export function SnapshotForm({
         {pending ? t("common.loading") : t("common.create")}
       </button>
     </form>
+  );
+}
+
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        {title}
+      </h3>
+      {subtitle && (
+        <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-1 leading-snug">
+          {subtitle}
+        </p>
+      )}
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function ModeBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "px-3 py-1.5 " +
+        (active
+          ? "bg-accent text-accent-foreground font-medium"
+          : "hover:bg-neutral-100 dark:hover:bg-neutral-800")
+      }
+    >
+      {children}
+    </button>
   );
 }
 
