@@ -5,8 +5,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
 import { buildingAfaBreakdown } from "@/lib/calculations/pnl";
+import {
+  buildSchedule,
+  type DepreciationMethod,
+} from "@/lib/calculations/depreciation";
+import {
+  buildDepreciationParams,
+  resolveDepreciationStartYear,
+  type PropertyForPnL,
+  type SettingsForPnL,
+} from "@/lib/pnl-context";
 import { dateDe } from "@/lib/format";
 import { AfaItemForm } from "./afa-item-form";
+import { AfaMethodForm } from "./afa-method-form";
+import { AfaSchedule } from "./afa-schedule";
 import { DeleteAfaItemButton } from "./delete-button";
 
 export default async function PropertyAfaPage({
@@ -30,7 +42,9 @@ export default async function PropertyAfaPage({
         .order("acquisition_date"),
       supabase
         .from("settings")
-        .select("default_depreciation_rate")
+        .select(
+          "default_depreciation_rate, degressive_7v_rate, sonder_7b_rate, sonder_7b_years, sonder_7b_linear_rate"
+        )
         .eq("workspace_id", active.id)
         .maybeSingle(),
     ]);
@@ -67,7 +81,29 @@ export default async function PropertyAfaPage({
       ? t("afa.rate_source_property")
       : t("afa.rate_source_default");
 
-  const annualBuildingAfa = afaBasis * effectiveRate;
+  // AfA-Methodik + Plan
+  const settingsForPnl: SettingsForPnL = {
+    tax_rate: 0,
+    default_depreciation_rate: settings?.default_depreciation_rate ?? 0.02,
+    degressive_7v_rate: settings?.degressive_7v_rate ?? 0.05,
+    sonder_7b_rate: settings?.sonder_7b_rate ?? 0.05,
+    sonder_7b_years: settings?.sonder_7b_years ?? 4,
+    sonder_7b_linear_rate: settings?.sonder_7b_linear_rate ?? 0.03,
+  };
+  const propertyForPnl = property as unknown as PropertyForPnL;
+  const depParams = buildDepreciationParams(
+    propertyForPnl,
+    settingsForPnl,
+    afaBasis
+  );
+  const startYear = resolveDepreciationStartYear(propertyForPnl);
+  const schedule = depParams ? buildSchedule(depParams, 50) : [];
+  const yearOneAfa = schedule.length > 0 ? schedule[0].total : 0;
+  const currentMethod = (property.depreciation_method ??
+    "linear") as DepreciationMethod;
+
+  // Jahr-1 AfA für die Hero-KPI (statt linearer Default-Berechnung)
+  const annualBuildingAfa = yearOneAfa || afaBasis * effectiveRate;
   const annualOtherAfa = (items ?? []).reduce(
     (acc, i) =>
       acc + Number(i.acquisition_cost) / Math.max(1, i.duration_years),
@@ -146,6 +182,35 @@ export default async function PropertyAfaPage({
         <p className="mt-4 text-sm text-amber-600 dark:text-amber-400">
           {t("afa.no_basis")}
         </p>
+      )}
+
+      <div className="mt-10">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+          {t("afa.section_method")}
+        </h2>
+        <AfaMethodForm
+          propertyId={id}
+          defaults={{
+            depreciation_method: currentMethod,
+            depreciation_start_year:
+              property.depreciation_start_year != null
+                ? String(property.depreciation_start_year)
+                : startYear != null
+                  ? String(startYear)
+                  : "",
+            sonder_7b_basis_limit:
+              property.sonder_7b_basis_limit != null
+                ? String(property.sonder_7b_basis_limit)
+                : "",
+          }}
+          readOnly={!editable}
+        />
+      </div>
+
+      {schedule.length > 0 && (
+        <div className="mt-8">
+          <AfaSchedule startYear={startYear} schedule={schedule} />
+        </div>
       )}
 
       <div className="mt-12">

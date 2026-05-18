@@ -85,3 +85,55 @@ export async function deleteOtherDepreciationItem(
   revalidatePath(`/objekte/${propertyId}/afa`);
   revalidatePath(`/finanzen/afa`);
 }
+
+export type DepMethodState = { error?: string; success?: boolean } | undefined;
+
+const methodSchema = z.object({
+  depreciation_method: z.enum(["linear", "degressive_7v", "sonder_7b"]),
+  depreciation_start_year: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.length ? parseInt(v, 10) : null))
+    .refine(
+      (n) => n === null || (Number.isInteger(n) && n >= 1900 && n <= 2200),
+      { message: "invalid_year" }
+    ),
+  sonder_7b_basis_limit: z
+    .string()
+    .optional()
+    .superRefine((v, ctx) => {
+      if (!v || !v.length) return;
+      if (parseDecimal(v) === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `invalid_number:${v}`,
+        });
+      }
+    })
+    .transform((v) => (v && v.length ? parseDecimal(v) : null)),
+});
+
+export async function updateDepreciationMethod(
+  propertyId: string,
+  _prev: DepMethodState,
+  formData: FormData
+): Promise<DepMethodState> {
+  const parsed = methodSchema.safeParse({
+    depreciation_method: formData.get("depreciation_method"),
+    depreciation_start_year: getStr(formData, "depreciation_start_year"),
+    sonder_7b_basis_limit: getStr(formData, "sonder_7b_basis_limit"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("properties")
+    .update(parsed.data)
+    .eq("id", propertyId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/objekte/${propertyId}/afa`);
+  revalidatePath(`/objekte/${propertyId}/guv`);
+  revalidatePath(`/finanzen/afa`);
+  return { success: true };
+}
