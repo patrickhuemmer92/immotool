@@ -46,15 +46,15 @@ export function ThemeToggle() {
     <div
       className="inline-flex rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs overflow-hidden"
       role="radiogroup"
-      aria-label={t("theme.light")}
+      aria-label={t("theme.switch_label")}
     >
-      <ModeButton current={mode} value="light" onClick={change}>
+      <ModeButton current={mode} value="light" onClick={change} label={t("theme.light")}>
         ☀
       </ModeButton>
-      <ModeButton current={mode} value="system" onClick={change}>
+      <ModeButton current={mode} value="system" onClick={change} label={t("theme.system")}>
         ⌂
       </ModeButton>
-      <ModeButton current={mode} value="dark" onClick={change}>
+      <ModeButton current={mode} value="dark" onClick={change} label={t("theme.dark")}>
         ☾
       </ModeButton>
     </div>
@@ -66,11 +66,13 @@ function ModeButton({
   value,
   onClick,
   children,
+  label,
 }: {
   current: Mode;
   value: Mode;
   onClick: (next: Mode) => void;
   children: React.ReactNode;
+  label: string;
 }) {
   const active = current === value;
   return (
@@ -78,8 +80,9 @@ function ModeButton({
       type="button"
       role="radio"
       aria-checked={active}
+      aria-label={label}
       onClick={() => onClick(value)}
-      title={value}
+      title={label}
       className={
         "px-2 py-1 transition-colors " +
         (active

@@ -26,6 +26,12 @@
     "set_cover": "Als Titelbild",
     "is_cover": "Titelbild"
   },
+  "theme": {
+    "light": "Hell",
+    "dark": "Dunkel",
+    "system": "System",
+    "switch_label": "Erscheinungsbild umschalten"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "properties": "Objekte",

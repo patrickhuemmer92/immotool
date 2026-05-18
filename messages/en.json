@@ -26,6 +26,12 @@
     "set_cover": "Set as cover",
     "is_cover": "Cover"
   },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "switch_label": "Toggle theme"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "properties": "Properties",
