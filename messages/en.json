@@ -306,6 +306,10 @@
     "source_footnote": "Methodology follows ImmoWertV (German real-estate valuation regulation). The app delivers an indicative range, not an official valuation report — for bank/tax purposes consider adding a certified expert appraisal."
   },
   "pnl": {
+    "section_cashflow": "Cashflow",
+    "section_tax": "Tax reconciliation",
+    "tax_section_help": "Depreciation and the tax effect are not cashflow items in the strict sense — depreciation is non-cash, the tax effect is the actual tax you owe. Principal and reserve are part of the cashflow above but do NOT reduce the tax base.",
+    "depreciation_calc_only": "non-cash",
     "view_investor": "Investor view",
     "view_bank": "Bank view",
     "view_investor_help": "With personal tax effect — your own yield calculation.",

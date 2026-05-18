@@ -306,6 +306,10 @@
     "source_footnote": "Methodik orientiert sich an ImmoWertV (Immobilienwertermittlungsverordnung). Die App liefert eine indikative Bandbreite, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen."
   },
   "pnl": {
+    "section_cashflow": "Cashflow",
+    "section_tax": "Steuerliche Überleitung",
+    "tax_section_help": "AfA und Steuereffekt sind keine Cashflow-Posten im Sinne eines Geldabflusses — AfA ist kalkulatorisch, der Steuereffekt ist die tatsächliche Steuer, die ans Finanzamt fließt. Tilgung und Rücklage sind im Cashflow oben enthalten, mindern aber NICHT die Steuerbasis.",
+    "depreciation_calc_only": "kalkulatorisch",
     "view_investor": "Investor-Sicht",
     "view_bank": "Bank-Sicht",
     "view_investor_help": "Mit Steuereffekt und persönlichem Steuersatz — relevant für deine eigene Renditerechnung.",

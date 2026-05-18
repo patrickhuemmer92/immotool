@@ -62,56 +62,93 @@ export function CashflowResultCard({
       </p>
 
       {tab === "investor" ? (
-        <table className="mt-4 w-full text-sm">
-          <tbody>
-            <ResultRow
-              label={
-                investor.convention === "gross"
-                  ? t("pnl.rent_warm_total")
-                  : t("pnl.rent_cold_total")
-              }
-              value={investor.rentTotal}
-            />
-            <ResultRow
-              label={t("pnl.operating_costs")}
-              value={-investor.operatingCosts}
-            />
-            <ResultRow
-              label={t("pnl.interest")}
-              value={-investor.interest}
-              tag={investor.source.interest}
-            />
-            <ResultRow
-              label={t("pnl.principal")}
-              value={-investor.principal}
-              tag={investor.source.principal}
-            />
-            <ResultRow
-              label={t("pnl.cashflow_before_tax")}
-              value={investor.cashflowBeforeTax}
-              strong
-            />
-            <ResultRow
-              label={t("pnl.depreciation")}
-              value={-investor.depreciation}
-              muted
-            />
-            <ResultRow
-              label={t("pnl.pretax_profit")}
-              value={investor.pretaxProfit}
-              muted
-            />
-            <ResultRow
-              label={t("pnl.tax_effect")}
-              value={-investor.taxEffect}
-            />
-            <ResultRow
-              label={t("pnl.after_tax_cashflow")}
-              value={investor.afterTaxCashflow}
-              strong
-            />
-          </tbody>
-        </table>
+        <>
+          <table className="mt-4 w-full text-sm">
+            <thead>
+              <tr>
+                <th
+                  colSpan={2}
+                  className="pb-1 text-left text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                >
+                  {t("pnl.section_cashflow")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <ResultRow
+                label={
+                  investor.convention === "gross"
+                    ? t("pnl.rent_warm_total")
+                    : t("pnl.rent_cold_total")
+                }
+                value={investor.rentTotal}
+              />
+              <ResultRow
+                label={t("pnl.operating_costs")}
+                value={-investor.operatingCosts}
+              />
+              <ResultRow
+                label={t("pnl.interest")}
+                value={-investor.interest}
+                tag={investor.source.interest}
+              />
+              <ResultRow
+                label={t("pnl.principal")}
+                value={-investor.principal}
+                tag={investor.source.principal}
+              />
+              <ResultRow
+                label={t("pnl.cashflow_before_tax")}
+                value={investor.cashflowBeforeTax}
+                strong
+              />
+            </tbody>
+          </table>
+
+          <table className="mt-6 w-full text-sm border-t-2 border-neutral-200 dark:border-neutral-800 pt-4">
+            <thead>
+              <tr>
+                <th
+                  colSpan={2}
+                  className="pt-3 pb-1 text-left text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+                >
+                  {t("pnl.section_tax")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <ResultRow
+                label={t("pnl.depreciation")}
+                value={-investor.depreciation}
+                muted
+                annotation={t("pnl.depreciation_calc_only")}
+              />
+              <ResultRow
+                label={t("pnl.pretax_profit")}
+                value={investor.pretaxProfit}
+                strong
+              />
+              <ResultRow
+                label={t("pnl.tax_effect")}
+                value={-investor.taxEffect}
+              />
+            </tbody>
+          </table>
+
+          <p className="mt-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+            {t("pnl.tax_section_help")}
+          </p>
+
+          <table className="mt-4 w-full text-sm border-t-2 border-neutral-200 dark:border-neutral-800 pt-4">
+            <tbody>
+              <ResultRow
+                label={t("pnl.after_tax_cashflow")}
+                value={investor.afterTaxCashflow}
+                strong
+              />
+            </tbody>
+          </table>
+        </>
       ) : (
         <>
           <div className="mt-4 flex items-center gap-3">
@@ -232,12 +269,14 @@ function ResultRow({
   strong,
   muted,
   tag,
+  annotation,
 }: {
   label: string;
   value: number;
   strong?: boolean;
   muted?: boolean;
   tag?: "auto" | "override";
+  annotation?: string;
 }) {
   return (
     <tr
@@ -246,12 +285,19 @@ function ResultRow({
       }`}
     >
       <td className={`py-2 ${strong ? "font-semibold" : ""}`}>
-        {label}
-        {tag && (
-          <span className="ml-2 text-[10px] uppercase tracking-wider text-neutral-400">
-            {tag}
-          </span>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span>{label}</span>
+          {tag && (
+            <span className="text-[10px] uppercase tracking-wider text-neutral-400">
+              {tag}
+            </span>
+          )}
+          {annotation && (
+            <span className="text-[10px] uppercase tracking-wider rounded bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 text-neutral-600 dark:text-neutral-400">
+              {annotation}
+            </span>
+          )}
+        </div>
       </td>
       <td
         className={`py-2 text-right tabular-nums ${
