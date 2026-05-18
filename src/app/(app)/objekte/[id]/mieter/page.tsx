@@ -28,7 +28,13 @@ export default async function PropertyTenantPage({
       .select("id, street, postal_code, city, location_detail, description")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("tenants").select("*").eq("property_id", id).maybeSingle(),
+    supabase
+      .from("tenants")
+      .select(
+        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month, notes"
+      )
+      .eq("property_id", id)
+      .maybeSingle(),
   ]);
 
   if (!property) notFound();
@@ -38,12 +44,12 @@ export default async function PropertyTenantPage({
     ? {
         name: tenant.name,
         contract_start: tenant.contract_start ?? "",
-        family_status: tenant.family_status?.toString() ?? "",
-        schufa: tenant.schufa?.toString() ?? "",
-        rental_duration: tenant.rental_duration?.toString() ?? "",
-        personal_impression: tenant.personal_impression?.toString() ?? "",
-        employment_status: tenant.employment_status?.toString() ?? "",
-        income_level: tenant.income_level?.toString() ?? "",
+        is_fixed_term: tenant.is_fixed_term ?? false,
+        contract_end: tenant.contract_end ?? "",
+        cold_rent_per_month:
+          tenant.cold_rent_per_month == null
+            ? ""
+            : String(tenant.cold_rent_per_month).replace(".", ","),
         notes: tenant.notes ?? "",
       }
     : EMPTY_TENANT_DEFAULTS;
@@ -71,13 +77,12 @@ export default async function PropertyTenantPage({
           </form>
         )}
       </div>
+      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        {t("tenants.single_tenant_help")}
+      </p>
 
       <div className="mt-6">
-        <TenantForm
-          propertyId={id}
-          defaults={defaults}
-          readOnly={readOnly}
-        />
+        <TenantForm propertyId={id} defaults={defaults} readOnly={readOnly} />
       </div>
     </div>
   );

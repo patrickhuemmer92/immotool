@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { parseDecimal } from "@/lib/format";
 
 export type TenantFormState = { error?: string } | undefined;
 
@@ -11,41 +12,65 @@ const optDate = z
   .optional()
   .transform((v) => (v && v.length ? v : null));
 
-const optScore = z
+const optNum = z
   .string()
   .optional()
-  .transform((v) => {
-    if (!v || !v.length) return null;
-    const n = Number(v);
-    if (!Number.isInteger(n) || n < 1 || n > 5) {
-      throw new Error("score_range");
+  .superRefine((v, ctx) => {
+    if (!v || !v.length) return;
+    if (parseDecimal(v) === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
     }
-    return n;
-  });
+  })
+  .transform((v) => (v && v.length ? parseDecimal(v) : null));
 
-const tenantSchema = z.object({
-  name: z.string().min(1, "name_required"),
-  contract_start: optDate,
-  family_status: optScore,
-  schufa: optScore,
-  rental_duration: optScore,
-  personal_impression: optScore,
-  employment_status: optScore,
-  income_level: optScore,
-  notes: z.string().optional().transform((v) => (v && v.length ? v : null)),
-});
+const tenantSchema = z
+  .object({
+    name: z.string().min(1, "name_required"),
+    contract_start: optDate,
+    is_fixed_term: z
+      .string()
+      .optional()
+      .transform((v) => v === "true" || v === "on"),
+    contract_end: optDate,
+    cold_rent_per_month: optNum,
+    notes: z
+      .string()
+      .optional()
+      .transform((v) => (v && v.length ? v : null)),
+  })
+  .superRefine((d, ctx) => {
+    if (d.is_fixed_term && !d.contract_end) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "contract_end_required_if_fixed_term",
+        path: ["contract_end"],
+      });
+    }
+    if (
+      d.is_fixed_term &&
+      d.contract_end &&
+      d.contract_start &&
+      d.contract_end < d.contract_start
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "contract_end_before_start",
+        path: ["contract_end"],
+      });
+    }
+  });
 
 function parse(formData: FormData) {
   const obj: Record<string, FormDataEntryValue | undefined> = {};
   for (const k of [
     "name",
     "contract_start",
-    "family_status",
-    "schufa",
-    "rental_duration",
-    "personal_impression",
-    "employment_status",
-    "income_level",
+    "is_fixed_term",
+    "contract_end",
+    "cold_rent_per_month",
     "notes",
   ]) {
     const v = formData.get(k);
@@ -59,19 +84,20 @@ export async function upsertTenant(
   _prev: TenantFormState,
   formData: FormData
 ): Promise<TenantFormState> {
-  let parsed;
-  try {
-    parsed = tenantSchema.safeParse(parse(formData));
-  } catch (err) {
-    return { error: err instanceof Error ? err.message : "parse_error" };
-  }
+  const parsed = tenantSchema.safeParse(parse(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  // Defensive: clear contract_end if not fixed-term.
+  const payload = {
+    ...parsed.data,
+    contract_end: parsed.data.is_fixed_term ? parsed.data.contract_end : null,
+  };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("tenants")
     .upsert(
-      { ...parsed.data, property_id: propertyId },
+      { ...payload, property_id: propertyId },
       { onConflict: "property_id" }
     );
 

@@ -1515,6 +1515,20 @@ function renderPropertyPages(
               <Text style={styles.cellRight}>{data.tenant.contract_start}</Text>
             </View>
           )}
+          {data.tenant.is_fixed_term && data.tenant.contract_end && (
+            <View style={styles.tableRow}>
+              <Text style={styles.cell}>{t("tenants.contract_end")}</Text>
+              <Text style={styles.cellRight}>{data.tenant.contract_end}</Text>
+            </View>
+          )}
+          {data.tenant.cold_rent_per_month != null && (
+            <View style={styles.tableRow}>
+              <Text style={styles.cell}>{t("tenants.cold_rent_per_month")}</Text>
+              <Text style={styles.cellRight}>
+                {eur(data.tenant.cold_rent_per_month)}
+              </Text>
+            </View>
+          )}
         </View>
       ) : (
         <Text>{t("tenants.no_tenant")}</Text>

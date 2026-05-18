@@ -25,8 +25,13 @@ export function computeValuation(
 ): ValuationResult {
   const w = Math.min(1, Math.max(0, incomeWeight));
 
+  // Pure Ertragswert (100 %) suppresses Sachwert entirely, and vice versa.
+  const useIncome = w > 0;
+  const useReplacement = w < 1;
+
   let ertragswert: number | null = null;
   if (
+    useIncome &&
     input.sqm != null &&
     input.marketRentPerSqm != null &&
     input.multiple != null &&
@@ -38,7 +43,7 @@ export function computeValuation(
   }
 
   let sachwert: number | null = null;
-  if (input.landValue != null || input.buildingValue != null) {
+  if (useReplacement && (input.landValue != null || input.buildingValue != null)) {
     sachwert = (input.landValue ?? 0) + (input.buildingValue ?? 0);
   }
 

@@ -211,6 +211,31 @@ export function FactsheetDocument({
                       </Text>
                     </View>
                   )}
+                  {data.tenant.is_fixed_term && data.tenant.contract_end && (
+                    <View style={styles.row}>
+                      <Text style={styles.label}>{t("tenants.contract_end")}</Text>
+                      <Text style={styles.value}>
+                        {data.tenant.contract_end}
+                      </Text>
+                    </View>
+                  )}
+                  {data.tenant.cold_rent_per_month != null && (
+                    <View style={styles.row}>
+                      <Text style={styles.label}>
+                        {t("tenants.cold_rent_per_month")}
+                      </Text>
+                      <Text style={styles.value}>
+                        {data.tenant.cold_rent_per_month.toLocaleString(
+                          "de-DE",
+                          {
+                            style: "currency",
+                            currency: "EUR",
+                            maximumFractionDigits: 0,
+                          }
+                        )}
+                      </Text>
+                    </View>
+                  )}
                 </>
               ) : (
                 <Text style={styles.label}>{t("tenants.no_tenant")}</Text>

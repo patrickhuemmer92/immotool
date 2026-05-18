@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { upsertTenant, type TenantFormState } from "./actions";
@@ -8,24 +8,18 @@ import { upsertTenant, type TenantFormState } from "./actions";
 export type TenantDefaults = {
   name: string;
   contract_start: string;
-  family_status: string;
-  schufa: string;
-  rental_duration: string;
-  personal_impression: string;
-  employment_status: string;
-  income_level: string;
+  is_fixed_term: boolean;
+  contract_end: string;
+  cold_rent_per_month: string;
   notes: string;
 };
 
 export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
   name: "",
   contract_start: "",
-  family_status: "",
-  schufa: "",
-  rental_duration: "",
-  personal_impression: "",
-  employment_status: "",
-  income_level: "",
+  is_fixed_term: false,
+  contract_end: "",
+  cold_rent_per_month: "",
   notes: "",
 };
 
@@ -43,6 +37,7 @@ export function TenantForm({
     TenantFormState,
     FormData
   >(upsertTenant.bind(null, propertyId), undefined);
+  const [isFixedTerm, setIsFixedTerm] = useState<boolean>(defaults.is_fixed_term);
 
   return (
     <form action={formAction} className="space-y-6 max-w-3xl">
@@ -58,6 +53,20 @@ export function TenantForm({
               className={inputClass}
             />
           </Field>
+          <Field
+            id="cold_rent_per_month"
+            label={t("tenants.cold_rent_per_month")}
+          >
+            <input
+              id="cold_rent_per_month"
+              name="cold_rent_per_month"
+              type="text"
+              inputMode="decimal"
+              placeholder="z. B. 850"
+              defaultValue={defaults.cold_rent_per_month}
+              className={inputClass}
+            />
+          </Field>
           <Field id="contract_start" label={t("tenants.contract_start")}>
             <input
               id="contract_start"
@@ -67,6 +76,60 @@ export function TenantForm({
               className={inputClass}
             />
           </Field>
+          <div>
+            <div className="text-sm font-medium block mb-1">
+              {t("tenants.term_type")}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsFixedTerm(false)}
+                disabled={readOnly}
+                className={
+                  "rounded-lg px-3 py-1.5 text-sm border " +
+                  (!isFixedTerm
+                    ? "bg-accent text-accent-foreground border-transparent"
+                    : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800")
+                }
+              >
+                {t("tenants.term_open_ended")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFixedTerm(true)}
+                disabled={readOnly}
+                className={
+                  "rounded-lg px-3 py-1.5 text-sm border " +
+                  (isFixedTerm
+                    ? "bg-accent text-accent-foreground border-transparent"
+                    : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800")
+                }
+              >
+                {t("tenants.term_fixed")}
+              </button>
+            </div>
+            <input
+              type="hidden"
+              name="is_fixed_term"
+              value={isFixedTerm ? "true" : "false"}
+            />
+          </div>
+          {isFixedTerm && (
+            <Field
+              id="contract_end"
+              label={t("tenants.contract_end")}
+              required
+            >
+              <input
+                id="contract_end"
+                name="contract_end"
+                type="date"
+                defaultValue={defaults.contract_end}
+                required
+                className={inputClass}
+              />
+            </Field>
+          )}
         </div>
 
         <Field id="notes" label={t("tenants.notes")}>
@@ -119,4 +182,3 @@ function Field({
     </div>
   );
 }
-
