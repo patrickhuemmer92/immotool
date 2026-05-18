@@ -97,6 +97,20 @@ export function SnapshotForm({
           <Field id="maintenance" label={t("pnl.maintenance")}>
             <MoneyInput id="maintenance" name="maintenance" />
           </Field>
+          <Field
+            id="management_costs"
+            label={t("pnl.management_costs")}
+            hint={t("pnl.management_costs_help")}
+          >
+            <MoneyInput id="management_costs" name="management_costs" />
+          </Field>
+          <Field
+            id="vacancy_risk_amount"
+            label={t("pnl.vacancy_amount_monthly")}
+            hint={t("pnl.vacancy_amount_help")}
+          >
+            <MoneyInput id="vacancy_risk_amount" name="vacancy_risk_amount" />
+          </Field>
           <Field id="annuity_override" label={t("pnl.annuity_override")}>
             <MoneyInput id="annuity_override" name="annuity_override" />
           </Field>
@@ -134,11 +148,13 @@ const inputClass =
 function Field({
   id,
   label,
+  hint,
   required,
   children,
 }: {
   id: string;
   label: string;
+  hint?: string;
   required?: boolean;
   children: React.ReactNode;
 }) {
@@ -149,6 +165,11 @@ function Field({
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
+      {hint && (
+        <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

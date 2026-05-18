@@ -16,6 +16,11 @@ export function SettingsForm({
     default_depreciation_rate: number;
     default_locale: "de" | "en";
     default_currency: string;
+    cashflow_convention: "net" | "gross";
+    default_vacancy_residential: number;
+    default_vacancy_commercial: number;
+    default_management_per_unit: number;
+    bank_maintenance_per_sqm: number;
     tenant_score_weights: Record<string, number>;
   };
   readOnly: boolean;
@@ -86,6 +91,90 @@ export function SettingsForm({
             className={inputClass}
           />
         </Field>
+      </fieldset>
+
+      <fieldset disabled={readOnly} className="space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-6">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+            {t("settings.cashflow_section")}
+          </h2>
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+            {t("settings.cashflow_convention_help")}
+          </p>
+        </div>
+
+        <Field id="cashflow_convention" label={t("pnl.convention_label")}>
+          <select
+            id="cashflow_convention"
+            name="cashflow_convention"
+            defaultValue={defaults.cashflow_convention}
+            className={inputClass}
+          >
+            <option value="net">{t("pnl.convention_net")}</option>
+            <option value="gross">{t("pnl.convention_gross")}</option>
+          </select>
+        </Field>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field
+            id="default_vacancy_residential"
+            label={t("settings.default_vacancy_residential")}
+            help={t("settings.default_vacancy_residential_help")}
+          >
+            <input
+              id="default_vacancy_residential"
+              name="default_vacancy_residential"
+              type="text"
+              inputMode="decimal"
+              defaultValue={decimalToPercentInput(defaults.default_vacancy_residential)}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            id="default_vacancy_commercial"
+            label={t("settings.default_vacancy_commercial")}
+            help={t("settings.default_vacancy_commercial_help")}
+          >
+            <input
+              id="default_vacancy_commercial"
+              name="default_vacancy_commercial"
+              type="text"
+              inputMode="decimal"
+              defaultValue={decimalToPercentInput(defaults.default_vacancy_commercial)}
+              required
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            id="default_management_per_unit"
+            label={t("settings.default_management_per_unit")}
+            help={t("settings.default_management_help")}
+          >
+            <input
+              id="default_management_per_unit"
+              name="default_management_per_unit"
+              type="text"
+              inputMode="decimal"
+              defaultValue={defaults.default_management_per_unit.toString().replace(".", ",")}
+              className={inputClass}
+            />
+          </Field>
+          <Field
+            id="bank_maintenance_per_sqm"
+            label={t("settings.bank_maintenance_per_sqm")}
+            help={t("settings.bank_maintenance_help")}
+          >
+            <input
+              id="bank_maintenance_per_sqm"
+              name="bank_maintenance_per_sqm"
+              type="text"
+              inputMode="decimal"
+              defaultValue={defaults.bank_maintenance_per_sqm.toString().replace(".", ",")}
+              className={inputClass}
+            />
+          </Field>
+        </div>
       </fieldset>
 
       <fieldset disabled={readOnly} className="space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-6">

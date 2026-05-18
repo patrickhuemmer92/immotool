@@ -33,6 +33,8 @@ const schema = z.object({
   property_fee_recoverable: optNum,
   property_fee_not_recoverable: optNum,
   maintenance: optNum,
+  management_costs: optNum,
+  vacancy_risk_amount: optNum,
   notes: z
     .string()
     .optional()
@@ -60,6 +62,8 @@ export async function createSnapshot(
     property_fee_recoverable: getStr(formData, "property_fee_recoverable"),
     property_fee_not_recoverable: getStr(formData, "property_fee_not_recoverable"),
     maintenance: getStr(formData, "maintenance"),
+    management_costs: getStr(formData, "management_costs"),
+    vacancy_risk_amount: getStr(formData, "vacancy_risk_amount"),
     notes: getStr(formData, "notes"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
