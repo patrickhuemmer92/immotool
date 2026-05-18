@@ -221,6 +221,25 @@ describe("computePnL — MAW und SEV", () => {
     expect(r.vacancyLoss).toBe(600); // 50 × 12, nicht 240
   });
 
+  it("MAW ist NICHT steuerlich abzugsfähig (rein kalkulatorisch)", () => {
+    const r = computePnL({
+      period: PERIOD_2024,
+      coldRent: 1000,
+      vacancyRate: 0.02, // 240 €/p.a.
+      buildingAfaBasis: 0,
+      depreciationRate: 0,
+      taxRate: 0.35,
+    });
+    // Cashflow vor Steuer: 12000 − 240 = 11760
+    expect(r.cashflowBeforeTax).toBe(11760);
+    // Steuerlicher Gewinn: voll 12000 (MAW mindert NICHT die Steuerbasis)
+    expect(r.pretaxProfit).toBe(12000);
+    // Steuer auf vollen Gewinn
+    expect(r.taxEffect).toBeCloseTo(12000 * 0.35, 6);
+    // Cashflow nach Steuer = vor Steuer − Steuer
+    expect(r.afterTaxCashflow).toBeCloseTo(11760 - 4200, 6);
+  });
+
   it("SEV-Verwaltungskosten zählen als operatingCost und sind steuerlich abziehbar", () => {
     const r = computePnL({
       period: PERIOD_2024,

@@ -244,12 +244,24 @@ export function computePnL(input: PnLInput): PnLResult {
 
   const cashflowBeforeTax = rentTotal - annuity - operatingCosts;
 
-  // Steuerlicher Gewinn — convention-independent because the tax law itself
-  // is convention-independent: deductible operating costs (Hausgeld total,
-  // SEV, MAW) − interest − AfA, regardless of how we labelled them above.
-  // Reserve and principal are NOT deductible.
-  const deductibleOperating =
-    hausgeldTotal + managementTotal + vacancyLoss;
+  // Steuerlicher Gewinn — Konvention-unabhängig, weil das EStG die
+  // Konvention nicht kennt.
+  //
+  // Steuerlich abzugsfähig als Werbungskosten (§ 9 EStG):
+  //   - volles Hausgeld (umlag. Teil ist sowohl Einnahme als auch Ausgabe →
+  //     hebt sich auf, ändert pretaxProfit aber nicht, weil Warmmiete +
+  //     volles HG dieselbe Differenz ergibt wie Kalt + nicht-umlag.)
+  //   - SEV-Verwaltungskosten
+  //   - Zinsen
+  //   - AfA
+  //
+  // NICHT abzugsfähig:
+  //   - Tilgung
+  //   - Zuführung zur Rücklage (erst bei tatsächlicher Verwendung als
+  //     Erhaltungsaufwand, BFH-Rspr.)
+  //   - Mietausfallwagnis — rein kalkulatorisch (mindert nur den Cashflow,
+  //     nicht das zu versteuernde Einkommen).
+  const deductibleOperating = hausgeldTotal + managementTotal;
   // Warmmiete is the relevant income for the tax calculation regardless of
   // display convention — because the recoverable Hausgeld is, formally,
   // additional rental income (Einnahmen V+V).

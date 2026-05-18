@@ -54,7 +54,7 @@ export function pct(
   return (decimal as number).toLocaleString(NUM_LOCALE, {
     style: "percent",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: 2,
     ...opts,
   });
 }
