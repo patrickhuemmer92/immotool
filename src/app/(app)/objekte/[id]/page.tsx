@@ -51,13 +51,11 @@ export default async function PropertyFactsheetPage({
       )
       .eq("property_id", id),
     supabase
-      .from("rental_contracts")
+      .from("tenants")
       .select(
-        "tenant_name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
+        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
       )
       .eq("property_id", id)
-      .order("contract_start", { ascending: false })
-      .limit(1)
       .maybeSingle(),
     supabase
       .from("pnl_snapshots")
@@ -415,7 +413,7 @@ export default async function PropertyFactsheetPage({
         <Card title={t("factsheet.tenant_summary")}>
           {tenant ? (
             <div className="space-y-1 text-sm">
-              <div className="font-medium">{tenant.tenant_name}</div>
+              <div className="font-medium">{tenant.name}</div>
               {tenant.contract_start && (
                 <div className="text-neutral-500 dark:text-neutral-400">
                   {t("tenants.contract_start")}: {dateDe(tenant.contract_start)}

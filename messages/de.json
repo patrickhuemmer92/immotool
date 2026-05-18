@@ -284,9 +284,7 @@
     "term_open_ended": "Unbefristet (laufend)",
     "term_fixed": "Befristet",
     "cold_rent_per_month": "Kaltmiete (€/Monat)",
-    "add_contract": "Mietvertrag anlegen",
-    "empty_contracts": "Noch kein Mietvertrag erfasst.",
-    "timeline_help": "Übersicht aller Mietverträge dieses Objekts — chronologisch. Mehrere Verträge über die Jahre möglich."
+    "single_tenant_help": "Genau ein Mietverhältnis je Einheit. Mehrfamilienhäuser: das MFH als Haus anlegen und jede Wohneinheit als eigenes Objekt mit dem Haus als „Übergeordnetes Objekt“ — jede Einheit hat dann ihren eigenen Mieter."
   },
   "valuation": {
     "title": "Bewertung",

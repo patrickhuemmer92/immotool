@@ -107,13 +107,11 @@ export async function fetchPropertyForPdf(
       )
       .eq("property_id", propertyId),
     supabase
-      .from("rental_contracts")
+      .from("tenants")
       .select(
-        "tenant_name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
+        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
       )
       .eq("property_id", propertyId)
-      .order("contract_start", { ascending: false })
-      .limit(1)
       .maybeSingle(),
     supabase
       .from("pnl_snapshots")
@@ -279,7 +277,7 @@ export async function fetchPropertyForPdf(
 
   const tenantSummary = tenant
     ? {
-        name: tenant.tenant_name,
+        name: tenant.name,
         contract_start: tenant.contract_start ? dateDe(tenant.contract_start) : null,
         contract_end: tenant.contract_end ? dateDe(tenant.contract_end) : null,
         is_fixed_term: tenant.is_fixed_term ?? false,

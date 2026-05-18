@@ -3,14 +3,10 @@
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
-import {
-  createRentalContract,
-  updateRentalContract,
-  type RentalContractFormState,
-} from "./rental-contract-actions";
+import { upsertTenant, type TenantFormState } from "./actions";
 
-export type RentalContractDefaults = {
-  tenant_name: string;
+export type TenantDefaults = {
+  name: string;
   contract_start: string;
   is_fixed_term: boolean;
   contract_end: string;
@@ -18,8 +14,8 @@ export type RentalContractDefaults = {
   notes: string;
 };
 
-export const EMPTY_RENTAL_CONTRACT_DEFAULTS: RentalContractDefaults = {
-  tenant_name: "",
+export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
+  name: "",
   contract_start: "",
   is_fixed_term: false,
   contract_end: "",
@@ -27,39 +23,32 @@ export const EMPTY_RENTAL_CONTRACT_DEFAULTS: RentalContractDefaults = {
   notes: "",
 };
 
-export function RentalContractForm({
+export function TenantForm({
   propertyId,
-  contractId,
   defaults,
   readOnly,
-  onCancel,
 }: {
   propertyId: string;
-  contractId?: string;
-  defaults: RentalContractDefaults;
+  defaults: TenantDefaults;
   readOnly: boolean;
-  onCancel?: () => void;
 }) {
   const t = useTranslations();
-  const action = contractId
-    ? updateRentalContract.bind(null, contractId, propertyId)
-    : createRentalContract.bind(null, propertyId);
   const [state, formAction, pending] = useActionState<
-    RentalContractFormState,
+    TenantFormState,
     FormData
-  >(action, undefined);
+  >(upsertTenant.bind(null, propertyId), undefined);
   const [isFixedTerm, setIsFixedTerm] = useState<boolean>(defaults.is_fixed_term);
 
   return (
-    <form action={formAction} className="space-y-4 max-w-3xl rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
-      <fieldset disabled={readOnly} className="space-y-4">
+    <form action={formAction} className="space-y-6 max-w-3xl">
+      <fieldset disabled={readOnly} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field id="tenant_name" label={t("tenants.name")} required>
+          <Field id="name" label={t("tenants.name")} required>
             <input
-              id="tenant_name"
-              name="tenant_name"
+              id="name"
+              name="name"
               type="text"
-              defaultValue={defaults.tenant_name}
+              defaultValue={defaults.name}
               required
               className={inputClass}
             />
@@ -78,17 +67,12 @@ export function RentalContractForm({
               className={inputClass}
             />
           </Field>
-          <Field
-            id="contract_start"
-            label={t("tenants.contract_start")}
-            required
-          >
+          <Field id="contract_start" label={t("tenants.contract_start")}>
             <input
               id="contract_start"
               name="contract_start"
               type="date"
               defaultValue={defaults.contract_start}
-              required
               className={inputClass}
             />
           </Field>
@@ -100,6 +84,7 @@ export function RentalContractForm({
               <button
                 type="button"
                 onClick={() => setIsFixedTerm(false)}
+                disabled={readOnly}
                 className={
                   "rounded-lg px-3 py-1.5 text-sm border " +
                   (!isFixedTerm
@@ -112,6 +97,7 @@ export function RentalContractForm({
               <button
                 type="button"
                 onClick={() => setIsFixedTerm(true)}
+                disabled={readOnly}
                 className={
                   "rounded-lg px-3 py-1.5 text-sm border " +
                   (isFixedTerm
@@ -150,7 +136,7 @@ export function RentalContractForm({
           <textarea
             id="notes"
             name="notes"
-            rows={2}
+            rows={3}
             defaultValue={defaults.notes}
             className={inputClass}
           />
@@ -164,21 +150,8 @@ export function RentalContractForm({
             disabled={pending}
             className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {pending
-              ? t("common.loading")
-              : contractId
-                ? t("common.save")
-                : t("common.create")}
+            {pending ? t("common.loading") : t("common.save")}
           </button>
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
-            >
-              {t("common.cancel")}
-            </button>
-          )}
         </div>
       </fieldset>
     </form>

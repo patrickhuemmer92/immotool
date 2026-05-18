@@ -284,9 +284,7 @@
     "term_open_ended": "Open-ended (running)",
     "term_fixed": "Fixed-term",
     "cold_rent_per_month": "Cold rent (€/month)",
-    "add_contract": "Add rental contract",
-    "empty_contracts": "No rental contract yet.",
-    "timeline_help": "Timeline of all rental contracts for this property — chronological. Multiple contracts across years supported."
+    "single_tenant_help": "Exactly one tenancy per unit. Multi-family houses: create the MFH as kind \"house\" and each unit as a separate property with the house as its parent — each unit gets its own tenant."
   },
   "valuation": {
     "title": "Valuation",
