@@ -11,7 +11,7 @@ import {
 } from "./actions";
 import type { SnapshotDefaults } from "./snapshot-defaults";
 
-export type { SnapshotDefaults } from "./snapshot-defaults";
+export type { SnapshotDefaults };
 
 type HausgeldMode = "total" | "split";
 
