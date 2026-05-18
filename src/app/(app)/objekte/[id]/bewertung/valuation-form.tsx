@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
+import { parseDecimal } from "@/lib/format";
 import {
   createValuation,
   updateValuation,
@@ -17,16 +19,24 @@ export type ValuationDefaults = {
   market_rent_per_sqm: string;
   multiple: string;
   building_value: string;
+  /** Optionaler Bodenwert-Override pro Bewertung. Leer = Property-Wert. */
+  land_value: string;
   income_weight: number;
 };
 
 export function ValuationForm({
   propertyId,
   valuationId,
+  propertyLandValue,
   defaults,
 }: {
   propertyId: string;
   valuationId?: string;
+  /**
+   * Bodenwert aus den Property-Stammdaten — wird als Default in das
+   * Bewertungs-eigene Bodenwert-Feld vorgeladen.
+   */
+  propertyLandValue: number | null;
   defaults?: ValuationDefaults;
 }) {
   const t = useTranslations();
@@ -37,6 +47,7 @@ export function ValuationForm({
     market_rent_per_sqm: "",
     multiple: "",
     building_value: "",
+    land_value: "",
     income_weight: 0.5,
   };
   const action = valuationId
@@ -46,7 +57,32 @@ export function ValuationForm({
     action,
     undefined
   );
-  const [incomeWeight, setIncomeWeight] = useState<number>(initial.income_weight);
+  const [incomeWeight, setIncomeWeight] = useState<number>(
+    initial.income_weight
+  );
+  const [buildingValue, setBuildingValue] = useState<number | null>(
+    parseDecimal(initial.building_value)
+  );
+  // Bewertungs-Bodenwert: explizit gepflegt > Property-Default.
+  const initialLandValueParsed = parseDecimal(initial.land_value);
+  const [landValueLocal, setLandValueLocal] = useState<number | null>(
+    initialLandValueParsed ?? propertyLandValue
+  );
+
+  const eurFmt = (n: number) =>
+    n.toLocaleString("de-DE", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0,
+    });
+  const substanzwert =
+    landValueLocal != null && buildingValue != null
+      ? landValueLocal + buildingValue
+      : null;
+  const landIsOverride =
+    landValueLocal != null &&
+    propertyLandValue != null &&
+    Math.abs(landValueLocal - propertyLandValue) > 0.005;
 
   return (
     <form
@@ -120,9 +156,72 @@ export function ValuationForm({
             type="text"
             inputMode="decimal"
             defaultValue={initial.building_value}
+            onChange={(e) => setBuildingValue(parseDecimal(e.target.value))}
             className={inputClass}
           />
         </Field>
+      </div>
+
+      <div className="rounded-lg border border-dashed border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/50 p-4 text-sm space-y-3">
+        <div>
+          <label
+            htmlFor="land_value"
+            className="text-sm font-medium block mb-1"
+          >
+            {t("valuation.land_value_input_label")}
+          </label>
+          <input
+            id="land_value"
+            name="land_value"
+            type="text"
+            inputMode="decimal"
+            placeholder={
+              propertyLandValue != null
+                ? eurFmt(propertyLandValue)
+                : "z. B. 50.000"
+            }
+            defaultValue={initial.land_value}
+            onChange={(e) => {
+              const parsed = parseDecimal(e.target.value);
+              setLandValueLocal(parsed ?? propertyLandValue);
+            }}
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+            {t("valuation.land_value_input_help")}
+          </p>
+          {propertyLandValue != null && (
+            <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+              {t("valuation.land_value_default_hint", {
+                value: eurFmt(propertyLandValue),
+              })}
+              {" — "}
+              <Link
+                href={`/objekte/${propertyId}/bearbeiten`}
+                className="underline hover:text-accent"
+              >
+                {t("valuation.land_value_edit_link")}
+              </Link>
+            </p>
+          )}
+          {landIsOverride && (
+            <p className="mt-1 text-[11px] text-accent">
+              {t("valuation.land_value_override_active")}
+            </p>
+          )}
+          {propertyLandValue == null && landValueLocal == null && (
+            <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-400">
+              {t("valuation.no_land_value_warning")}
+            </p>
+          )}
+        </div>
+
+        {substanzwert != null && (
+          <div className="pt-3 border-t border-neutral-200 dark:border-neutral-800 flex items-center justify-between font-semibold tabular-nums">
+            <span>{t("valuation.substanzwert_total")}</span>
+            <span>{eurFmt(substanzwert)}</span>
+          </div>
+        )}
       </div>
 
       <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-4">

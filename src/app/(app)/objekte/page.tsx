@@ -15,7 +15,7 @@ export default async function PropertiesPage() {
     .from("properties")
     .select(
       `id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price, land_value,
-       portfolio_valuations(valuation_date, market_rent_per_sqm, multiple, building_value, income_weight)`
+       portfolio_valuations(valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight)`
     )
     .eq("workspace_id", active.id)
     .order("city")
@@ -26,6 +26,7 @@ export default async function PropertiesPage() {
     market_rent_per_sqm: string | number | null;
     multiple: string | number | null;
     building_value: string | number | null;
+    land_value: string | number | null;
     income_weight: string | number | null;
   };
   const marketValue = new Map<string, number | null>();
@@ -46,7 +47,12 @@ export default async function PropertiesPage() {
             ? null
             : Number(latest.market_rent_per_sqm),
         multiple: latest.multiple == null ? null : Number(latest.multiple),
-        landValue: p.land_value == null ? null : Number(p.land_value),
+        landValue:
+          latest.land_value != null
+            ? Number(latest.land_value)
+            : p.land_value == null
+              ? null
+              : Number(p.land_value),
         buildingValue:
           latest.building_value == null ? null : Number(latest.building_value),
       },

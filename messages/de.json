@@ -302,7 +302,13 @@
     "help_condition": "Subjektive Einschätzung 1 (sanierungsbedürftig) bis 10 (Neubau-Niveau).",
     "help_market_rent": "Ortsübliche Vergleichsmiete €/m² (Mietspiegel, ImmoScout-Vergleich, Sachverständigen-Einschätzung) — NICHT die tatsächlich erhobene Miete.",
     "help_multiple": "Mietmultiplikator (Bruttofaktor): Marktwert = ca. Multiplikator × Jahres-Bruttokaltmiete. Übliche Range 18–30, abhängig von Lage und Zustand. Das ist eine Daumenregel der Maklerschaft — kein Reinertragsfaktor im Sinne der ImmoWertV.",
-    "help_building_value": "Reproduktionsneuwert des Gebäudes (Wiederherstellungskosten heute, vereinfacht). Wer es genauer braucht: Normalherstellungskosten × BGF × Indexierung, ohne Alterswertminderung.",
+    "help_building_value": "Reproduktionsneuwert NUR des Gebäudes (Wiederherstellungskosten heute, vereinfacht). Der Bodenwert wird darunter separat erfasst — beide zusammen ergeben den Substanzwert.",
+    "land_value_input_label": "Bodenwert (zum Bewertungsstichtag)",
+    "land_value_input_help": "Aktueller Marktwert des Grundstücks zum Bewertungsdatum. Bodenrichtwerte ändern sich über die Zeit — pro Bewertung pflegbar. Leer = Wert aus Objekt-Stammdaten wird verwendet.",
+    "land_value_default_hint": "Vorbelegt aus Objekt-Stammdaten ({value})",
+    "land_value_override_active": "Abweichung vom Stammdaten-Bodenwert wird für diese Bewertung gespeichert.",
+    "land_value_edit_link": "im Objekt bearbeiten",
+    "substanzwert_total": "Substanzwert gesamt (Boden + Gebäude)",
     "source_footnote": "Diese App liefert eine Marktwert-Indikation aus Bruttofaktor- und Reproduktionsneuwert. Keine ImmoWertV-konforme Wertermittlung, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen."
   },
   "pnl": {
@@ -350,6 +356,7 @@
     "kpi_net_yield": "Mietrendite netto",
     "kpi_ltv": "Beleihungsauslauf (LTV)",
     "kpi_ltv_help": "Restschuld ÷ aktueller Marktwert (letzte Bewertung).",
+    "kpi_ltv_breakdown": "Restschuld {loans}\nMarktwert {market} (Bewertung {date})",
     "stress_label": "Stresstest (+250 bp ab Zinsbindungs-Ende)",
     "stress_help": "Erhöht den Zinssatz nach Ende der Zinsbindung um 250 Basispunkte — Bank-typisches Worst-Case-Szenario.",
     "stress_no_lock": "Kein Datum für Zinsbindungs-Ende gepflegt — Stresstest greift ab Periodenstart.",
