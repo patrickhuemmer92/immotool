@@ -392,6 +392,7 @@
     "tax_effect": "Steuereffekt",
     "after_tax_cashflow": "Cashflow nach Steuer",
     "delete_snapshot": "Eintrag löschen",
+    "edit_snapshot": "Cashflow-Eintrag bearbeiten",
     "no_snapshots": "Noch keine Einträge.",
     "portfolio_table": "Cashflow pro Objekt",
     "duplicate_period": "Für diesen Zeitraum existiert bereits ein Eintrag. Bitte vorhandenen Eintrag bearbeiten oder Zeitraum anpassen.",
