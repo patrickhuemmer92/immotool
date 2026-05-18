@@ -16,10 +16,11 @@ import {
 } from "@/lib/pnl-context";
 import { loanBalance } from "@/lib/calculations/loan";
 import { computeValuation } from "@/lib/calculations/valuation";
-import { SnapshotForm } from "./snapshot-form";
+import { SnapshotForm, buildEmptyDefaults } from "./snapshot-form";
 import { deleteSnapshot } from "./actions";
 import { CashflowResultCard } from "./cashflow-result-card";
 import { TaxProjectionCard } from "./tax-projection-card";
+import { SnapshotItem } from "./snapshot-item";
 
 const num = (v: string | number | null | undefined): number => {
   if (v === null || v === undefined || v === "") return 0;
@@ -137,14 +138,10 @@ export default async function PropertyPnLPage({
 
   const editable = canEdit(active.role);
 
-  const snapshotDefaults = {
-    period_start: new Date(Date.UTC(today.getUTCFullYear(), 0, 1))
-      .toISOString()
-      .slice(0, 10),
-    period_end: new Date(Date.UTC(today.getUTCFullYear(), 11, 31))
-      .toISOString()
-      .slice(0, 10),
-  };
+  const snapshotDefaults = buildEmptyDefaults(
+    new Date(Date.UTC(today.getUTCFullYear(), 0, 1)).toISOString().slice(0, 10),
+    new Date(Date.UTC(today.getUTCFullYear(), 11, 31)).toISOString().slice(0, 10)
+  );
 
   return (
     <div>
@@ -165,7 +162,10 @@ export default async function PropertyPnLPage({
           </p>
         ) : (
           (snapshots ?? []).map((s) => {
-            const row = s as SnapshotInputRow & { id: string };
+            const row = s as SnapshotInputRow & {
+              id: string;
+              notes: string | null;
+            };
             const investor = computeSnapshotResult(
               row,
               propertyForCalc,
@@ -201,34 +201,78 @@ export default async function PropertyPnLPage({
               marketValue,
             });
 
+            const rowDefaults = {
+              period_start: row.period_start,
+              period_end: row.period_end,
+              cold_rent: row.cold_rent == null ? "" : String(row.cold_rent).replace(".", ","),
+              ancillary_costs:
+                row.ancillary_costs == null ? "" : String(row.ancillary_costs).replace(".", ","),
+              property_fee_recoverable:
+                row.property_fee_recoverable == null
+                  ? ""
+                  : String(row.property_fee_recoverable).replace(".", ","),
+              property_fee_not_recoverable:
+                row.property_fee_not_recoverable == null
+                  ? ""
+                  : String(row.property_fee_not_recoverable).replace(".", ","),
+              maintenance:
+                row.maintenance == null ? "" : String(row.maintenance).replace(".", ","),
+              management_costs:
+                row.management_costs == null ? "" : String(row.management_costs).replace(".", ","),
+              vacancy_risk_amount:
+                row.vacancy_risk_amount == null
+                  ? ""
+                  : String(row.vacancy_risk_amount).replace(".", ","),
+              annuity_override:
+                row.annuity_override == null ? "" : String(row.annuity_override).replace(".", ","),
+              interest_override:
+                row.interest_override == null
+                  ? ""
+                  : String(row.interest_override).replace(".", ","),
+              principal_override:
+                row.principal_override == null
+                  ? ""
+                  : String(row.principal_override).replace(".", ","),
+              notes: row.notes ?? "",
+            };
             return (
-              <CashflowResultCard
+              <SnapshotItem
                 key={row.id}
-                periodStart={row.period_start}
-                periodEnd={row.period_end}
-                investor={investor}
-                bank={bank}
-                bankStressed={bankStressed}
-                kpis={kpis}
-                ltvContext={{
-                  remainingLoans,
-                  marketValue,
-                  marketValueDate,
-                }}
-                rateLockUntil={earliestRateLock}
-                onDelete={
-                  editable ? (
-                    <form action={deleteSnapshot.bind(null, row.id, id)}>
-                      <button
-                        type="submit"
-                        className="text-xs text-red-600 dark:text-red-400 hover:underline"
-                      >
-                        {t("pnl.delete_snapshot")}
-                      </button>
-                    </form>
-                  ) : null
-                }
-              />
+                propertyId={id}
+                snapshotId={row.id}
+                defaults={rowDefaults}
+                canEdit={editable}
+              >
+                {(editButton) => (
+                  <CashflowResultCard
+                    periodStart={row.period_start}
+                    periodEnd={row.period_end}
+                    investor={investor}
+                    bank={bank}
+                    bankStressed={bankStressed}
+                    kpis={kpis}
+                    ltvContext={{
+                      remainingLoans,
+                      marketValue,
+                      marketValueDate,
+                    }}
+                    rateLockUntil={earliestRateLock}
+                    onEdit={editButton}
+                    onDelete={
+                      editable ? (
+                        <form action={deleteSnapshot.bind(null, row.id, id)}>
+                          <button
+                            type="submit"
+                            className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                          >
+                            {t("pnl.delete_snapshot")}
+                          </button>
+                        </form>
+                      ) : null
+                    }
+                  />
+                )}
+              </SnapshotItem>
             );
           })
         )}

@@ -31,6 +31,7 @@ export function CashflowResultCard({
   ltvContext,
   rateLockUntil,
   onDelete,
+  onEdit,
 }: {
   periodStart: string;
   periodEnd: string;
@@ -44,6 +45,7 @@ export function CashflowResultCard({
   /** ISO date of the earliest rate lock end. Used for the stress hint. */
   rateLockUntil: string | null;
   onDelete?: React.ReactNode;
+  onEdit?: React.ReactNode;
 }) {
   const t = useTranslations();
   const [tab, setTab] = useState<"investor" | "bank">("investor");
@@ -56,7 +58,10 @@ export function CashflowResultCard({
         <h3 className="text-sm font-semibold">
           {dateDe(periodStart)} – {dateDe(periodEnd)}
         </h3>
-        {onDelete}
+        <div className="flex items-center gap-3">
+          {onEdit}
+          {onDelete}
+        </div>
       </div>
 
       <div className="mt-4 inline-flex rounded-lg border border-neutral-300 dark:border-neutral-700 text-xs overflow-hidden">

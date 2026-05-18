@@ -392,6 +392,7 @@
     "tax_effect": "Tax effect",
     "after_tax_cashflow": "Cashflow after tax",
     "delete_snapshot": "Delete entry",
+    "edit_snapshot": "Edit cashflow entry",
     "no_snapshots": "No entries yet.",
     "portfolio_table": "Cashflow per property",
     "duplicate_period": "An entry for this period already exists. Edit it or adjust the period.",

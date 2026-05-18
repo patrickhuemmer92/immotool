@@ -96,6 +96,56 @@ export async function createSnapshot(
   redirect(`/objekte/${propertyId}/guv`);
 }
 
+export async function updateSnapshot(
+  snapshotId: string,
+  propertyId: string,
+  _prev: SnapshotState,
+  formData: FormData
+): Promise<SnapshotState> {
+  const parsed = schema.safeParse({
+    period_start: getStr(formData, "period_start"),
+    period_end: getStr(formData, "period_end"),
+    cold_rent: getStr(formData, "cold_rent"),
+    ancillary_costs: getStr(formData, "ancillary_costs"),
+    annuity_override: getStr(formData, "annuity_override"),
+    principal_override: getStr(formData, "principal_override"),
+    interest_override: getStr(formData, "interest_override"),
+    property_fee_recoverable: getStr(formData, "property_fee_recoverable"),
+    property_fee_not_recoverable: getStr(formData, "property_fee_not_recoverable"),
+    maintenance: getStr(formData, "maintenance"),
+    management_costs: getStr(formData, "management_costs"),
+    vacancy_risk_amount: getStr(formData, "vacancy_risk_amount"),
+    notes: getStr(formData, "notes"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const total = parsed.data.ancillary_costs;
+  const rec = parsed.data.property_fee_recoverable;
+  const notRec = parsed.data.property_fee_not_recoverable;
+  if (total != null && rec != null && notRec != null) {
+    if (Math.abs(rec + notRec - total) > 0.01) {
+      return { error: "hausgeld_sum_invalid" };
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("pnl_snapshots")
+    .update(parsed.data)
+    .eq("id", snapshotId);
+
+  if (error) {
+    if (error.code === "23505" || error.message.includes("duplicate")) {
+      return { error: "duplicate_period" };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/objekte/${propertyId}/guv`);
+  revalidatePath(`/finanzen/guv`);
+  return undefined;
+}
+
 export async function deleteSnapshot(snapshotId: string, propertyId: string) {
   const supabase = await createClient();
   await supabase.from("pnl_snapshots").delete().eq("id", snapshotId);

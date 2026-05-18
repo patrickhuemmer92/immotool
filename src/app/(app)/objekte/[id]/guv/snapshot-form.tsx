@@ -4,32 +4,83 @@ import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { MoneyInput } from "@/components/money-input";
-import { createSnapshot, type SnapshotState } from "./actions";
+import {
+  createSnapshot,
+  updateSnapshot,
+  type SnapshotState,
+} from "./actions";
 
 type HausgeldMode = "total" | "split";
 
+export type SnapshotDefaults = {
+  period_start: string;
+  period_end: string;
+  cold_rent: string;
+  ancillary_costs: string;
+  property_fee_recoverable: string;
+  property_fee_not_recoverable: string;
+  maintenance: string;
+  management_costs: string;
+  vacancy_risk_amount: string;
+  annuity_override: string;
+  interest_override: string;
+  principal_override: string;
+  notes: string;
+};
+
+export function buildEmptyDefaults(
+  period_start: string,
+  period_end: string
+): SnapshotDefaults {
+  return {
+    period_start,
+    period_end,
+    cold_rent: "",
+    ancillary_costs: "",
+    property_fee_recoverable: "",
+    property_fee_not_recoverable: "",
+    maintenance: "",
+    management_costs: "",
+    vacancy_risk_amount: "",
+    annuity_override: "",
+    interest_override: "",
+    principal_override: "",
+    notes: "",
+  };
+}
+
 export function SnapshotForm({
   propertyId,
+  snapshotId,
   defaults,
+  onCancel,
 }: {
   propertyId: string;
-  defaults: {
-    period_start: string;
-    period_end: string;
-  };
+  /** When provided, the form updates an existing snapshot. */
+  snapshotId?: string;
+  defaults: SnapshotDefaults;
+  /** Render a cancel button (useful for inline-edit). */
+  onCancel?: () => void;
 }) {
   const t = useTranslations();
+  const action = snapshotId
+    ? updateSnapshot.bind(null, snapshotId, propertyId)
+    : createSnapshot.bind(null, propertyId);
   const [state, formAction, pending] = useActionState<SnapshotState, FormData>(
-    createSnapshot.bind(null, propertyId),
+    action,
     undefined
   );
 
-  // Hausgeld-Modus: Gesamtbetrag ODER Aufteilung in umlagef./nicht-umlagef.
-  const [hausgeldMode, setHausgeldMode] = useState<HausgeldMode>("total");
+  // Hausgeld-Modus initial: split, wenn split-Werte vorhanden, sonst total.
+  const initialMode: HausgeldMode =
+    defaults.property_fee_recoverable !== "" ||
+    defaults.property_fee_not_recoverable !== ""
+      ? "split"
+      : "total";
+  const [hausgeldMode, setHausgeldMode] = useState<HausgeldMode>(initialMode);
   const [recoverable, setRecoverable] = useState<number | null>(null);
   const [notRecoverable, setNotRecoverable] = useState<number | null>(null);
-  const splitSum =
-    (recoverable ?? 0) + (notRecoverable ?? 0);
+  const splitSum = (recoverable ?? 0) + (notRecoverable ?? 0);
 
   return (
     <form action={formAction} className="space-y-8 max-w-3xl">
@@ -61,7 +112,11 @@ export function SnapshotForm({
       <Section title={t("pnl.section_rent")}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field id="cold_rent" label={t("pnl.cold_rent")}>
-            <MoneyInput id="cold_rent" name="cold_rent" />
+            <MoneyInput
+              id="cold_rent"
+              name="cold_rent"
+              defaultValue={defaults.cold_rent}
+            />
           </Field>
         </div>
       </Section>
@@ -93,10 +148,12 @@ export function SnapshotForm({
               label={t("pnl.ancillary_costs")}
               hint={t("pnl.hausgeld_total_help")}
             >
-              <MoneyInput id="ancillary_costs" name="ancillary_costs" />
+              <MoneyInput
+                id="ancillary_costs"
+                name="ancillary_costs"
+                defaultValue={defaults.ancillary_costs}
+              />
             </Field>
-            {/* Split-Felder ausgeblendet, aber leer gesendet, damit Server nicht den
-                ggf. alten Wert sieht. */}
             <input type="hidden" name="property_fee_recoverable" value="" />
             <input type="hidden" name="property_fee_not_recoverable" value="" />
           </div>
@@ -110,6 +167,7 @@ export function SnapshotForm({
                 <MoneyInput
                   id="property_fee_recoverable"
                   name="property_fee_recoverable"
+                  defaultValue={defaults.property_fee_recoverable}
                   onValueChange={setRecoverable}
                 />
               </Field>
@@ -120,6 +178,7 @@ export function SnapshotForm({
                 <MoneyInput
                   id="property_fee_not_recoverable"
                   name="property_fee_not_recoverable"
+                  defaultValue={defaults.property_fee_not_recoverable}
                   onValueChange={setNotRecoverable}
                 />
               </Field>
@@ -141,7 +200,11 @@ export function SnapshotForm({
 
         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field id="maintenance" label={t("pnl.maintenance")}>
-            <MoneyInput id="maintenance" name="maintenance" />
+            <MoneyInput
+              id="maintenance"
+              name="maintenance"
+              defaultValue={defaults.maintenance}
+            />
           </Field>
         </div>
       </Section>
@@ -154,14 +217,22 @@ export function SnapshotForm({
             label={t("pnl.management_costs")}
             hint={t("pnl.management_costs_help")}
           >
-            <MoneyInput id="management_costs" name="management_costs" />
+            <MoneyInput
+              id="management_costs"
+              name="management_costs"
+              defaultValue={defaults.management_costs}
+            />
           </Field>
           <Field
             id="vacancy_risk_amount"
             label={t("pnl.vacancy_amount_monthly")}
             hint={t("pnl.vacancy_amount_help")}
           >
-            <MoneyInput id="vacancy_risk_amount" name="vacancy_risk_amount" />
+            <MoneyInput
+              id="vacancy_risk_amount"
+              name="vacancy_risk_amount"
+              defaultValue={defaults.vacancy_risk_amount}
+            />
           </Field>
         </div>
       </Section>
@@ -173,26 +244,53 @@ export function SnapshotForm({
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Field id="annuity_override" label={t("pnl.annuity_override")}>
-            <MoneyInput id="annuity_override" name="annuity_override" />
+            <MoneyInput
+              id="annuity_override"
+              name="annuity_override"
+              defaultValue={defaults.annuity_override}
+            />
           </Field>
           <Field id="interest_override" label={t("pnl.interest_override")}>
-            <MoneyInput id="interest_override" name="interest_override" />
+            <MoneyInput
+              id="interest_override"
+              name="interest_override"
+              defaultValue={defaults.interest_override}
+            />
           </Field>
           <Field id="principal_override" label={t("pnl.principal_override")}>
-            <MoneyInput id="principal_override" name="principal_override" />
+            <MoneyInput
+              id="principal_override"
+              name="principal_override"
+              defaultValue={defaults.principal_override}
+            />
           </Field>
         </div>
       </Section>
 
       <FormError raw={state?.error} />
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-      >
-        {pending ? t("common.loading") : t("common.create")}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={pending}
+          className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {pending
+            ? t("common.loading")
+            : snapshotId
+              ? t("common.save")
+              : t("common.create")}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
+          >
+            {t("common.cancel")}
+          </button>
+        )}
+      </div>
     </form>
   );
 }
