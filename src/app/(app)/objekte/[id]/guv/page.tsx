@@ -19,7 +19,6 @@ import { computeValuation } from "@/lib/calculations/valuation";
 import { SnapshotForm } from "./snapshot-form";
 import { buildEmptyDefaults } from "./snapshot-defaults";
 import { deleteSnapshot } from "./actions";
-import { CashflowResultCard } from "./cashflow-result-card";
 import { TaxProjectionCard } from "./tax-projection-card";
 import { SnapshotItem } from "./snapshot-item";
 
@@ -243,37 +242,31 @@ export default async function PropertyPnLPage({
                 snapshotId={row.id}
                 defaults={rowDefaults}
                 canEdit={editable}
-              >
-                {(editButton) => (
-                  <CashflowResultCard
-                    periodStart={row.period_start}
-                    periodEnd={row.period_end}
-                    investor={investor}
-                    bank={bank}
-                    bankStressed={bankStressed}
-                    kpis={kpis}
-                    ltvContext={{
-                      remainingLoans,
-                      marketValue,
-                      marketValueDate,
-                    }}
-                    rateLockUntil={earliestRateLock}
-                    onEdit={editButton}
-                    onDelete={
-                      editable ? (
-                        <form action={deleteSnapshot.bind(null, row.id, id)}>
-                          <button
-                            type="submit"
-                            className="text-xs text-red-600 dark:text-red-400 hover:underline"
-                          >
-                            {t("pnl.delete_snapshot")}
-                          </button>
-                        </form>
-                      ) : null
-                    }
-                  />
-                )}
-              </SnapshotItem>
+                periodStart={row.period_start}
+                periodEnd={row.period_end}
+                investor={investor}
+                bank={bank}
+                bankStressed={bankStressed}
+                kpis={kpis}
+                ltvContext={{
+                  remainingLoans,
+                  marketValue,
+                  marketValueDate,
+                }}
+                rateLockUntil={earliestRateLock}
+                deleteSlot={
+                  editable ? (
+                    <form action={deleteSnapshot.bind(null, row.id, id)}>
+                      <button
+                        type="submit"
+                        className="text-xs text-red-600 dark:text-red-400 hover:underline"
+                      >
+                        {t("pnl.delete_snapshot")}
+                      </button>
+                    </form>
+                  ) : null
+                }
+              />
             );
           })
         )}
