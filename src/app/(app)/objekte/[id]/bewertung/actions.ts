@@ -57,6 +57,7 @@ const schema = z.object({
   market_rent_per_sqm: optNum,
   multiple: optNum,
   building_value: optNum,
+  land_value: optNum,
   income_weight: weightSchema,
   notes: z
     .string()
@@ -80,6 +81,7 @@ export async function createValuation(
     market_rent_per_sqm: getStr(formData, "market_rent_per_sqm"),
     multiple: getStr(formData, "multiple"),
     building_value: getStr(formData, "building_value"),
+    land_value: getStr(formData, "land_value"),
     income_weight: getStr(formData, "income_weight"),
     notes: getStr(formData, "notes"),
   });
@@ -112,6 +114,7 @@ export async function updateValuation(
     market_rent_per_sqm: getStr(formData, "market_rent_per_sqm"),
     multiple: getStr(formData, "multiple"),
     building_value: getStr(formData, "building_value"),
+    land_value: getStr(formData, "land_value"),
     income_weight: getStr(formData, "income_weight"),
     notes: getStr(formData, "notes"),
   });

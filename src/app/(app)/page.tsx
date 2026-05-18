@@ -28,7 +28,7 @@ export default async function DashboardPage() {
         `id, street, postal_code, city, location_detail, description, sqm, land_value, purchase_price, transfer_date,
          transfer_tax, broker_fee, notary_fee, registration_cost,
          building_value_share_pct, depreciation_rate,
-         portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight),
+         portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight),
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate,
                special_repayments(payment_date, amount)),
          pnl_snapshots(id, period_start, period_end, cold_rent, ancillary_costs, property_fee_recoverable, property_fee_not_recoverable, maintenance, annuity_override, interest_override, principal_override)`
@@ -66,6 +66,7 @@ export default async function DashboardPage() {
         market_rent_per_sqm: string | number | null;
         multiple: string | number | null;
         building_value: string | number | null;
+        land_value: string | number | null;
         income_weight: string | number | null;
       }[]) ?? [];
     const latestVal = valuations
@@ -80,7 +81,12 @@ export default async function DashboardPage() {
               ? null
               : Number(latestVal.market_rent_per_sqm),
           multiple: latestVal.multiple == null ? null : Number(latestVal.multiple),
-          landValue: p.land_value == null ? null : Number(p.land_value),
+          landValue:
+            latestVal.land_value != null
+              ? Number(latestVal.land_value)
+              : p.land_value == null
+                ? null
+                : Number(p.land_value),
           buildingValue:
             latestVal.building_value == null
               ? null

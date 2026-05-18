@@ -302,7 +302,13 @@
     "help_condition": "Subjective rating 1 (needs renovation) to 10 (new-build standard).",
     "help_market_rent": "Local comparison rent €/m² (rent index, listing comparison, expert estimate) — NOT the actually-collected rent.",
     "help_multiple": "Gross rent multiplier: market value ≈ multiplier × annual gross cold rent. Typical range 18–30, depending on location and condition. Rule of thumb of the broker market — not a net-yield factor in the ImmoWertV sense.",
-    "help_building_value": "Reproduction cost of the building (replacement-cost-new, simplified). For more precision: standard construction cost × gross area × indexing, before age deduction.",
+    "help_building_value": "Reproduction cost of ONLY the building (replacement-cost-new, simplified). Land value is captured separately below — both together yield the replacement cost.",
+    "land_value_input_label": "Land value (at valuation date)",
+    "land_value_input_help": "Current market value of the land at the valuation date. Land values change over time — editable per valuation. Empty = property master-data value is used.",
+    "land_value_default_hint": "Prefilled from property master data ({value})",
+    "land_value_override_active": "Override saved for this valuation.",
+    "land_value_edit_link": "edit in property",
+    "substanzwert_total": "Replacement cost total (land + building)",
     "source_footnote": "This app delivers a market value indication based on GRM and reproduction cost new. Not an ImmoWertV-conformant appraisal, not an official valuation report — for bank/tax purposes consider adding a certified expert appraisal."
   },
   "pnl": {
@@ -350,6 +356,7 @@
     "kpi_net_yield": "Net rental yield",
     "kpi_ltv": "Loan-to-Value",
     "kpi_ltv_help": "Remaining loans ÷ current market value (latest valuation).",
+    "kpi_ltv_breakdown": "Remaining loans {loans}\nMarket value {market} (valuation {date})",
     "stress_label": "Stress test (+250 bp after rate lock)",
     "stress_help": "Increases interest by 250 bp once the rate lock ends — typical bank worst-case.",
     "stress_no_lock": "No rate lock end date set — stress applies from period start.",

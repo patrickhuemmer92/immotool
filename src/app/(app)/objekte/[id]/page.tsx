@@ -60,7 +60,7 @@ export default async function PropertyFactsheetPage({
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight"
+        "id, valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight"
       )
       .eq("property_id", id)
       .order("valuation_date", { ascending: false })
@@ -176,7 +176,11 @@ export default async function PropertyFactsheetPage({
               ? null
               : Number(latestValuation.multiple),
           landValue:
-            property.land_value == null ? null : Number(property.land_value),
+            latestValuation.land_value != null
+              ? Number(latestValuation.land_value)
+              : property.land_value == null
+                ? null
+                : Number(property.land_value),
           buildingValue:
             latestValuation.building_value == null
               ? null

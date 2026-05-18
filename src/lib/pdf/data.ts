@@ -117,7 +117,7 @@ export async function fetchPropertyForPdf(
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, market_rent_per_sqm, multiple, building_value, income_weight"
+        "id, valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight"
       )
       .eq("property_id", propertyId)
       .order("valuation_date", { ascending: false })
@@ -238,6 +238,7 @@ export async function fetchPropertyForPdf(
         market_rent_per_sqm: string | number | null;
         multiple: string | number | null;
         building_value: string | number | null;
+        land_value: string | number | null;
         income_weight: string | number | null;
       }
     | undefined;
@@ -254,7 +255,11 @@ export async function fetchPropertyForPdf(
               ? null
               : Number(latestValuation.multiple),
           landValue:
-            property.land_value == null ? null : Number(property.land_value),
+            latestValuation.land_value != null
+              ? Number(latestValuation.land_value)
+              : property.land_value == null
+                ? null
+                : Number(property.land_value),
           buildingValue:
             latestValuation.building_value == null
               ? null

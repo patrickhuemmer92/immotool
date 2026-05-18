@@ -31,7 +31,7 @@ export default async function PropertyValuationPage({
     supabase
       .from("portfolio_valuations")
       .select(
-        "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, income_weight, notes"
+        "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, land_value, income_weight, notes"
       )
       .eq("property_id", id)
       .order("valuation_date", { ascending: false }),
@@ -76,6 +76,9 @@ export default async function PropertyValuationPage({
             {(valuations ?? []).map((v) => {
               const w =
                 v.income_weight == null ? 0.5 : Number(v.income_weight);
+              // Per-valuation land value wins over the property fallback.
+              const effectiveLandValue =
+                v.land_value != null ? Number(v.land_value) : landValue;
               const result = computeValuation(
                 {
                   sqm,
@@ -84,7 +87,7 @@ export default async function PropertyValuationPage({
                       ? null
                       : Number(v.market_rent_per_sqm),
                   multiple: v.multiple == null ? null : Number(v.multiple),
-                  landValue,
+                  landValue: effectiveLandValue,
                   buildingValue:
                     v.building_value == null ? null : Number(v.building_value),
                 },
@@ -190,7 +193,7 @@ export default async function PropertyValuationPage({
       {editable && (
         <div className="mt-8 max-w-3xl">
           <h2 className="text-lg font-semibold mb-4">{t("valuation.new")}</h2>
-          <ValuationForm propertyId={id} />
+          <ValuationForm propertyId={id} propertyLandValue={landValue} />
         </div>
       )}
     </div>

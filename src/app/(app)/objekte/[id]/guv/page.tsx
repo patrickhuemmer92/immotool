@@ -102,18 +102,27 @@ export default async function PropertyPnLPage({
     );
   }
 
-  // Latest valuation → market value (Sachwert + Ertragswert kombiniert).
+  // Latest valuation → market value (Bruttofaktor + Reproduktionsneuwert,
+  // gewichtet gemäß der gespeicherten income_weight der Bewertung).
   let marketValue: number | null = null;
+  let marketValueDate: string | null = null;
   const latestVal = valuations?.[0];
   if (latestVal) {
-    const v = computeValuation({
-      sqm: num(property.sqm) || null,
-      marketRentPerSqm: num(latestVal.market_rent_per_sqm) || null,
-      multiple: num(latestVal.multiple) || null,
-      landValue: num(property.land_value) || null,
-      buildingValue: num(latestVal.building_value) || null,
-    });
+    const incomeWeight =
+      latestVal.income_weight == null ? 0.5 : Number(latestVal.income_weight);
+    const v = computeValuation(
+      {
+        sqm: num(property.sqm) || null,
+        marketRentPerSqm: num(latestVal.market_rent_per_sqm) || null,
+        multiple: num(latestVal.multiple) || null,
+        landValue:
+          num(latestVal.land_value) ?? (num(property.land_value) || null),
+        buildingValue: num(latestVal.building_value) || null,
+      },
+      incomeWeight
+    );
     marketValue = v.combined ?? null;
+    marketValueDate = latestVal.valuation_date ?? null;
   }
 
   // Earliest rate-lock end (used by the stress-test hint).
@@ -201,6 +210,11 @@ export default async function PropertyPnLPage({
                 bank={bank}
                 bankStressed={bankStressed}
                 kpis={kpis}
+                ltvContext={{
+                  remainingLoans,
+                  marketValue,
+                  marketValueDate,
+                }}
                 rateLockUntil={earliestRateLock}
                 onDelete={
                   editable ? (

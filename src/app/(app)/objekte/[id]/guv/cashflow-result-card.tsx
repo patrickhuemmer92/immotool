@@ -14,6 +14,13 @@ export type SnapshotKPIs = {
   ltv: number | null;
 };
 
+export type LtvContext = {
+  remainingLoans: number;
+  marketValue: number | null;
+  /** ISO date of the valuation that drove the market value. */
+  marketValueDate: string | null;
+};
+
 export function CashflowResultCard({
   periodStart,
   periodEnd,
@@ -21,6 +28,7 @@ export function CashflowResultCard({
   bank,
   bankStressed,
   kpis,
+  ltvContext,
   rateLockUntil,
   onDelete,
 }: {
@@ -31,6 +39,8 @@ export function CashflowResultCard({
   /** Same period under +250 bp stress. */
   bankStressed: BankViewResult;
   kpis: SnapshotKPIs;
+  /** Background info for the LTV tooltip. */
+  ltvContext?: LtvContext;
   /** ISO date of the earliest rate lock end. Used for the stress hint. */
   rateLockUntil: string | null;
   onDelete?: React.ReactNode;
@@ -231,7 +241,21 @@ export function CashflowResultCard({
         <KpiCell
           label={t("pnl.kpi_ltv")}
           value={kpis.ltv != null ? pct(kpis.ltv) : "—"}
-          hint={t("pnl.kpi_ltv_help")}
+          hint={
+            ltvContext
+              ? t("pnl.kpi_ltv_breakdown", {
+                  loans: eurExact(ltvContext.remainingLoans),
+                  market:
+                    ltvContext.marketValue != null
+                      ? eurExact(ltvContext.marketValue)
+                      : "—",
+                  date:
+                    ltvContext.marketValueDate != null
+                      ? dateDe(ltvContext.marketValueDate)
+                      : "—",
+                })
+              : t("pnl.kpi_ltv_help")
+          }
         />
       </div>
     </div>
@@ -328,6 +352,11 @@ function KpiCell({
         {label}
       </div>
       <div className="mt-1 text-sm font-semibold tabular-nums">{value}</div>
+      {hint && (
+        <div className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug whitespace-pre-line">
+          {hint}
+        </div>
+      )}
     </div>
   );
 }

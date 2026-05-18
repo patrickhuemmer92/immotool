@@ -17,16 +17,25 @@ export default async function EditValuationPage({
   if (!canEdit(active.role)) redirect(`/objekte/${id}/bewertung`);
 
   const supabase = await createClient();
-  const { data: v } = await supabase
-    .from("portfolio_valuations")
-    .select(
-      "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, income_weight"
-    )
-    .eq("id", valuationId)
-    .eq("property_id", id)
-    .maybeSingle();
+  const [{ data: v }, { data: property }] = await Promise.all([
+    supabase
+      .from("portfolio_valuations")
+      .select(
+        "id, valuation_date, condition_score, market_rent_per_sqm, multiple, building_value, land_value, income_weight"
+      )
+      .eq("id", valuationId)
+      .eq("property_id", id)
+      .maybeSingle(),
+    supabase
+      .from("properties")
+      .select("land_value")
+      .eq("id", id)
+      .maybeSingle(),
+  ]);
 
   if (!v) notFound();
+  const landValue =
+    property?.land_value == null ? null : Number(property.land_value);
 
   const defaults: ValuationDefaults = {
     valuation_date: v.valuation_date,
@@ -53,6 +62,13 @@ export default async function EditValuationPage({
             useGrouping: false,
             maximumFractionDigits: 2,
           }),
+    land_value:
+      v.land_value == null
+        ? ""
+        : Number(v.land_value).toLocaleString("de-DE", {
+            useGrouping: false,
+            maximumFractionDigits: 2,
+          }),
     income_weight: v.income_weight == null ? 0.5 : Number(v.income_weight),
   };
 
@@ -71,6 +87,7 @@ export default async function EditValuationPage({
         <ValuationForm
           propertyId={id}
           valuationId={valuationId}
+          propertyLandValue={landValue}
           defaults={defaults}
         />
       </div>
