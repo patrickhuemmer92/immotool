@@ -9,15 +9,24 @@ import {
   type PnLResult,
   type PropertyKPIResult,
 } from "@/lib/calculations/pnl";
+import {
+  depreciationForCalendarYear,
+  type DepreciationMethod,
+  type DepreciationParams,
+} from "@/lib/calculations/depreciation";
 import type { LoanInput } from "@/lib/calculations/loan";
 
 export type PropertyForPnL = {
   kind?: string | null;
   sqm?: string | number | null;
+  transfer_date?: string | null;
   purchase_price: string | number | null;
   building_value_share_pct: string | number | null;
   land_value: string | number | null;
   depreciation_rate: string | number | null;
+  depreciation_method?: DepreciationMethod | string | null;
+  depreciation_start_year?: number | null;
+  sonder_7b_basis_limit?: string | number | null;
   transfer_tax?: string | number | null;
   broker_fee?: string | number | null;
   notary_fee?: string | number | null;
@@ -60,6 +69,10 @@ export type SettingsForPnL = {
   default_vacancy_commercial?: string | number | null;
   default_management_per_unit?: string | number | null;
   bank_maintenance_per_sqm?: string | number | null;
+  degressive_7v_rate?: string | number | null;
+  sonder_7b_rate?: string | number | null;
+  sonder_7b_years?: string | number | null;
+  sonder_7b_linear_rate?: string | number | null;
 };
 
 const num = (v: string | number | null | undefined): number | null => {
@@ -102,6 +115,49 @@ export function resolveBankMaintenancePerSqm(
   const override = num(property.bank_maintenance_pauschale_per_sqm);
   if (override != null) return override;
   return num(settings.bank_maintenance_per_sqm) ?? 8;
+}
+
+/** Resolve the AfA start year for a property (= year of transfer date). */
+export function resolveDepreciationStartYear(
+  property: PropertyForPnL
+): number | null {
+  if (property.depreciation_start_year != null) {
+    return Number(property.depreciation_start_year);
+  }
+  if (property.transfer_date) {
+    return new Date(property.transfer_date).getUTCFullYear();
+  }
+  return null;
+}
+
+/**
+ * Build the depreciation params for this property based on its method and
+ * the global settings. Returns null if no AfA-Basis is available.
+ */
+export function buildDepreciationParams(
+  property: PropertyForPnL,
+  settings: SettingsForPnL,
+  afaBasis: number
+): DepreciationParams | null {
+  if (afaBasis <= 0) return null;
+  const method = ((property.depreciation_method as DepreciationMethod) ??
+    "linear") as DepreciationMethod;
+  const linearRate =
+    method === "sonder_7b"
+      ? num(settings.sonder_7b_linear_rate) ?? 0.03
+      : num(property.depreciation_rate) ??
+        num(settings.default_depreciation_rate) ??
+        0.02;
+  return {
+    method,
+    basis: afaBasis,
+    linearRate,
+    degressiveRate: num(settings.degressive_7v_rate) ?? 0.05,
+    sonderRate: num(settings.sonder_7b_rate) ?? 0.05,
+    sonderYears: Number(num(settings.sonder_7b_years) ?? 4),
+    sonderLinearRate: num(settings.sonder_7b_linear_rate) ?? 0.03,
+    sonder7bBasisLimit: num(property.sonder_7b_basis_limit),
+  };
 }
 
 export function buildPnLInput(
@@ -151,6 +207,17 @@ export function buildPnLInput(
   const managementCosts =
     num(snapshot.management_costs) ?? (managementDefault || null);
 
+  // Methodikbasierte AfA fürs Periodenjahr — fällt auf lineare AfA zurück,
+  // wenn Methode 'linear' und kein Start-Jahr gesetzt ist.
+  const depParams = buildDepreciationParams(property, settings, afaBasis);
+  const startYear = resolveDepreciationStartYear(property);
+  const periodYear = new Date(snapshot.period_start).getUTCFullYear();
+  let annualBuildingDepreciationOverride: number | null = null;
+  if (depParams && startYear != null) {
+    const slice = depreciationForCalendarYear(depParams, startYear, periodYear);
+    annualBuildingDepreciationOverride = slice.total;
+  }
+
   return {
     period: {
       start: new Date(snapshot.period_start),
@@ -170,6 +237,7 @@ export function buildPnLInput(
     loans: loansMapped,
     buildingAfaBasis: afaBasis,
     depreciationRate,
+    annualBuildingDepreciationOverride,
     taxRate: Number(settings.tax_rate),
     convention,
   };
@@ -222,6 +290,91 @@ export type PropertyKPIArgs = {
   /** Latest valuation — combined market value (€). */
   marketValue?: number | null;
 };
+
+/**
+ * Steuereffekt-Zeitreihe — projiziert pro Jahr Zinsen, Tilgung, AfA und
+ * Cashflow nach Steuer, basierend auf einem "Status-quo"-Snapshot.
+ *
+ * Annahmen:
+ *   - Miete / Hausgeld / Rücklage / SEV / MAW bleiben konstant
+ *     (keine Inflation, keine Mieterhöhung). Wenn du eine Mietsteigerung
+ *     modellieren willst: kein UI dafür hier.
+ *   - Zinsen + Tilgung kommen aus dem Tilgungsplan der hinterlegten
+ *     Darlehen — Annuität bleibt nominell konstant, das Verhältnis
+ *     verschiebt sich.
+ *   - AfA folgt der gewählten Methode (linear / degressiv / Sonder).
+ */
+export type TaxProjectionRow = {
+  /** AfA-Jahr (1-basiert). */
+  year: number;
+  /** Konkretes Kalenderjahr. */
+  calendarYear: number;
+  /** Jahres-Zinsen. */
+  interest: number;
+  /** Jahres-Tilgung. */
+  principal: number;
+  /** Jahres-AfA. */
+  depreciation: number;
+  /** Cashflow vor Steuer p.a. */
+  cashflowBeforeTax: number;
+  /** Steuerlicher Gewinn p.a. */
+  pretaxProfit: number;
+  /** Steuereffekt p.a. (positiv = Steuerzahlung, negativ = Erstattung). */
+  taxEffect: number;
+  /** Cashflow nach Steuer p.a. */
+  afterTaxCashflow: number;
+};
+
+export const TAX_PROJECTION_YEARS: readonly number[] = [
+  1, 3, 5, 10, 15, 20, 30,
+];
+
+export function computeTaxProjection(args: {
+  snapshot: SnapshotInputRow;
+  property: PropertyForPnL;
+  loans: LoanForPnL[];
+  settings: SettingsForPnL;
+  years?: readonly number[];
+}): TaxProjectionRow[] {
+  const startYear = resolveDepreciationStartYear(args.property);
+  if (startYear == null) return [];
+  const targetYears = args.years ?? TAX_PROJECTION_YEARS;
+
+  return targetYears.map((y) => {
+    const calendarYear = startYear + y - 1;
+    // Build a 12-month period that covers exactly this calendar year so
+    // the PnL helpers can do their per-period scaling.
+    const start = `${calendarYear}-01-01`;
+    const end = `${calendarYear}-12-01`;
+    const periodSnap: SnapshotInputRow = {
+      ...args.snapshot,
+      period_start: start,
+      period_end: end,
+      // Force auto-loan: ignore previously stored overrides so the
+      // projection uses the schedule.
+      annuity_override: null,
+      interest_override: null,
+      principal_override: null,
+    };
+    const r = computeSnapshotResult(
+      periodSnap,
+      args.property,
+      args.loans,
+      args.settings
+    );
+    return {
+      year: y,
+      calendarYear,
+      interest: r.interest,
+      principal: r.principal,
+      depreciation: r.depreciation,
+      cashflowBeforeTax: r.cashflowBeforeTax,
+      pretaxProfit: r.pretaxProfit,
+      taxEffect: r.taxEffect,
+      afterTaxCashflow: r.afterTaxCashflow,
+    };
+  });
+}
 
 export function computeSnapshotKPIs(args: PropertyKPIArgs): PropertyKPIResult {
   const ancillary =

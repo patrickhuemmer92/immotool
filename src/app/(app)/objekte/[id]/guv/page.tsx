@@ -8,6 +8,7 @@ import {
   computeSnapshotBankView,
   computeSnapshotKPIs,
   computeSnapshotResult,
+  computeTaxProjection,
   type LoanForPnL,
   type PropertyForPnL,
   type SettingsForPnL,
@@ -18,6 +19,7 @@ import { computeValuation } from "@/lib/calculations/valuation";
 import { SnapshotForm } from "./snapshot-form";
 import { deleteSnapshot } from "./actions";
 import { CashflowResultCard } from "./cashflow-result-card";
+import { TaxProjectionCard } from "./tax-projection-card";
 
 const num = (v: string | number | null | undefined): number => {
   if (v === null || v === undefined || v === "") return 0;
@@ -58,7 +60,7 @@ export default async function PropertyPnLPage({
     supabase
       .from("settings")
       .select(
-        "tax_rate, default_depreciation_rate, cashflow_convention, default_vacancy_residential, default_vacancy_commercial, default_management_per_unit, bank_maintenance_per_sqm"
+        "tax_rate, default_depreciation_rate, cashflow_convention, default_vacancy_residential, default_vacancy_commercial, default_management_per_unit, bank_maintenance_per_sqm, degressive_7v_rate, sonder_7b_rate, sonder_7b_years, sonder_7b_linear_rate"
       )
       .eq("workspace_id", active.id)
       .maybeSingle(),
@@ -217,6 +219,22 @@ export default async function PropertyPnLPage({
           })
         )}
       </div>
+
+      {(snapshots ?? []).length > 0 && (
+        <div className="mt-10">
+          {(() => {
+            // Latest snapshot drives the projection (status quo).
+            const latest = (snapshots ?? [])[0] as SnapshotInputRow;
+            const rows = computeTaxProjection({
+              snapshot: latest,
+              property: propertyForCalc,
+              loans: loansForCalc,
+              settings: settingsForCalc,
+            });
+            return <TaxProjectionCard rows={rows} />;
+          })()}
+        </div>
+      )}
 
       {editable && (
         <div className="mt-12 max-w-3xl">

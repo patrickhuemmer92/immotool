@@ -66,6 +66,13 @@ export type PnLInput = {
   buildingAfaBasis: number;
   /** Annual building Afa rate (e.g. 0.02). */
   depreciationRate: number;
+  /**
+   * Override für die jährliche Gebäude-AfA. Wenn gesetzt, wird sie statt
+   * `buildingAfaBasis × depreciationRate` verwendet — pnl-context nutzt
+   * das, um methodikbasierte AfA (degressiv § 7 V / Sonder § 7b) für das
+   * konkrete Periodenjahr durchzureichen.
+   */
+  annualBuildingDepreciationOverride?: number | null;
   /** Additional annual depreciation (e.g. kitchen, individual life). */
   otherAnnualDepreciation?: number;
   /** Personal income-tax rate applied to the taxable result. */
@@ -214,9 +221,12 @@ export function computePnL(input: PnLInput): PnLResult {
       : (input.vacancyRate ?? 0) * coldRentMonthly;
   const vacancyLoss = vacancyMonthly * months;
 
+  const annualBuilding =
+    input.annualBuildingDepreciationOverride != null
+      ? input.annualBuildingDepreciationOverride
+      : input.buildingAfaBasis * input.depreciationRate;
   const annualDepreciation =
-    input.buildingAfaBasis * input.depreciationRate +
-    (input.otherAnnualDepreciation ?? 0);
+    annualBuilding + (input.otherAnnualDepreciation ?? 0);
   const depreciation = (annualDepreciation * months) / 12;
 
   // ------- Cashflow line items, convention-aware -------
