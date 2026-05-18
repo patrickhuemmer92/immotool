@@ -26,7 +26,7 @@ export default async function DashboardPage() {
       .from("properties")
       .select(
         `id, street, postal_code, city, location_detail, description, sqm, land_value, purchase_price, transfer_date,
-         transfer_tax, broker_fee, notary_fee, registration_cost,
+         transfer_tax, broker_fee, notary_fee, registration_cost, equity_amount,
          building_value_share_pct, depreciation_rate,
          portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight),
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate,
@@ -123,11 +123,33 @@ export default async function DashboardPage() {
       propertyRemaining += r;
       totalLoans += r;
     }
+    // EK = "eingesetztes Eigenkapital" aus dem Property-Finanzierung-Block.
+    // Falls leer: ableiten aus Anschaffungskosten gesamt − initiale Σ Darlehensbeträge.
+    const equityStored =
+      p.equity_amount == null || p.equity_amount === ""
+        ? null
+        : Number(p.equity_amount);
+    const ancillary =
+      (Number(p.transfer_tax ?? 0) || 0) +
+      (Number(p.broker_fee ?? 0) || 0) +
+      (Number(p.notary_fee ?? 0) || 0) +
+      (Number(p.registration_cost ?? 0) || 0);
+    const acquisitionTotal = purchase + ancillary;
+    const initialLoansSum = loans.reduce(
+      (acc, l) => acc + Number(l.loan_amount),
+      0
+    );
+    const equityDerived = acquisitionTotal - initialLoansSum;
+    const equity =
+      equityStored != null && Number.isFinite(equityStored)
+        ? equityStored
+        : equityDerived;
+
     balanceRows.push({
       label: formatPropertyAddress(p),
-      purchase,
+      purchase: acquisitionTotal,
       remaining: propertyRemaining,
-      equity: purchase - propertyRemaining,
+      equity,
     });
 
     const snaps =

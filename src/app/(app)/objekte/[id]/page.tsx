@@ -50,7 +50,15 @@ export default async function PropertyFactsheetPage({
         "id, designation, bank, loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate, special_repayments(payment_date, amount)"
       )
       .eq("property_id", id),
-    supabase.from("tenants").select("*").eq("property_id", id).maybeSingle(),
+    supabase
+      .from("rental_contracts")
+      .select(
+        "tenant_name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
+      )
+      .eq("property_id", id)
+      .order("contract_start", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("pnl_snapshots")
       .select("*")
@@ -407,10 +415,23 @@ export default async function PropertyFactsheetPage({
         <Card title={t("factsheet.tenant_summary")}>
           {tenant ? (
             <div className="space-y-1 text-sm">
-              <span className="font-medium">{tenant.name}</span>
+              <div className="font-medium">{tenant.tenant_name}</div>
               {tenant.contract_start && (
                 <div className="text-neutral-500 dark:text-neutral-400">
                   {t("tenants.contract_start")}: {dateDe(tenant.contract_start)}
+                  {tenant.is_fixed_term && tenant.contract_end
+                    ? ` – ${dateDe(tenant.contract_end)}`
+                    : ` (${t("tenants.term_open_ended")})`}
+                </div>
+              )}
+              {tenant.cold_rent_per_month != null && (
+                <div className="text-neutral-500 dark:text-neutral-400">
+                  {t("tenants.cold_rent_per_month")}:{" "}
+                  {Number(tenant.cold_rent_per_month).toLocaleString("de-DE", {
+                    style: "currency",
+                    currency: "EUR",
+                    maximumFractionDigits: 0,
+                  })}
                 </div>
               )}
             </div>

@@ -5,11 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
 import {
-  TenantForm,
-  EMPTY_TENANT_DEFAULTS,
-  type TenantDefaults,
-} from "./tenant-form";
-import { deleteTenant } from "./actions";
+  RentalContractsList,
+  type RentalContractRow,
+} from "./rental-contracts-list";
 
 export default async function PropertyTenantPage({
   params,
@@ -22,31 +20,35 @@ export default async function PropertyTenantPage({
   if (!active) return null;
 
   const supabase = await createClient();
-  const [{ data: property }, { data: tenant }] = await Promise.all([
+  const [{ data: property }, { data: contracts }] = await Promise.all([
     supabase
       .from("properties")
       .select("id, street, postal_code, city, location_detail, description")
       .eq("id", id)
       .maybeSingle(),
-    supabase.from("tenants").select("*").eq("property_id", id).maybeSingle(),
+    supabase
+      .from("rental_contracts")
+      .select(
+        "id, tenant_name, contract_start, is_fixed_term, contract_end, cold_rent_per_month, notes"
+      )
+      .eq("property_id", id)
+      .order("contract_start", { ascending: false }),
   ]);
 
   if (!property) notFound();
 
   const readOnly = !canEdit(active.role);
-  const defaults: TenantDefaults = tenant
-    ? {
-        name: tenant.name,
-        contract_start: tenant.contract_start ?? "",
-        family_status: tenant.family_status?.toString() ?? "",
-        schufa: tenant.schufa?.toString() ?? "",
-        rental_duration: tenant.rental_duration?.toString() ?? "",
-        personal_impression: tenant.personal_impression?.toString() ?? "",
-        employment_status: tenant.employment_status?.toString() ?? "",
-        income_level: tenant.income_level?.toString() ?? "",
-        notes: tenant.notes ?? "",
-      }
-    : EMPTY_TENANT_DEFAULTS;
+
+  const rows: RentalContractRow[] = (contracts ?? []).map((c) => ({
+    id: c.id,
+    tenant_name: c.tenant_name,
+    contract_start: c.contract_start,
+    is_fixed_term: c.is_fixed_term ?? false,
+    contract_end: c.contract_end ?? null,
+    cold_rent_per_month:
+      c.cold_rent_per_month == null ? null : Number(c.cold_rent_per_month),
+    notes: c.notes ?? null,
+  }));
 
   return (
     <div>
@@ -56,26 +58,17 @@ export default async function PropertyTenantPage({
       >
         ← {formatPropertyAddress(property)}
       </Link>
-      <div className="mt-2 flex items-start justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("tenants.title")}
-        </h1>
-        {tenant && !readOnly && (
-          <form action={deleteTenant.bind(null, id)}>
-            <button
-              type="submit"
-              className="text-sm text-red-600 dark:text-red-400 hover:underline"
-            >
-              {t("tenants.delete_tenant")}
-            </button>
-          </form>
-        )}
-      </div>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+        {t("tenants.title")}
+      </h1>
+      <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+        {t("tenants.timeline_help")}
+      </p>
 
       <div className="mt-6">
-        <TenantForm
+        <RentalContractsList
           propertyId={id}
-          defaults={defaults}
+          contracts={rows}
           readOnly={readOnly}
         />
       </div>

@@ -2,10 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
 import {
-  readTenantScoreWeights,
-  tenantScore,
-} from "@/lib/calculations/tenant";
-import {
   computeSnapshotResult,
   type LoanForPnL,
   type SnapshotInputRow,
@@ -46,7 +42,9 @@ export type PdfPropertyData = {
   tenant: {
     name: string;
     contract_start: string | null;
-    score: number | null;
+    contract_end: string | null;
+    is_fixed_term: boolean;
+    cold_rent_per_month: number | null;
   } | null;
   latestPnL: {
     period: string;
@@ -108,7 +106,15 @@ export async function fetchPropertyForPdf(
         "id, designation, bank, loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate, special_repayments(payment_date, amount)"
       )
       .eq("property_id", propertyId),
-    supabase.from("tenants").select("*").eq("property_id", propertyId).maybeSingle(),
+    supabase
+      .from("rental_contracts")
+      .select(
+        "tenant_name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
+      )
+      .eq("property_id", propertyId)
+      .order("contract_start", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("pnl_snapshots")
       .select("*")
@@ -137,7 +143,7 @@ export async function fetchPropertyForPdf(
       .limit(8),
     supabase
       .from("settings")
-      .select("tax_rate, default_depreciation_rate, tenant_score_weights")
+      .select("tax_rate, default_depreciation_rate")
       .eq("workspace_id", workspaceId)
       .maybeSingle(),
   ]);
@@ -273,19 +279,14 @@ export async function fetchPropertyForPdf(
 
   const tenantSummary = tenant
     ? {
-        name: tenant.name,
+        name: tenant.tenant_name,
         contract_start: tenant.contract_start ? dateDe(tenant.contract_start) : null,
-        score: tenantScore(
-          {
-            family_status: tenant.family_status,
-            schufa: tenant.schufa,
-            rental_duration: tenant.rental_duration,
-            personal_impression: tenant.personal_impression,
-            employment_status: tenant.employment_status,
-            income_level: tenant.income_level,
-          },
-          readTenantScoreWeights(settings?.tenant_score_weights)
-        ),
+        contract_end: tenant.contract_end ? dateDe(tenant.contract_end) : null,
+        is_fixed_term: tenant.is_fixed_term ?? false,
+        cold_rent_per_month:
+          tenant.cold_rent_per_month == null
+            ? null
+            : Number(tenant.cold_rent_per_month),
       }
     : null;
 
