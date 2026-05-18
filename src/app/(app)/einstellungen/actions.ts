@@ -35,11 +35,35 @@ const requiredNonNegWeight = z
   })
   .transform((v) => parseDecimal(v) as number);
 
+/** Optional non-negative number (e.g. €/m², €/Monat). */
+const optionalNonNegNumber = z
+  .string()
+  .optional()
+  .superRefine((v, ctx) => {
+    if (!v || v.trim().length === 0) return;
+    const n = parseDecimal(v);
+    if (n === null || n < 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_number:${v}`,
+      });
+    }
+  })
+  .transform((v) => {
+    if (!v || v.trim().length === 0) return 0;
+    return parseDecimal(v) as number;
+  });
+
 const settingsSchema = z.object({
   tax_rate: requiredPercentSetting,
   default_depreciation_rate: requiredPercentSetting,
   default_locale: z.enum(["de", "en"]),
   default_currency: z.string().min(3).max(3),
+  cashflow_convention: z.enum(["net", "gross"]).optional().default("net"),
+  default_vacancy_residential: requiredPercentSetting,
+  default_vacancy_commercial: requiredPercentSetting,
+  default_management_per_unit: optionalNonNegNumber,
+  bank_maintenance_per_sqm: optionalNonNegNumber,
   weight_family_status: requiredNonNegWeight,
   weight_schufa: requiredNonNegWeight,
   weight_rental_duration: requiredNonNegWeight,
@@ -62,6 +86,13 @@ export async function updateSettings(
     default_depreciation_rate: formData.get("default_depreciation_rate"),
     default_locale: formData.get("default_locale"),
     default_currency: formData.get("default_currency"),
+    cashflow_convention: formData.get("cashflow_convention") || undefined,
+    default_vacancy_residential: formData.get("default_vacancy_residential"),
+    default_vacancy_commercial: formData.get("default_vacancy_commercial"),
+    default_management_per_unit:
+      formData.get("default_management_per_unit") || undefined,
+    bank_maintenance_per_sqm:
+      formData.get("bank_maintenance_per_sqm") || undefined,
     weight_family_status: formData.get("weight_family_status"),
     weight_schufa: formData.get("weight_schufa"),
     weight_rental_duration: formData.get("weight_rental_duration"),
@@ -93,6 +124,11 @@ export async function updateSettings(
       default_depreciation_rate: parsed.data.default_depreciation_rate,
       default_locale: parsed.data.default_locale,
       default_currency: parsed.data.default_currency,
+      cashflow_convention: parsed.data.cashflow_convention,
+      default_vacancy_residential: parsed.data.default_vacancy_residential,
+      default_vacancy_commercial: parsed.data.default_vacancy_commercial,
+      default_management_per_unit: parsed.data.default_management_per_unit,
+      bank_maintenance_per_sqm: parsed.data.bank_maintenance_per_sqm,
       tenant_score_weights,
     })
     .eq("workspace_id", active.id);
