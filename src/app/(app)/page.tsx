@@ -4,17 +4,24 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance } from "@/lib/calculations/loan";
-import { formatPropertyAddress } from "@/lib/properties";
 import {
   computeSnapshotResult,
+  computeTaxProjection,
   type LoanForPnL,
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import {
-  PortfolioBalanceBar,
-  type PortfolioBalanceRow,
-} from "@/components/charts/portfolio-balance-bar";
+  PortfolioTotalsBar,
+  type PortfolioTotalsRow,
+} from "@/components/charts/portfolio-totals-bar";
+import { DiversificationPie } from "@/components/charts/diversification-pie";
+import { CashflowProjectionLine } from "@/components/charts/cashflow-projection-line";
 
+/**
+ * Dashboard — strictly portfolio-level. No per-property rows or charts here;
+ * those belong on the Objekte / Factbook pages. Goal: clean overview that
+ * still works at a glance even for portfolios with 20+ objects.
+ */
 export default async function DashboardPage() {
   const t = await getTranslations();
   const active = await getActiveWorkspace();
@@ -47,8 +54,13 @@ export default async function DashboardPage() {
   let totalValue = 0;
   let totalLoans = 0;
   let totalAfterTax = 0;
+  let totalColdRentAnnual = 0;
 
-  const balanceRows: PortfolioBalanceRow[] = [];
+  // Aggregate diversification per city.
+  const cityTotals = new Map<string, number>();
+  // Aggregate cashflow projection per calendar year across all properties.
+  const projectionByYear = new Map<number, number>();
+  const projectionYears = Array.from({ length: 30 }, (_, i) => i + 1);
 
   const settingsForCalc = settings ?? {
     tax_rate: 0.35,
@@ -72,6 +84,7 @@ export default async function DashboardPage() {
     const latestVal = valuations
       .slice()
       .sort((a, b) => b.valuation_date.localeCompare(a.valuation_date))[0];
+    let propertyValue: number | null = null;
     if (latestVal) {
       const r = computeValuation(
         {
@@ -96,12 +109,14 @@ export default async function DashboardPage() {
           ? 0.5
           : Number(latestVal.income_weight)
       );
-      if (r.combined != null) totalValue += r.combined;
+      if (r.combined != null) {
+        propertyValue = r.combined;
+        totalValue += r.combined;
+      }
     }
 
     const loans =
       (p.loans as unknown as (LoanForPnL & { id?: string })[]) ?? [];
-    let propertyRemaining = 0;
     for (const l of loans) {
       const r = loanBalance(
         {
@@ -120,37 +135,25 @@ export default async function DashboardPage() {
           amount: Number(s.amount),
         }))
       );
-      propertyRemaining += r;
       totalLoans += r;
     }
-    // EK = "eingesetztes Eigenkapital" aus dem Property-Finanzierung-Block.
-    // Falls leer: ableiten aus Anschaffungskosten gesamt − initiale Σ Darlehensbeträge.
-    const equityStored =
-      p.equity_amount == null || p.equity_amount === ""
-        ? null
-        : Number(p.equity_amount);
+
+    // Diversification — weight by acquisition (Kaufpreis + NK); fall back
+    // to market value if no purchase is recorded. Group rows without a
+    // city under "—".
     const ancillary =
       (Number(p.transfer_tax ?? 0) || 0) +
       (Number(p.broker_fee ?? 0) || 0) +
       (Number(p.notary_fee ?? 0) || 0) +
       (Number(p.registration_cost ?? 0) || 0);
     const acquisitionTotal = purchase + ancillary;
-    const initialLoansSum = loans.reduce(
-      (acc, l) => acc + Number(l.loan_amount),
-      0
-    );
-    const equityDerived = acquisitionTotal - initialLoansSum;
-    const equity =
-      equityStored != null && Number.isFinite(equityStored)
-        ? equityStored
-        : equityDerived;
-
-    balanceRows.push({
-      label: formatPropertyAddress(p),
-      purchase: acquisitionTotal,
-      remaining: propertyRemaining,
-      equity,
-    });
+    const city = (p.city ?? "").toString().trim() || "—";
+    const cityWeight = acquisitionTotal > 0
+      ? acquisitionTotal
+      : propertyValue ?? 0;
+    if (cityWeight > 0) {
+      cityTotals.set(city, (cityTotals.get(city) ?? 0) + cityWeight);
+    }
 
     const snaps =
       (p.pnl_snapshots as unknown as SnapshotInputRow[]) ?? [];
@@ -165,11 +168,57 @@ export default async function DashboardPage() {
         settingsForCalc
       );
       totalAfterTax += r.afterTaxCashflow;
-    }
+      // Annualize the latest snapshot's cold rent for the gross-yield KPI.
+      const coldRentMonthly = Number(latestSnap.cold_rent ?? 0) || 0;
+      totalColdRentAnnual += coldRentMonthly * 12;
 
+      // Build per-year projection for this property and aggregate.
+      const proj = computeTaxProjection({
+        snapshot: latestSnap,
+        property: p,
+        loans,
+        settings: settingsForCalc,
+        years: projectionYears,
+      });
+      for (const row of proj) {
+        projectionByYear.set(
+          row.calendarYear,
+          (projectionByYear.get(row.calendarYear) ?? 0) + row.afterTaxCashflow
+        );
+      }
+    }
   }
 
-  balanceRows.sort((a, b) => b.purchase - a.purchase);
+  const totalsBarRows: PortfolioTotalsRow[] = [
+    {
+      key: "purchase",
+      label: t("portfolio.kpi_purchase_total_short"),
+      value: totalPurchase,
+    },
+    {
+      key: "remaining",
+      label: t("portfolio.kpi_remaining_loans_short"),
+      value: totalLoans,
+    },
+    {
+      key: "equity",
+      label: t("portfolio.kpi_equity_short"),
+      value: Math.max(0, totalValue - totalLoans),
+    },
+  ];
+
+  const pieData = Array.from(cityTotals.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const projectionData = Array.from(projectionByYear.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([year, afterTax]) => ({ year, afterTax }));
+
+  const grossYieldPct =
+    totalPurchase > 0 ? (totalColdRentAnnual / totalPurchase) * 100 : null;
+  const ltvPct =
+    totalValue > 0 ? (totalLoans / totalValue) * 100 : null;
 
   return (
     <div>
@@ -192,7 +241,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* Portfolio KPI grid — kept tight so it still reads cleanly with many objects. */}
+      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi
           label={t("portfolio.kpi_objects")}
           value={String((properties ?? []).length)}
@@ -212,30 +262,59 @@ export default async function DashboardPage() {
           value={eur(totalValue - totalLoans)}
           strong
         />
-      </div>
-
-      <div className="mt-4">
         <Kpi
-          label={t("portfolio.kpi_cashflow_after_tax")}
-          value={eur(totalAfterTax)}
+          label={t("portfolio.kpi_gross_yield")}
+          value={grossYieldPct != null ? `${grossYieldPct.toFixed(2)} %` : "—"}
+        />
+        <Kpi
+          label={t("portfolio.kpi_ltv")}
+          value={ltvPct != null ? `${ltvPct.toFixed(1)} %` : "—"}
         />
       </div>
 
-      <div className="mt-8">
-        {balanceRows.length > 0 ? (
-          <PortfolioBalanceBar
-            data={balanceRows}
-            title={t("portfolio.balance_chart_title")}
-            labels={{
-              purchase: t("portfolio.kpi_purchase_total_short"),
-              remaining: t("portfolio.kpi_remaining_loans_short"),
-              equity: t("portfolio.kpi_equity_short"),
-            }}
+      <div className="mt-3">
+        <Kpi
+          label={t("portfolio.kpi_cashflow_after_tax")}
+          value={eur(totalAfterTax)}
+          strong
+        />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {pieData.length > 0 ? (
+          <DiversificationPie
+            data={pieData}
+            title={t("portfolio.diversification_city")}
           />
         ) : (
           <ChartPlaceholder
-            title={t("portfolio.balance_chart_title")}
+            title={t("portfolio.diversification_city")}
             message={t("portfolio.no_purchase_data")}
+          />
+        )}
+        {totalPurchase > 0 || totalLoans > 0 ? (
+          <PortfolioTotalsBar
+            data={totalsBarRows}
+            title={t("portfolio.totals_bar_title")}
+          />
+        ) : (
+          <ChartPlaceholder
+            title={t("portfolio.totals_bar_title")}
+            message={t("portfolio.no_purchase_data")}
+          />
+        )}
+      </div>
+
+      <div className="mt-4">
+        {projectionData.length > 0 ? (
+          <CashflowProjectionLine
+            data={projectionData}
+            title={t("portfolio.cashflow_projection_title")}
+          />
+        ) : (
+          <ChartPlaceholder
+            title={t("portfolio.cashflow_projection_title")}
+            message={t("pnl.no_snapshots")}
           />
         )}
       </div>

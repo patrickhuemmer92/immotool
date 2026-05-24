@@ -11,6 +11,7 @@ export type TenantDefaults = {
   is_fixed_term: boolean;
   contract_end: string;
   cold_rent_per_month: string;
+  ancillary_costs_per_month: string;
   notes: string;
 };
 
@@ -20,6 +21,7 @@ export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
   is_fixed_term: false,
   contract_end: "",
   cold_rent_per_month: "",
+  ancillary_costs_per_month: "",
   notes: "",
 };
 
@@ -56,6 +58,7 @@ export function TenantForm({
           <Field
             id="cold_rent_per_month"
             label={t("tenants.cold_rent_per_month")}
+            required
           >
             <input
               id="cold_rent_per_month"
@@ -64,8 +67,31 @@ export function TenantForm({
               inputMode="decimal"
               placeholder="z. B. 850"
               defaultValue={defaults.cold_rent_per_month}
+              required
               className={inputClass}
             />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              {t("tenants.cold_rent_help")}
+            </p>
+          </Field>
+          <Field
+            id="ancillary_costs_per_month"
+            label={t("tenants.ancillary_costs_per_month")}
+            required
+          >
+            <input
+              id="ancillary_costs_per_month"
+              name="ancillary_costs_per_month"
+              type="text"
+              inputMode="decimal"
+              placeholder="z. B. 220"
+              defaultValue={defaults.ancillary_costs_per_month}
+              required
+              className={inputClass}
+            />
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+              {t("tenants.ancillary_costs_help")}
+            </p>
           </Field>
           <Field id="contract_start" label={t("tenants.contract_start")}>
             <input

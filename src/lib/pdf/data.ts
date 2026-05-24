@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
 import {
+  computeSnapshotBankView,
   computeSnapshotResult,
   type LoanForPnL,
   type SnapshotInputRow,
@@ -45,6 +46,9 @@ export type PdfPropertyData = {
     contract_end: string | null;
     is_fixed_term: boolean;
     cold_rent_per_month: number | null;
+    ancillary_costs_per_month: number | null;
+    /** €/m² Kaltmiete — derived from cold rent / sqm, null if either is missing. */
+    rent_per_sqm: number | null;
   } | null;
   latestPnL: {
     period: string;
@@ -57,6 +61,18 @@ export type PdfPropertyData = {
     pretaxProfit: number;
     taxEffect: number;
     afterTaxCashflow: number;
+  } | null;
+  /**
+   * Bank-Sicht (banker view) of the latest snapshot — NOI, debt service,
+   * ICR. Surfaced separately so the Factbook can show what a credit officer
+   * looks at without bleeding the investor's tax effects into the page.
+   */
+  bankView: {
+    rentEffective: number;
+    noi: number;
+    debtService: number;
+    icr: number | null;
+    cashflowBeforeTax: number;
   } | null;
   pnlSnapshots: {
     period: string;
@@ -109,7 +125,7 @@ export async function fetchPropertyForPdf(
     supabase
       .from("tenants")
       .select(
-        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month"
+        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month, ancillary_costs_per_month"
       )
       .eq("property_id", propertyId)
       .maybeSingle(),
@@ -220,6 +236,23 @@ export async function fetchPropertyForPdf(
         };
       })()
     : null;
+  const bankView = latestSnapshot
+    ? (() => {
+        const b = computeSnapshotBankView(
+          latestSnapshot as SnapshotInputRow,
+          property,
+          loanRefs,
+          settingsForCalc
+        );
+        return {
+          rentEffective: b.rentEffective,
+          noi: b.noi,
+          debtService: b.debtService,
+          icr: b.icr,
+          cashflowBeforeTax: b.cashflowBeforeTax,
+        };
+      })()
+    : null;
 
   const pnlSnapshots = (snapshots ?? []).map((s) => {
     const r = computeSnapshotResult(
@@ -276,16 +309,27 @@ export async function fetchPropertyForPdf(
     : null;
 
   const tenantSummary = tenant
-    ? {
-        name: tenant.name,
-        contract_start: tenant.contract_start ? dateDe(tenant.contract_start) : null,
-        contract_end: tenant.contract_end ? dateDe(tenant.contract_end) : null,
-        is_fixed_term: tenant.is_fixed_term ?? false,
-        cold_rent_per_month:
+    ? (() => {
+        const cold =
           tenant.cold_rent_per_month == null
             ? null
-            : Number(tenant.cold_rent_per_month),
-      }
+            : Number(tenant.cold_rent_per_month);
+        const sqm = property.sqm == null ? null : Number(property.sqm);
+        return {
+          name: tenant.name,
+          contract_start: tenant.contract_start
+            ? dateDe(tenant.contract_start)
+            : null,
+          contract_end: tenant.contract_end ? dateDe(tenant.contract_end) : null,
+          is_fixed_term: tenant.is_fixed_term ?? false,
+          cold_rent_per_month: cold,
+          ancillary_costs_per_month:
+            tenant.ancillary_costs_per_month == null
+              ? null
+              : Number(tenant.ancillary_costs_per_month),
+          rent_per_sqm: cold != null && sqm && sqm > 0 ? cold / sqm : null,
+        };
+      })()
     : null;
 
   let pdfImages: PdfImage[] = [];
@@ -332,6 +376,7 @@ export async function fetchPropertyForPdf(
     totalAnnuity,
     tenant: tenantSummary,
     latestPnL,
+    bankView,
     pnlSnapshots,
     latestValuation: valuationResult
       ? {

@@ -17,7 +17,7 @@ import {
 import { loanBalance } from "@/lib/calculations/loan";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { SnapshotForm } from "./snapshot-form";
-import { buildEmptyDefaults } from "./snapshot-defaults";
+import { buildDefaultsFromTenant } from "./snapshot-defaults";
 import { deleteSnapshot } from "./actions";
 import { TaxProjectionCard } from "./tax-projection-card";
 import { SnapshotItem } from "./snapshot-item";
@@ -45,6 +45,7 @@ export default async function PropertyPnLPage({
     { data: loans },
     { data: settings },
     { data: valuations },
+    { data: tenant },
   ] = await Promise.all([
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -71,6 +72,11 @@ export default async function PropertyPnLPage({
       .eq("property_id", id)
       .order("valuation_date", { ascending: false })
       .limit(1),
+    supabase
+      .from("tenants")
+      .select("cold_rent_per_month, ancillary_costs_per_month")
+      .eq("property_id", id)
+      .maybeSingle(),
   ]);
 
   if (!property) notFound();
@@ -138,9 +144,13 @@ export default async function PropertyPnLPage({
 
   const editable = canEdit(active.role);
 
-  const snapshotDefaults = buildEmptyDefaults(
+  // Pre-fill the new-snapshot form with Kaltmiete + NK from the tenant. The
+  // user can still override per period, but in the common case the snapshot
+  // just adopts whatever lease is currently in place.
+  const snapshotDefaults = buildDefaultsFromTenant(
     new Date(Date.UTC(today.getUTCFullYear(), 0, 1)).toISOString().slice(0, 10),
-    new Date(Date.UTC(today.getUTCFullYear(), 11, 31)).toISOString().slice(0, 10)
+    new Date(Date.UTC(today.getUTCFullYear(), 11, 31)).toISOString().slice(0, 10),
+    tenant
   );
 
   return (

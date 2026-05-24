@@ -39,3 +39,30 @@ export function buildEmptyDefaults(
     notes: "",
   };
 }
+
+/**
+ * Seed defaults from the tenant's Kaltmiete + NK. The tenant record is the
+ * single source of truth for Bruttomiete — the snapshot form pre-fills both
+ * fields and the user can still override per period.
+ */
+export function buildDefaultsFromTenant(
+  period_start: string,
+  period_end: string,
+  tenant: {
+    cold_rent_per_month: number | string | null | undefined;
+    ancillary_costs_per_month: number | string | null | undefined;
+  } | null
+): SnapshotDefaults {
+  const base = buildEmptyDefaults(period_start, period_end);
+  if (!tenant) return base;
+  const fmt = (v: number | string | null | undefined): string => {
+    if (v == null || v === "") return "";
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? String(n).replace(".", ",") : "";
+  };
+  return {
+    ...base,
+    cold_rent: fmt(tenant.cold_rent_per_month),
+    ancillary_costs: fmt(tenant.ancillary_costs_per_month),
+  };
+}

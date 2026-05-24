@@ -31,7 +31,7 @@ export default async function PropertyTenantPage({
     supabase
       .from("tenants")
       .select(
-        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month, notes"
+        "name, contract_start, is_fixed_term, contract_end, cold_rent_per_month, ancillary_costs_per_month, notes"
       )
       .eq("property_id", id)
       .maybeSingle(),
@@ -50,6 +50,10 @@ export default async function PropertyTenantPage({
           tenant.cold_rent_per_month == null
             ? ""
             : String(tenant.cold_rent_per_month).replace(".", ","),
+        ancillary_costs_per_month:
+          tenant.ancillary_costs_per_month == null
+            ? ""
+            : String(tenant.ancillary_costs_per_month).replace(".", ","),
         notes: tenant.notes ?? "",
       }
     : EMPTY_TENANT_DEFAULTS;

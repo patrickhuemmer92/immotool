@@ -15,9 +15,6 @@ export default async function SettingsLayout({
 
       <nav className="mt-6 flex gap-1 text-sm border-b border-neutral-200 dark:border-neutral-800">
         <TabLink href="/einstellungen">{t("settings.general")}</TabLink>
-        <TabLink href="/einstellungen/workspace">
-          {t("settings.workspace")}
-        </TabLink>
         <TabLink href="/einstellungen/mitglieder">
           {t("settings.members")}
         </TabLink>

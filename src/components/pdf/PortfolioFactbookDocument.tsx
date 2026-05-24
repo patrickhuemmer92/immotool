@@ -1,8 +1,9 @@
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { pdfColors, pdfFontSizes, pdfSpacing } from "./pdf-theme";
 import type { PdfPropertyData } from "@/lib/pdf/data";
 import type { PdfLocale } from "@/lib/pdf/translate";
 import { loadDict } from "@/lib/pdf/translate";
+import { FactsheetPage } from "./FactsheetPage";
 
 // ============================================================
 // STYLES
@@ -431,13 +432,37 @@ export function PortfolioFactbookDocument({
       value: acc.value + (p.latestValuation?.combined ?? 0),
       remaining: acc.remaining + p.totalRemaining,
       afterTax: acc.afterTax + (p.latestPnL?.afterTaxCashflow ?? 0),
+      annuity: acc.annuity + p.totalAnnuity * 12,
+      coldRentAnnual:
+        acc.coldRentAnnual +
+        (p.tenant?.cold_rent_per_month != null
+          ? p.tenant.cold_rent_per_month * 12
+          : 0),
     }),
-    { sqm: 0, purchase: 0, value: 0, remaining: 0, afterTax: 0 }
+    {
+      sqm: 0,
+      purchase: 0,
+      value: 0,
+      remaining: 0,
+      afterTax: 0,
+      annuity: 0,
+      coldRentAnnual: 0,
+    }
   );
+  const grossYieldPct =
+    totals.purchase > 0
+      ? (totals.coldRentAnnual / totals.purchase) * 100
+      : null;
+  const ltvPct =
+    totals.value > 0 ? (totals.remaining / totals.value) * 100 : null;
+  const equityRatioPct =
+    totals.purchase > 0
+      ? ((totals.purchase - totals.remaining) / totals.purchase) * 100
+      : null;
 
   return (
     <Document title={`Factbook ${workspaceName}`}>
-      {/* === 1. Cover (no image) === */}
+      {/* === 1. Cover with portfolio-headline KPIs === */}
       <Page size="A4" style={styles.coverPage}>
         <View style={styles.cover}>
           <View style={styles.coverAccentBar} />
@@ -448,6 +473,64 @@ export function PortfolioFactbookDocument({
           <Text style={styles.subtitle}>
             {properties.length} {t("portfolio.kpi_objects")} · {today}
           </Text>
+
+          {/* Headline KPIs — gives the deckblatt actual signal instead of
+              floating naked above the page. */}
+          <View
+            style={{
+              marginTop: 32,
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 10,
+            }}
+          >
+            <CoverKpi
+              label={t("portfolio.kpi_purchase_total")}
+              value={eur(totals.purchase)}
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_value_combined")}
+              value={eur(totals.value)}
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_remaining_loans")}
+              value={eur(totals.remaining)}
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_equity")}
+              value={eur(totals.value - totals.remaining)}
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_cashflow_after_tax")}
+              value={eur(totals.afterTax)}
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_gross_yield")}
+              value={
+                grossYieldPct != null
+                  ? `${grossYieldPct.toLocaleString("de-DE", {
+                      maximumFractionDigits: 2,
+                    })} %`
+                  : "—"
+              }
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_ltv")}
+              value={
+                ltvPct != null
+                  ? `${ltvPct.toLocaleString("de-DE", {
+                      maximumFractionDigits: 1,
+                    })} %`
+                  : "—"
+              }
+            />
+            <CoverKpi
+              label={t("portfolio.kpi_sqm")}
+              value={totals.sqm.toLocaleString("de-DE", {
+                maximumFractionDigits: 0,
+              })}
+            />
+          </View>
         </View>
         <View style={styles.coverFootline}>
           <Text>{t("app.name")}</Text>
@@ -498,6 +581,48 @@ export function PortfolioFactbookDocument({
             <Text style={styles.kpiLabel}>{t("portfolio.kpi_equity")}</Text>
             <Text style={styles.kpiValue}>
               {eur(totals.value - totals.remaining)}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.kpiRow}>
+          <View style={styles.kpi}>
+            <Text style={styles.kpiLabel}>
+              {t("portfolio.kpi_cashflow_after_tax")}
+            </Text>
+            <Text style={styles.kpiValue}>{eur(totals.afterTax)}</Text>
+          </View>
+          <View style={styles.kpi}>
+            <Text style={styles.kpiLabel}>
+              {t("portfolio.kpi_gross_yield")}
+            </Text>
+            <Text style={styles.kpiValue}>
+              {grossYieldPct != null
+                ? `${grossYieldPct.toLocaleString("de-DE", {
+                    maximumFractionDigits: 2,
+                  })} %`
+                : "—"}
+            </Text>
+          </View>
+          <View style={styles.kpi}>
+            <Text style={styles.kpiLabel}>{t("portfolio.kpi_ltv")}</Text>
+            <Text style={styles.kpiValue}>
+              {ltvPct != null
+                ? `${ltvPct.toLocaleString("de-DE", {
+                    maximumFractionDigits: 1,
+                  })} %`
+                : "—"}
+            </Text>
+          </View>
+          <View style={styles.kpi}>
+            <Text style={styles.kpiLabel}>
+              {t("portfolio.kpi_equity_ratio")}
+            </Text>
+            <Text style={styles.kpiValue}>
+              {equityRatioPct != null
+                ? `${equityRatioPct.toLocaleString("de-DE", {
+                    maximumFractionDigits: 1,
+                  })} %`
+                : "—"}
             </Text>
           </View>
         </View>
@@ -572,6 +697,45 @@ function PageNumber() {
       render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
       fixed
     />
+  );
+}
+
+/**
+ * Cover-page KPI tile. Rendered on the dark hero of the deckblatt — fixed
+ * width so 4 fit per row regardless of how many tiles the caller passes.
+ */
+function CoverKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <View
+      style={{
+        width: "23%",
+        borderLeftWidth: 2,
+        borderLeftColor: pdfColors.accent,
+        paddingLeft: 8,
+        paddingVertical: 2,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 7.5,
+          color: pdfColors.border,
+          textTransform: "uppercase",
+          letterSpacing: 0.6,
+        }}
+      >
+        {label}
+      </Text>
+      <Text
+        style={{
+          fontSize: 13,
+          color: "#FFFFFF",
+          fontFamily: "Inter-Bold",
+          marginTop: 3,
+        }}
+      >
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -736,17 +900,8 @@ function PropertiesByOwnerPage({
         </View>
       </View>
 
-      <PdfBarChart
-        title={t("portfolio.chart_market_value")}
-        height={90}
-        data={properties.slice(0, 14).map((p) => ({
-          label: shortAddress(p.property.address),
-          value: p.latestValuation?.combined ?? 0,
-        }))}
-        formatter={(v) =>
-          (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 0 }) + "k"
-        }
-      />
+      {/* Charts werden bewusst nicht auf den 5 Portfolio-Listen abgebildet —
+          Grafiken sind nur in der Anwendung verfügbar. */}
 
       <PageNumber />
     </Page>
@@ -776,7 +931,8 @@ function CashflowByOwnerPage({
     gInterest = 0,
     gPrincipal = 0,
     gCfBT = 0,
-    gCfAT = 0;
+    gCfAT = 0,
+    gNoi = 0;
   for (const g of grouped)
     for (const r of g.rows) {
       const pnl = r.propertyData.latestPnL!;
@@ -786,7 +942,12 @@ function CashflowByOwnerPage({
       gPrincipal += pnl.principal * r.share;
       gCfBT += pnl.cashflowBeforeTax * r.share;
       gCfAT += pnl.afterTaxCashflow * r.share;
+      if (r.propertyData.bankView) {
+        gNoi += r.propertyData.bankView.noi * r.share;
+      }
     }
+  // Portfolio-level ICR — weighted via interest aggregate.
+  const gIcr = gInterest > 0 ? gNoi / gInterest : null;
 
   return (
     <Page size="A4" orientation="landscape" style={styles.pageLandscape}>
@@ -823,6 +984,14 @@ function CashflowByOwnerPage({
           <Text style={{ flex: 1.4, textAlign: "right" }}>
             {t("pnl.after_tax_cashflow")}
           </Text>
+          {/* Bank-Sicht — NOI + ICR (so the bank perspective is visible in
+              the Factbook, not just on screen). */}
+          <Text style={{ flex: 1.2, textAlign: "right" }}>
+            {t("pnl.noi")}
+          </Text>
+          <Text style={{ flex: 0.9, textAlign: "right" }}>
+            {t("pnl.icr")}
+          </Text>
         </View>
 
         {grouped.map((g) => {
@@ -831,7 +1000,8 @@ function CashflowByOwnerPage({
             sInterest = 0,
             sPrincipal = 0,
             sCfBT = 0,
-            sCfAT = 0;
+            sCfAT = 0,
+            sNoi = 0;
           for (const r of g.rows) {
             const pnl = r.propertyData.latestPnL!;
             sRent += pnl.rentTotal * r.share;
@@ -840,7 +1010,11 @@ function CashflowByOwnerPage({
             sPrincipal += pnl.principal * r.share;
             sCfBT += pnl.cashflowBeforeTax * r.share;
             sCfAT += pnl.afterTaxCashflow * r.share;
+            if (r.propertyData.bankView) {
+              sNoi += r.propertyData.bankView.noi * r.share;
+            }
           }
+          const sIcr = sInterest > 0 ? sNoi / sInterest : null;
           return (
             <View key={g.ownerKey.id}>
               <View style={styles.ownerHeader}>
@@ -848,6 +1022,7 @@ function CashflowByOwnerPage({
               </View>
               {g.rows.map((r, i) => {
                 const pnl = r.propertyData.latestPnL!;
+                const bv = r.propertyData.bankView;
                 return (
                   <View key={i} style={styles.tableRow}>
                     <Text style={{ flex: 3 }}>
@@ -874,6 +1049,16 @@ function CashflowByOwnerPage({
                     <Text style={{ flex: 1.4, textAlign: "right" }}>
                       {eur(pnl.afterTaxCashflow * r.share)}
                     </Text>
+                    <Text style={{ flex: 1.2, textAlign: "right" }}>
+                      {bv ? eur(bv.noi * r.share) : "—"}
+                    </Text>
+                    <Text style={{ flex: 0.9, textAlign: "right" }}>
+                      {bv?.icr != null
+                        ? bv.icr.toLocaleString("de-DE", {
+                            maximumFractionDigits: 2,
+                          })
+                        : "—"}
+                    </Text>
                   </View>
                 );
               })}
@@ -890,6 +1075,14 @@ function CashflowByOwnerPage({
                 </Text>
                 <Text style={{ flex: 1.4, textAlign: "right" }}>{eur(sCfBT)}</Text>
                 <Text style={{ flex: 1.4, textAlign: "right" }}>{eur(sCfAT)}</Text>
+                <Text style={{ flex: 1.2, textAlign: "right" }}>{eur(sNoi)}</Text>
+                <Text style={{ flex: 0.9, textAlign: "right" }}>
+                  {sIcr != null
+                    ? sIcr.toLocaleString("de-DE", {
+                        maximumFractionDigits: 2,
+                      })
+                    : "—"}
+                </Text>
               </View>
             </View>
           );
@@ -904,21 +1097,16 @@ function CashflowByOwnerPage({
           <Text style={{ flex: 1.2, textAlign: "right" }}>{eur(gPrincipal)}</Text>
           <Text style={{ flex: 1.4, textAlign: "right" }}>{eur(gCfBT)}</Text>
           <Text style={{ flex: 1.4, textAlign: "right" }}>{eur(gCfAT)}</Text>
+          <Text style={{ flex: 1.2, textAlign: "right" }}>{eur(gNoi)}</Text>
+          <Text style={{ flex: 0.9, textAlign: "right" }}>
+            {gIcr != null
+              ? gIcr.toLocaleString("de-DE", { maximumFractionDigits: 2 })
+              : "—"}
+          </Text>
         </View>
       </View>
 
-      <PdfBarChart
-        title={t("portfolio.chart_cashflow")}
-        height={90}
-        data={properties
-          .filter((p) => p.latestPnL != null)
-          .slice(0, 14)
-          .map((p) => ({
-            label: shortAddress(p.property.address),
-            value: p.latestPnL!.afterTaxCashflow,
-          }))}
-        formatter={(v) => Math.round(v).toLocaleString("de-DE")}
-      />
+      {/* Reine Liste — Charts nur in der Anwendung. */}
 
       <PageNumber />
     </Page>
@@ -1077,18 +1265,7 @@ function LoansByOwnerPage({
         </View>
       </View>
 
-      <PdfBarChart
-        title={t("portfolio.chart_loans")}
-        height={90}
-        data={properties.slice(0, 14).map((p) => ({
-          label: shortAddress(p.property.address),
-          value: p.totalRemaining,
-        }))}
-        formatter={(v) =>
-          (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 0 }) + "k"
-        }
-        barColor={pdfColors.negative}
-      />
+      {/* Reine Liste — Charts nur in der Anwendung. */}
 
       <PageNumber />
     </Page>
@@ -1113,12 +1290,19 @@ function TenantsByOwnerPage({
     ownerName: o.name,
   }));
 
-  // Try to get cold rent from latest pnl if available
-  let gRent = 0;
+  // Aggregate from the tenant record itself — that's the single source of
+  // truth for Kalt + NK now (snapshots can deviate per period).
+  let gCold = 0,
+    gAnc = 0;
   for (const g of grouped)
     for (const r of g.rows) {
-      const pnl = r.propertyData.latestPnL;
-      if (pnl) gRent += pnl.rentTotal * r.share;
+      const tn = r.propertyData.tenant!;
+      if (tn.cold_rent_per_month != null) {
+        gCold += tn.cold_rent_per_month * 12 * r.share;
+      }
+      if (tn.ancillary_costs_per_month != null) {
+        gAnc += tn.ancillary_costs_per_month * 12 * r.share;
+      }
     }
 
   return (
@@ -1134,22 +1318,34 @@ function TenantsByOwnerPage({
 
       <View style={styles.table}>
         <View style={styles.tableHeader}>
-          <Text style={{ flex: 3 }}>{t("factsheet.address")}</Text>
-          <Text style={{ flex: 2 }}>{t("tenants.name")}</Text>
-          <Text style={{ flex: 1.5 }}>{t("tenants.contract_start")}</Text>
-          <Text style={{ flex: 1, textAlign: "right" }}>
+          <Text style={{ flex: 2.5 }}>{t("factsheet.address")}</Text>
+          <Text style={{ flex: 1.6 }}>{t("tenants.name")}</Text>
+          <Text style={{ flex: 1.2 }}>{t("tenants.contract_start")}</Text>
+          <Text style={{ flex: 0.8, textAlign: "right" }}>
             {t("portfolio.share_col")}
           </Text>
-          <Text style={{ flex: 1.6, textAlign: "right" }}>
-            {t("pnl.rent_total")}
+          <Text style={{ flex: 1.2, textAlign: "right" }}>
+            {t("tenants.cold_rent_per_month")}
+          </Text>
+          <Text style={{ flex: 1.2, textAlign: "right" }}>
+            {t("tenants.ancillary_costs_per_month")}
+          </Text>
+          <Text style={{ flex: 1, textAlign: "right" }}>
+            {t("tenants.rent_per_sqm")}
           </Text>
         </View>
 
         {grouped.map((g) => {
-          let sRent = 0;
+          let sCold = 0,
+            sAnc = 0;
           for (const r of g.rows) {
-            const pnl = r.propertyData.latestPnL;
-            if (pnl) sRent += pnl.rentTotal * r.share;
+            const tn = r.propertyData.tenant!;
+            if (tn.cold_rent_per_month != null) {
+              sCold += tn.cold_rent_per_month * 12 * r.share;
+            }
+            if (tn.ancillary_costs_per_month != null) {
+              sAnc += tn.ancillary_costs_per_month * 12 * r.share;
+            }
           }
           return (
             <View key={g.ownerKey.id}>
@@ -1158,61 +1354,73 @@ function TenantsByOwnerPage({
               </View>
               {g.rows.map((r, i) => {
                 const tn = r.propertyData.tenant!;
-                const pnl = r.propertyData.latestPnL;
+                const coldAnnual =
+                  tn.cold_rent_per_month != null
+                    ? tn.cold_rent_per_month * 12 * r.share
+                    : null;
+                const ancAnnual =
+                  tn.ancillary_costs_per_month != null
+                    ? tn.ancillary_costs_per_month * 12 * r.share
+                    : null;
                 return (
                   <View key={i} style={styles.tableRow}>
-                    <Text style={{ flex: 3 }}>
+                    <Text style={{ flex: 2.5 }}>
                       {r.propertyData.property.address}
                     </Text>
-                    <Text style={{ flex: 2 }}>{tn.name}</Text>
-                    <Text style={{ flex: 1.5 }}>
+                    <Text style={{ flex: 1.6 }}>{tn.name}</Text>
+                    <Text style={{ flex: 1.2 }}>
                       {tn.contract_start ?? "—"}
                     </Text>
-                    <Text style={{ flex: 1, textAlign: "right" }}>
+                    <Text style={{ flex: 0.8, textAlign: "right" }}>
                       {pct(r.share)}
                     </Text>
-                    <Text style={{ flex: 1.6, textAlign: "right" }}>
-                      {pnl ? eur(pnl.rentTotal * r.share) : "—"}
+                    <Text style={{ flex: 1.2, textAlign: "right" }}>
+                      {coldAnnual != null ? eur(coldAnnual) : "—"}
+                    </Text>
+                    <Text style={{ flex: 1.2, textAlign: "right" }}>
+                      {ancAnnual != null ? eur(ancAnnual) : "—"}
+                    </Text>
+                    <Text style={{ flex: 1, textAlign: "right" }}>
+                      {tn.rent_per_sqm != null
+                        ? tn.rent_per_sqm.toLocaleString("de-DE", {
+                            maximumFractionDigits: 2,
+                          }) + " €"
+                        : "—"}
                     </Text>
                   </View>
                 );
               })}
               <View style={styles.subtotalRow}>
-                <Text style={{ flex: 3 }}>{t("portfolio.owner_subtotal")}</Text>
-                <Text style={{ flex: 2 }}></Text>
-                <Text style={{ flex: 1.5 }}></Text>
-                <Text style={{ flex: 1 }}></Text>
-                <Text style={{ flex: 1.6, textAlign: "right" }}>
-                  {eur(sRent)}
+                <Text style={{ flex: 2.5 }}>
+                  {t("portfolio.owner_subtotal")}
                 </Text>
+                <Text style={{ flex: 1.6 }}></Text>
+                <Text style={{ flex: 1.2 }}></Text>
+                <Text style={{ flex: 0.8 }}></Text>
+                <Text style={{ flex: 1.2, textAlign: "right" }}>
+                  {eur(sCold)}
+                </Text>
+                <Text style={{ flex: 1.2, textAlign: "right" }}>
+                  {eur(sAnc)}
+                </Text>
+                <Text style={{ flex: 1 }}></Text>
               </View>
             </View>
           );
         })}
 
         <View style={styles.grandTotalRow}>
-          <Text style={{ flex: 3 }}>{t("portfolio.grand_total")}</Text>
-          <Text style={{ flex: 2 }}></Text>
-          <Text style={{ flex: 1.5 }}></Text>
+          <Text style={{ flex: 2.5 }}>{t("portfolio.grand_total")}</Text>
+          <Text style={{ flex: 1.6 }}></Text>
+          <Text style={{ flex: 1.2 }}></Text>
+          <Text style={{ flex: 0.8 }}></Text>
+          <Text style={{ flex: 1.2, textAlign: "right" }}>{eur(gCold)}</Text>
+          <Text style={{ flex: 1.2, textAlign: "right" }}>{eur(gAnc)}</Text>
           <Text style={{ flex: 1 }}></Text>
-          <Text style={{ flex: 1.6, textAlign: "right" }}>{eur(gRent)}</Text>
         </View>
       </View>
 
-      <PdfBarChart
-        title={t("portfolio.chart_cold_rent")}
-        height={90}
-        data={properties
-          .filter((p) => p.tenant != null && p.latestPnL != null)
-          .slice(0, 14)
-          .map((p) => ({
-            label: shortAddress(p.property.address),
-            value: p.latestPnL!.rentTotal,
-          }))}
-        formatter={(v) =>
-          (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 }) + "k"
-        }
-      />
+      {/* Reine Liste — Charts nur in der Anwendung. */}
 
       <PageNumber />
     </Page>
@@ -1336,23 +1544,7 @@ function InvestmentsByOwnerPage({
         </View>
       </View>
 
-      <PdfBarChart
-        title={t("portfolio.chart_investments")}
-        height={90}
-        data={Array.from(sumByProperty.entries())
-          .map(([id, v]) => ({
-            label: shortAddress(
-              properties.find((p) => p.property.id === id)?.property.address ??
-                ""
-            ),
-            value: v,
-          }))
-          .filter((d) => d.value > 0)
-          .slice(0, 14)}
-        formatter={(v) =>
-          (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 1 }) + "k"
-        }
-      />
+      {/* Reine Liste — Charts nur in der Anwendung. */}
 
       <PageNumber />
     </Page>
@@ -1362,311 +1554,21 @@ function InvestmentsByOwnerPage({
 // ============================================================
 // PER-PROPERTY FULL FACTSHEETS (portrait)
 // ============================================================
+// Per-Objekt-Anhang ist jetzt das echte Single-Page-Factsheet (genau wie
+// im Reiter Objekte → Factsheet PDF), nicht mehr ein 7-Seiten-Schema mit
+// per-Objekt-Charts. Charts auf Objektebene sind nicht im Factbook —
+// die gibt es nur in der Anwendung selbst.
 function renderPropertyPages(
   data: PdfPropertyData,
-  t: T,
+  _t: T,
   locale: PdfLocale
 ): React.ReactElement[] {
-  const cover =
-    data.images.find((i) => i.is_cover && i.signedUrl) ??
-    data.images.find((i) => i.signedUrl);
-  const dateStr = new Date().toLocaleDateString(
-    locale === "de" ? "de-DE" : "en-US"
-  );
-
-  const pages: React.ReactElement[] = [];
-
-  pages.push(
-    <Page key={`${data.property.id}-cover`} size="A4" style={styles.coverPage}>
-      {cover?.signedUrl ? (
-        <View style={styles.coverImageWrap}>
-          {/* eslint-disable-next-line jsx-a11y/alt-text */}
-          <Image src={cover.signedUrl} style={styles.coverImage} />
-          <View style={styles.coverImageOverlay} />
-        </View>
-      ) : null}
-      <View style={styles.cover}>
-        <View style={styles.coverAccentBar} />
-        <Text style={styles.brand}>
-          {t("app.name")} · {t("factsheet.title")}
-        </Text>
-        <Text style={styles.title}>{data.property.address}</Text>
-        <Text style={styles.subtitle}>
-          {data.property.unit_number
-            ? `${t("properties.unit_number")}: ${data.property.unit_number}`
-            : ""}
-        </Text>
-      </View>
-      <View style={styles.coverFootline}>
-        <Text>{t("app.name")}</Text>
-        <Text>{dateStr}</Text>
-      </View>
-    </Page>
-  );
-
-  pages.push(
-    <Page key={`${data.property.id}-kpis`} size="A4" style={styles.page}>
-      <View style={styles.pageHeader}>
-        <Text>{t("factsheet.key_facts")}</Text>
-        <Text>{data.property.address}</Text>
-      </View>
-      <Text style={styles.pageTitle}>{t("factsheet.key_facts")}</Text>
-      <View style={styles.kpiRow}>
-        <View style={styles.kpi}>
-          <Text style={styles.kpiLabel}>{t("properties.sqm")}</Text>
-          <Text style={styles.kpiValue}>
-            {data.property.sqm == null
-              ? "—"
-              : data.property.sqm.toLocaleString("de-DE")}
-          </Text>
-        </View>
-        <View style={styles.kpi}>
-          <Text style={styles.kpiLabel}>{t("properties.purchase_price")}</Text>
-          <Text style={styles.kpiValue}>{eur(data.property.purchase_price)}</Text>
-        </View>
-      </View>
-      <View style={styles.kpiRow}>
-        <View style={styles.kpi}>
-          <Text style={styles.kpiLabel}>{t("valuation.combined")}</Text>
-          <Text style={styles.kpiValue}>
-            {eur(data.latestValuation?.combined ?? null)}
-          </Text>
-        </View>
-        <View style={styles.kpi}>
-          <Text style={styles.kpiLabel}>{t("loans.remaining_balance")}</Text>
-          <Text style={styles.kpiValue}>{eur(data.totalRemaining)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t("properties.section_owners")}</Text>
-        {data.owners.length === 0 ? (
-          <Text>—</Text>
-        ) : (
-          <View style={styles.table}>
-            <View style={styles.tableHeader}>
-              <Text style={styles.cell}>{t("tenants.name")}</Text>
-              <Text style={styles.cellRight}>
-                {t("properties.owners_share_sum")}
-              </Text>
-            </View>
-            {data.owners.map((o, i) => (
-              <View key={i} style={styles.tableRow}>
-                <Text style={styles.cell}>{o.name}</Text>
-                <Text style={styles.cellRight}>{pct(o.share)}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-      <PageNumber />
-    </Page>
-  );
-
-  pages.push(
-    <Page key={`${data.property.id}-loans`} size="A4" style={styles.page}>
-      <View style={styles.pageHeader}>
-        <Text>{t("loans.title")}</Text>
-        <Text>{data.property.address}</Text>
-      </View>
-      <Text style={styles.pageTitle}>{t("loans.title")}</Text>
-      {data.loans.length === 0 ? (
-        <Text>{t("loans.empty")}</Text>
-      ) : (
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.cell}>{t("loans.designation")}</Text>
-            <Text style={styles.cell}>{t("loans.bank")}</Text>
-            <Text style={styles.cellRight}>{t("loans.loan_amount")}</Text>
-            <Text style={styles.cellRight}>{t("loans.annuity")}</Text>
-            <Text style={styles.cellRight}>{t("loans.remaining_balance")}</Text>
-          </View>
-          {data.loans.map((l) => (
-            <View key={l.id} style={styles.tableRow}>
-              <Text style={styles.cell}>{l.designation}</Text>
-              <Text style={styles.cell}>{l.bank ?? "—"}</Text>
-              <Text style={styles.cellRight}>{eur(l.loan_amount)}</Text>
-              <Text style={styles.cellRight}>{eur(l.monthly_annuity)}</Text>
-              <Text style={styles.cellRight}>{eur(l.remaining_balance)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <PageNumber />
-    </Page>
-  );
-
-  pages.push(
-    <Page key={`${data.property.id}-tenant-val`} size="A4" style={styles.page}>
-      <View style={styles.pageHeader}>
-        <Text>{`${t("tenants.title")} & ${t("valuation.title")}`}</Text>
-        <Text>{data.property.address}</Text>
-      </View>
-      <Text style={styles.pageTitle}>{t("tenants.title")}</Text>
-      {data.tenant ? (
-        <View style={styles.table}>
-          <View style={styles.tableRow}>
-            <Text style={styles.cell}>{t("tenants.name")}</Text>
-            <Text style={styles.cellRight}>{data.tenant.name}</Text>
-          </View>
-          {data.tenant.contract_start && (
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("tenants.contract_start")}</Text>
-              <Text style={styles.cellRight}>{data.tenant.contract_start}</Text>
-            </View>
-          )}
-          {data.tenant.is_fixed_term && data.tenant.contract_end && (
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("tenants.contract_end")}</Text>
-              <Text style={styles.cellRight}>{data.tenant.contract_end}</Text>
-            </View>
-          )}
-          {data.tenant.cold_rent_per_month != null && (
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("tenants.cold_rent_per_month")}</Text>
-              <Text style={styles.cellRight}>
-                {eur(data.tenant.cold_rent_per_month)}
-              </Text>
-            </View>
-          )}
-        </View>
-      ) : (
-        <Text>{t("tenants.no_tenant")}</Text>
-      )}
-
-      <View style={[styles.section, { marginTop: pdfSpacing.sectionGap }]}>
-        <Text style={styles.sectionTitle}>{t("valuation.title")}</Text>
-        {data.latestValuation ? (
-          <View style={styles.table}>
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("valuation.valuation_date")}</Text>
-              <Text style={styles.cellRight}>
-                {data.latestValuation.valuation_date}
-              </Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("valuation.ertragswert")}</Text>
-              <Text style={styles.cellRight}>
-                {eur(data.latestValuation.ertragswert)}
-              </Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={styles.cell}>{t("valuation.sachwert")}</Text>
-              <Text style={styles.cellRight}>
-                {eur(data.latestValuation.sachwert)}
-              </Text>
-            </View>
-            <View style={styles.tableRow}>
-              <Text style={[styles.cell, { fontFamily: "Inter-Bold" }]}>
-                {t("valuation.combined")}
-              </Text>
-              <Text style={[styles.cellRight, { fontFamily: "Inter-Bold" }]}>
-                {eur(data.latestValuation.combined)}
-              </Text>
-            </View>
-          </View>
-        ) : (
-          <Text>{t("valuation.no_valuations")}</Text>
-        )}
-      </View>
-      <PageNumber />
-    </Page>
-  );
-
-  pages.push(
-    <Page key={`${data.property.id}-pnl`} size="A4" style={styles.page}>
-      <View style={styles.pageHeader}>
-        <Text>{t("pnl.title")}</Text>
-        <Text>{data.property.address}</Text>
-      </View>
-      <Text style={styles.pageTitle}>{t("pnl.title")}</Text>
-      {data.pnlSnapshots.length === 0 ? (
-        <Text>{t("pnl.no_snapshots")}</Text>
-      ) : (
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.cell}>
-              {t("pnl.period_start")} – {t("pnl.period_end")}
-            </Text>
-            <Text style={styles.cellRight}>{t("pnl.rent_total")}</Text>
-            <Text style={styles.cellRight}>{t("pnl.after_tax_cashflow")}</Text>
-          </View>
-          {data.pnlSnapshots.map((s, i) => (
-            <View key={i} style={styles.tableRow}>
-              <Text style={styles.cell}>{s.period}</Text>
-              <Text style={styles.cellRight}>{eur(s.rentTotal)}</Text>
-              <Text style={styles.cellRight}>{eur(s.afterTaxCashflow)}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <PageNumber />
-    </Page>
-  );
-
-  pages.push(
-    <Page key={`${data.property.id}-inv`} size="A4" style={styles.page}>
-      <View style={styles.pageHeader}>
-        <Text>{t("investments.title")}</Text>
-        <Text>{data.property.address}</Text>
-      </View>
-      <Text style={styles.pageTitle}>{t("investments.title")}</Text>
-      {data.investments.length === 0 ? (
-        <Text>{t("investments.no_investments")}</Text>
-      ) : (
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.cell}>{t("investments.year")}</Text>
-            <Text style={styles.cellRight}>{t("investments.amount")}</Text>
-            <Text style={styles.cell}>{t("investments.measure_type")}</Text>
-            <Text style={styles.cell}>{t("investments.description")}</Text>
-          </View>
-          {data.investments.map((inv, idx) => (
-            <View key={idx} style={styles.tableRow}>
-              <Text style={styles.cell}>
-                {inv.is_long_term
-                  ? t("investments.heatmap_long_term_label")
-                  : inv.year ?? ""}
-              </Text>
-              <Text style={styles.cellRight}>{eur(inv.amount)}</Text>
-              <Text style={styles.cell}>
-                {t(`investments.type_${inv.measure_type}`)}
-              </Text>
-              <Text style={styles.cell}>{inv.description ?? "—"}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-      <PageNumber />
-    </Page>
-  );
-
-  if (data.images.filter((i) => i.signedUrl).length > 1) {
-    pages.push(
-      <Page key={`${data.property.id}-images`} size="A4" style={styles.page}>
-        <View style={styles.pageHeader}>
-          <Text>{t("images.title")}</Text>
-          <Text>{data.property.address}</Text>
-        </View>
-        <Text style={styles.pageTitle}>{t("images.title")}</Text>
-        <View style={styles.imageGrid}>
-          {data.images
-            .filter((i) => i.signedUrl)
-            .slice(0, 9)
-            .map((img, idx) => (
-              <View key={idx} style={styles.imageCell}>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                <Image
-                  src={img.signedUrl as string}
-                  style={styles.imageCellImg}
-                />
-              </View>
-            ))}
-        </View>
-        <PageNumber />
-      </Page>
-    );
-  }
-
-  return pages;
+  return [
+    <FactsheetPage
+      key={`${data.property.id}-factsheet`}
+      data={data}
+      locale={locale}
+    />,
+  ];
 }
+

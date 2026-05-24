@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
-import { readTenantScoreWeights } from "@/lib/calculations/tenant";
 import { SettingsForm } from "./settings-form";
 
 export default async function SettingsGeneralPage() {
@@ -13,7 +12,7 @@ export default async function SettingsGeneralPage() {
   const { data: settings } = await supabase
     .from("settings")
     .select(
-      "tax_rate, default_depreciation_rate, default_locale, default_currency, tenant_score_weights, cashflow_convention, default_vacancy_residential, default_vacancy_commercial, default_management_per_unit, bank_maintenance_per_sqm"
+      "tax_rate, default_depreciation_rate, default_locale, default_currency, cashflow_convention, default_vacancy_residential, default_vacancy_commercial, default_management_per_unit, bank_maintenance_per_sqm"
     )
     .eq("workspace_id", active.id)
     .single();
@@ -39,9 +38,6 @@ export default async function SettingsGeneralPage() {
         default_vacancy_commercial: Number(settings.default_vacancy_commercial ?? 0.04),
         default_management_per_unit: Number(settings.default_management_per_unit ?? 0),
         bank_maintenance_per_sqm: Number(settings.bank_maintenance_per_sqm ?? 8),
-        tenant_score_weights: readTenantScoreWeights(
-          settings.tenant_score_weights
-        ),
       }}
       readOnly={active.role === "viewer"}
     />
