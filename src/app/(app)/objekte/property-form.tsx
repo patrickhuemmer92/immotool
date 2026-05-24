@@ -633,6 +633,9 @@ export function PropertyForm({
                 name="depreciation_rate"
                 defaultValue={defaults.depreciation_rate}
               />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                {t("properties.depreciation_rate_help")}
+              </p>
             </Field>
           </Grid>
 

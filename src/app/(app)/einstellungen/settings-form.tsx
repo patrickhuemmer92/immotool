@@ -4,7 +4,6 @@ import { useActionState } from "react";
 import { useTranslations } from "next-intl";
 import { decimalToPercentInput } from "@/lib/format";
 import { FormError } from "@/components/form-error";
-import { TENANT_SCORE_FIELDS } from "@/lib/calculations/tenant";
 import { updateSettings, type FormState } from "./actions";
 
 export function SettingsForm({
@@ -21,7 +20,6 @@ export function SettingsForm({
     default_vacancy_commercial: number;
     default_management_per_unit: number;
     bank_maintenance_per_sqm: number;
-    tenant_score_weights: Record<string, number>;
   };
   readOnly: boolean;
 }) {
@@ -177,35 +175,8 @@ export function SettingsForm({
         </div>
       </fieldset>
 
-      <fieldset disabled={readOnly} className="space-y-4 border-t border-neutral-200 dark:border-neutral-800 pt-6">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-            {t("settings.tenant_score_section")}
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-            {t("settings.tenant_score_help")}
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {TENANT_SCORE_FIELDS.map((f) => (
-            <Field
-              key={f}
-              id={`weight_${f}`}
-              label={t(`tenants.factor_${f}`)}
-            >
-              <input
-                id={`weight_${f}`}
-                name={`weight_${f}`}
-                type="text"
-                inputMode="decimal"
-                defaultValue={(defaults.tenant_score_weights[f] ?? 1).toString().replace(".", ",")}
-                required
-                className={inputClass}
-              />
-            </Field>
-          ))}
-        </div>
-      </fieldset>
+      {/* Mieterscoring-Gewichtung wurde aus dem UI entfernt — Scoring
+          läuft mit gleichgewichtetem Mittelwert. */}
 
       <FormError raw={state?.error} />
       {state?.success && (

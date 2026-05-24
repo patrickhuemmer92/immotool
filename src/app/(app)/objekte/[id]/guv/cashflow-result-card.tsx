@@ -78,6 +78,11 @@ export function CashflowResultCard({
 
       {tab === "investor" ? (
         <>
+          {/* User-Schema:
+              Bruttomiete (Kalt + NK) − Zins − Tilgung − Hausgeld/NK
+              − Rücklagen − [GrSt, optional separat erfasst] = CF vor Steuer
+              ± Steuereffekt = CF nach Steuer.
+              AfA wird unten als Hinweisbox (nicht prominent) gezeigt. */}
           <table className="mt-4 w-full text-sm">
             <thead>
               <tr>
@@ -99,10 +104,6 @@ export function CashflowResultCard({
                 value={investor.rentTotal}
               />
               <ResultRow
-                label={t("pnl.operating_costs")}
-                value={-investor.operatingCosts}
-              />
-              <ResultRow
                 label={t("pnl.interest")}
                 value={-investor.interest}
                 tag={investor.source.interest}
@@ -112,6 +113,37 @@ export function CashflowResultCard({
                 value={-investor.principal}
                 tag={investor.source.principal}
               />
+              {/* Hausgeld / Rücklage / SEV / MAW are split out so the user
+                  can see each cost line — matches the "Bruttomiete − Zins
+                  − Tilgung − Hausgeld − Rücklagen − GrSt" reasoning. */}
+              {investor.convention === "gross" ? (
+                <ResultRow
+                  label={t("pnl.hausgeld_total_period")}
+                  value={-investor.hausgeldTotal}
+                />
+              ) : (
+                <ResultRow
+                  label={t("pnl.hausgeld_non_recoverable_period")}
+                  value={-investor.hausgeldNonRecoverable}
+                />
+              )}
+              <ResultRow
+                label={t("pnl.reserve_total")}
+                value={-investor.reserveContribution}
+              />
+              {investor.managementTotal > 0 && (
+                <ResultRow
+                  label={t("pnl.management_total")}
+                  value={-investor.managementTotal}
+                />
+              )}
+              {investor.vacancyLoss > 0 && (
+                <ResultRow
+                  label={t("pnl.vacancy_total")}
+                  value={-investor.vacancyLoss}
+                  muted
+                />
+              )}
               <ResultRow
                 label={t("pnl.cashflow_before_tax")}
                 value={investor.cashflowBeforeTax}
@@ -120,39 +152,41 @@ export function CashflowResultCard({
             </tbody>
           </table>
 
-          <table className="mt-6 w-full text-sm border-t-2 border-neutral-200 dark:border-neutral-800 pt-4">
-            <thead>
-              <tr>
-                <th
-                  colSpan={2}
-                  className="pt-3 pb-1 text-left text-[10px] font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-                >
-                  {t("pnl.section_tax")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <ResultRow
-                label={t("pnl.depreciation")}
-                value={-investor.depreciation}
-                muted
-                annotation={t("pnl.depreciation_calc_only")}
-              />
-              <ResultRow
-                label={t("pnl.pretax_profit")}
-                value={investor.pretaxProfit}
-                strong
-              />
-              <ResultRow
-                label={t("pnl.tax_effect")}
-                value={-investor.taxEffect}
-              />
-            </tbody>
-          </table>
-
-          <p className="mt-2 text-[11px] text-neutral-500 dark:text-neutral-400">
-            {t("pnl.tax_section_help")}
-          </p>
+          {/* AfA + Steuereffekt — kompakt, nicht prominent mittig. */}
+          <div className="mt-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 p-3 text-xs">
+            <div className="text-[10px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-1.5">
+              {t("pnl.section_tax")}
+            </div>
+            <div className="flex items-baseline justify-between gap-3 text-neutral-500 dark:text-neutral-400">
+              <span>
+                {t("pnl.depreciation")} ({t("pnl.depreciation_calc_only")})
+              </span>
+              <span className="tabular-nums">
+                {eurExact(-investor.depreciation)}
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-3 text-neutral-500 dark:text-neutral-400">
+              <span>{t("pnl.pretax_profit")}</span>
+              <span className="tabular-nums">
+                {eurExact(investor.pretaxProfit)}
+              </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-3">
+              <span>{t("pnl.tax_effect")}</span>
+              <span
+                className={`tabular-nums font-semibold ${
+                  -investor.taxEffect < 0
+                    ? "text-red-600 dark:text-red-400"
+                    : ""
+                }`}
+              >
+                {eurExact(-investor.taxEffect)}
+              </span>
+            </div>
+            <p className="mt-2 text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug">
+              {t("pnl.tax_section_help")}
+            </p>
+          </div>
 
           <table className="mt-4 w-full text-sm border-t-2 border-neutral-200 dark:border-neutral-800 pt-4">
             <tbody>

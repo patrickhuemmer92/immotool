@@ -199,8 +199,11 @@ export function buildPnLInput(
     };
   });
 
+  // Default to GROSS convention so the display matches "Bruttomiete = Kaltmiete
+  // + NK − Hausgeld − Rücklage − Zins − Tilgung" — the intuitive form
+  // requested by the user. Workspaces can still pin "net" explicitly.
   const convention: CashflowConvention =
-    settings.cashflow_convention === "gross" ? "gross" : "net";
+    settings.cashflow_convention === "net" ? "net" : "gross";
 
   const vacancyRate = resolveVacancyRate(property, settings);
   const managementDefault = resolveManagementMonthly(property, settings);

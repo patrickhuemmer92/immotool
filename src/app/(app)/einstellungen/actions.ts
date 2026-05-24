@@ -5,7 +5,6 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { parseDecimal } from "@/lib/format";
-import { TENANT_SCORE_FIELDS } from "@/lib/calculations/tenant";
 
 const requiredPercentSetting = z
   .string()
@@ -20,20 +19,6 @@ const requiredPercentSetting = z
     }
   })
   .transform((v) => (parseDecimal(v) as number) / 100);
-
-const requiredNonNegWeight = z
-  .string()
-  .min(1, "required")
-  .superRefine((v, ctx) => {
-    const n = parseDecimal(v);
-    if (n === null || n < 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `invalid_number:${v}`,
-      });
-    }
-  })
-  .transform((v) => parseDecimal(v) as number);
 
 /** Optional non-negative number (e.g. €/m², €/Monat). */
 const optionalNonNegNumber = z
@@ -54,6 +39,8 @@ const optionalNonNegNumber = z
     return parseDecimal(v) as number;
   });
 
+// Mieterscoring-Gewichtungen sind aus dem UI entfernt — Schema enthält sie
+// nicht mehr. Wenn alte Einträge in der DB liegen, werden sie ignoriert.
 const settingsSchema = z.object({
   tax_rate: requiredPercentSetting,
   default_depreciation_rate: requiredPercentSetting,
@@ -64,12 +51,6 @@ const settingsSchema = z.object({
   default_vacancy_commercial: requiredPercentSetting,
   default_management_per_unit: optionalNonNegNumber,
   bank_maintenance_per_sqm: optionalNonNegNumber,
-  weight_family_status: requiredNonNegWeight,
-  weight_schufa: requiredNonNegWeight,
-  weight_rental_duration: requiredNonNegWeight,
-  weight_personal_impression: requiredNonNegWeight,
-  weight_employment_status: requiredNonNegWeight,
-  weight_income_level: requiredNonNegWeight,
 });
 
 export type FormState = { error?: string; success?: boolean } | undefined;
@@ -93,28 +74,8 @@ export async function updateSettings(
       formData.get("default_management_per_unit") || undefined,
     bank_maintenance_per_sqm:
       formData.get("bank_maintenance_per_sqm") || undefined,
-    weight_family_status: formData.get("weight_family_status"),
-    weight_schufa: formData.get("weight_schufa"),
-    weight_rental_duration: formData.get("weight_rental_duration"),
-    weight_personal_impression: formData.get("weight_personal_impression"),
-    weight_employment_status: formData.get("weight_employment_status"),
-    weight_income_level: formData.get("weight_income_level"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
-
-  // Reject "all weights zero" — that'd make the score un-computable.
-  const sum = TENANT_SCORE_FIELDS.reduce(
-    (acc, f) => acc + (parsed.data[`weight_${f}` as keyof typeof parsed.data] as number),
-    0
-  );
-  if (sum <= 0) return { error: "weights_all_zero" };
-
-  const tenant_score_weights: Record<string, number> = {};
-  for (const f of TENANT_SCORE_FIELDS) {
-    tenant_score_weights[f] = parsed.data[
-      `weight_${f}` as keyof typeof parsed.data
-    ] as number;
-  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -129,7 +90,6 @@ export async function updateSettings(
       default_vacancy_commercial: parsed.data.default_vacancy_commercial,
       default_management_per_unit: parsed.data.default_management_per_unit,
       bank_maintenance_per_sqm: parsed.data.bank_maintenance_per_sqm,
-      tenant_score_weights,
     })
     .eq("workspace_id", active.id);
 

@@ -12,19 +12,19 @@ const optDate = z
   .optional()
   .transform((v) => (v && v.length ? v : null));
 
-const optNum = z
+// Kaltmiete and ancillary costs are now mandatory at the tenant level; the
+// old optional-number schema is no longer used.
+const requiredNum = z
   .string()
-  .optional()
   .superRefine((v, ctx) => {
-    if (!v || !v.length) return;
-    if (parseDecimal(v) === null) {
+    if (!v || !v.length || parseDecimal(v) === null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `invalid_number:${v}`,
+        message: `invalid_number:${v ?? ""}`,
       });
     }
   })
-  .transform((v) => (v && v.length ? parseDecimal(v) : null));
+  .transform((v) => parseDecimal(v) as number);
 
 const tenantSchema = z
   .object({
@@ -35,7 +35,8 @@ const tenantSchema = z
       .optional()
       .transform((v) => v === "true" || v === "on"),
     contract_end: optDate,
-    cold_rent_per_month: optNum,
+    cold_rent_per_month: requiredNum,
+    ancillary_costs_per_month: requiredNum,
     notes: z
       .string()
       .optional()
@@ -71,6 +72,7 @@ function parse(formData: FormData) {
     "is_fixed_term",
     "contract_end",
     "cold_rent_per_month",
+    "ancillary_costs_per_month",
     "notes",
   ]) {
     const v = formData.get(k);

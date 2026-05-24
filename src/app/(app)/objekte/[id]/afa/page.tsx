@@ -188,6 +188,9 @@ export default async function PropertyAfaPage({
         <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
           {t("afa.section_method")}
         </h2>
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3 max-w-2xl">
+          {t("afa.method_vs_rate_help")}
+        </p>
         <AfaMethodForm
           propertyId={id}
           defaults={{
