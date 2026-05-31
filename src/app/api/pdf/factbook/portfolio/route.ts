@@ -11,20 +11,48 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const locale = resolveLocale(url.searchParams.get("lang"));
+  // Optional: nur Objekte aus einem konkreten Portfolio rendern.
+  // Ohne Parameter → alle Workspace-Objekte (Default-Verhalten).
+  const portfolioId = url.searchParams.get("portfolioId");
 
   const active = await getActiveWorkspace();
   if (!active) return new Response("unauthorized", { status: 401 });
 
   const supabase = await createClient();
-  const { data: properties } = await supabase
-    .from("properties")
-    .select("id")
-    .eq("workspace_id", active.id)
-    .order("city")
-    .order("street");
+
+  // Wenn Portfolio gewählt: erst Name/Owner-Check, dann nur Properties
+  // aus der Join-Tabelle holen. Sonst Standard: alle Workspace-Objekte.
+  let workspaceName = active.name;
+  let propertyIds: string[] = [];
+
+  if (portfolioId) {
+    const { data: portfolio } = await supabase
+      .from("portfolios")
+      .select(
+        `id, name, workspace_id,
+         portfolio_properties(property_id)`
+      )
+      .eq("id", portfolioId)
+      .maybeSingle();
+    if (!portfolio || portfolio.workspace_id !== active.id) {
+      return new Response("not_found", { status: 404 });
+    }
+    workspaceName = `${active.name} — ${portfolio.name}`;
+    propertyIds = (
+      (portfolio.portfolio_properties as { property_id: string }[] | null) ?? []
+    ).map((m) => m.property_id);
+  } else {
+    const { data: properties } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("workspace_id", active.id)
+      .order("city")
+      .order("street");
+    propertyIds = (properties ?? []).map((p) => p.id);
+  }
 
   const propertyDataList = await Promise.all(
-    (properties ?? []).map((p) => fetchPropertyForPdf(p.id, active.id))
+    propertyIds.map((id) => fetchPropertyForPdf(id, active.id))
   );
   const filtered = propertyDataList.filter(
     (d): d is NonNullable<typeof d> => d != null
@@ -32,16 +60,17 @@ export async function GET(request: Request) {
 
   const stream = await renderToStream(
     PortfolioFactbookDocument({
-      workspaceName: active.name,
+      workspaceName,
       properties: filtered,
       locale,
     }) as never
   );
 
+  const filenameSuffix = portfolioId ? `portfolio-${portfolioId}` : active.id;
   return new Response(stream as unknown as ReadableStream, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="portfolio-${active.id}.pdf"`,
+      "Content-Disposition": `inline; filename="factbook-${filenameSuffix}.pdf"`,
       "Cache-Control": "no-store",
     },
   });

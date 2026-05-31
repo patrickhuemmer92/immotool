@@ -35,6 +35,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "properties": "Properties",
+    "portfolios": "Portfolios",
     "owners": "Owners",
     "tenants": "Tenants",
     "finance": "Finance",
@@ -148,6 +149,30 @@
     "add_member": "Add person",
     "add_member_action": "+ Add",
     "select_person": "Select person…"
+  },
+  "portfolios": {
+    "title": "Portfolios",
+    "new": "New portfolio",
+    "edit": "Edit portfolio",
+    "name": "Name",
+    "name_placeholder": "e.g. \"Berlin core\" or \"Yield top picks\"",
+    "description": "Description",
+    "description_placeholder": "Free text — strategy, region, etc.",
+    "intro": "Portfolios group a selection of your properties — e.g. by region, strategy or buyer. A property may belong to multiple portfolios, and for each portfolio you can generate a dedicated factbook (PDF).",
+    "empty": "No portfolios yet. Create one to group properties.",
+    "objects_count": "{count, plural, =0 {No properties} =1 {1 property} other {# properties}}",
+    "kpi_count": "Properties",
+    "kpi_purchase_total": "Total purchase",
+    "add_property": "Add property",
+    "choose_property": "Pick a property…",
+    "no_candidates": "All existing properties are already in this portfolio.",
+    "no_members": "No properties assigned yet.",
+    "members_section": "Properties in this portfolio",
+    "remove": "Remove",
+    "confirm_remove": "Really remove the property from this portfolio? (The property itself stays.)",
+    "confirm_delete": "Really delete this portfolio? The assigned properties themselves stay.",
+    "duplicate_portfolio_name": "A portfolio with this name already exists.",
+    "download_factbook": "Factbook (PDF)"
   },
   "properties": {
     "title": "Properties",

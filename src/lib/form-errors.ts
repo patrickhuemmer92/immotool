@@ -48,6 +48,8 @@ export function errorToTranslationKey(raw: string): {
         key: "errors.tier_limit_exceeded",
         params: { tier: value ?? "" },
       };
+    case "duplicate_portfolio_name":
+      return { key: "portfolios.duplicate_portfolio_name" };
     default:
       // Unbekannter Fehler-Code (typischerweise: durchgereichte Supabase-/
       // Postgres-Message). Statt "Etwas ist schiefgelaufen" anzuzeigen,

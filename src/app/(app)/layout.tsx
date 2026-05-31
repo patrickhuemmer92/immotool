@@ -54,6 +54,7 @@ export default async function AppLayout({
           <NavSection>
             <NavLink href="/">{t("nav.dashboard")}</NavLink>
             <NavLink href="/objekte">{t("nav.properties")}</NavLink>
+            <NavLink href="/portfolios">{t("nav.portfolios")}</NavLink>
             <NavLink href="/eigentuemer">{t("nav.owners")}</NavLink>
             <NavLink href="/mieter">{t("nav.tenants")}</NavLink>
           </NavSection>
