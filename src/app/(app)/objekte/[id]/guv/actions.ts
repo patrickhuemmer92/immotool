@@ -45,8 +45,13 @@ const schema = z.object({
 });
 
 /**
- * Holt die Kaltmiete (€/Monat) des aktuellen Mieters für ein Objekt.
- * `null` heißt: kein Mieter angelegt oder Kaltmiete leer.
+ * Holt die Summe der Kaltmieten (€/Monat) aller AKTIVEN Mietverträge
+ * für ein Objekt. „Aktiv“ heißt: unbefristet oder befristet mit
+ * contract_end >= heute. Pro Objekt sind seit Migration 0018 mehrere
+ * Verträge möglich (WGs, parallele Verhältnisse).
+ *
+ * `null` zurückgeben, wenn gar kein Mieter angelegt ist; eine echte 0
+ * (z. B. nur ausgelaufene Verträge) wird ebenfalls als 0 gespeichert.
  */
 async function getTenantColdRent(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -54,12 +59,17 @@ async function getTenantColdRent(
 ): Promise<number | null> {
   const { data } = await supabase
     .from("tenants")
-    .select("cold_rent_per_month")
-    .eq("property_id", propertyId)
-    .maybeSingle();
-  if (!data?.cold_rent_per_month) return null;
-  const n = Number(data.cold_rent_per_month);
-  return Number.isFinite(n) ? n : null;
+    .select("cold_rent_per_month, is_fixed_term, contract_end")
+    .eq("property_id", propertyId);
+  if (!data || data.length === 0) return null;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  return data.reduce((acc, t) => {
+    const active =
+      !t.is_fixed_term || !t.contract_end || t.contract_end >= todayIso;
+    if (!active) return acc;
+    const n = Number(t.cold_rent_per_month ?? 0);
+    return acc + (Number.isFinite(n) ? n : 0);
+  }, 0);
 }
 
 function getStr(formData: FormData, key: string): string | undefined {

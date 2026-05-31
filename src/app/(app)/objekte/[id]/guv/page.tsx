@@ -73,11 +73,15 @@ export default async function PropertyPnLPage({
       .eq("property_id", id)
       .order("valuation_date", { ascending: false })
       .limit(1),
+    // Mehrere Verträge pro Objekt möglich (Migration 0018): wir laden alle
+    // tenants und aggregieren die "aktiven" (unbefristet oder befristet
+    // mit contract_end in Zukunft) clientseitig.
     supabase
       .from("tenants")
-      .select("cold_rent_per_month, ancillary_costs_per_month")
-      .eq("property_id", id)
-      .maybeSingle(),
+      .select(
+        "cold_rent_per_month, ancillary_costs_per_month, is_fixed_term, contract_end"
+      )
+      .eq("property_id", id),
     supabase
       .from("investment_plans")
       .select(
@@ -151,20 +155,49 @@ export default async function PropertyPnLPage({
 
   const editable = canEdit(active.role);
 
-  // Pre-fill the new-snapshot form mit NK aus dem Mieter. Kaltmiete wird
-  // nicht mehr ins Form übernommen — sie ist Tenant-Live-Wert und wird in
-  // der Server-Action beim Insert/Update direkt aus tenants gezogen.
+  // Multi-Tenant: aktive Verträge ermitteln (unbefristet ODER befristet
+  // mit contract_end >= heute). Bruttomiete ist die Summe aller aktiven
+  // Kaltmieten + Nebenkosten.
+  const todayIso = today.toISOString().slice(0, 10);
+  const tenantList = (tenant ?? []) as Array<{
+    cold_rent_per_month: string | number | null;
+    ancillary_costs_per_month: string | number | null;
+    is_fixed_term: boolean;
+    contract_end: string | null;
+  }>;
+  const activeTenants = tenantList.filter((t) => {
+    if (!t.is_fixed_term) return true;
+    if (!t.contract_end) return true;
+    return t.contract_end >= todayIso;
+  });
+  const tenantColdRentMonthly = activeTenants.reduce(
+    (acc, t) =>
+      acc +
+      (t.cold_rent_per_month == null ? 0 : Number(t.cold_rent_per_month)),
+    0
+  );
+  const tenantAncillaryMonthly = activeTenants.reduce(
+    (acc, t) =>
+      acc +
+      (t.ancillary_costs_per_month == null
+        ? 0
+        : Number(t.ancillary_costs_per_month)),
+    0
+  );
+
+  // Pre-fill the new-snapshot form mit NK-Summe aus allen aktiven Mietern.
+  // Kaltmiete wird nicht ins Form übernommen — sie ist Live-Wert und wird
+  // in der Server-Action beim Insert/Update aus tenants gezogen.
   const snapshotDefaults = buildDefaultsFromTenant(
     new Date(Date.UTC(today.getUTCFullYear(), 0, 1)).toISOString().slice(0, 10),
     new Date(Date.UTC(today.getUTCFullYear(), 11, 31)).toISOString().slice(0, 10),
-    tenant
+    activeTenants.length > 0
+      ? {
+          cold_rent_per_month: tenantColdRentMonthly,
+          ancillary_costs_per_month: tenantAncillaryMonthly,
+        }
+      : null
   );
-
-  // Kaltmiete des Mieters (€/Monat) — für den Info-Block im Snapshot-Form.
-  const tenantColdRentMonthly =
-    tenant?.cold_rent_per_month != null
-      ? Number(tenant.cold_rent_per_month)
-      : null;
 
   return (
     <div>

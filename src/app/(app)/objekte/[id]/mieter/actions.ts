@@ -12,8 +12,7 @@ const optDate = z
   .optional()
   .transform((v) => (v && v.length ? v : null));
 
-// Kaltmiete and ancillary costs are now mandatory at the tenant level; the
-// old optional-number schema is no longer used.
+// Kaltmiete und Nebenkosten sind weiterhin Pflicht — pro Vertrag.
 const requiredNum = z
   .string()
   .superRefine((v, ctx) => {
@@ -81,7 +80,12 @@ function parse(formData: FormData) {
   return obj;
 }
 
-export async function upsertTenant(
+/**
+ * Legt einen NEUEN Mietvertrag an. Pro Objekt sind mehrere Verträge
+ * erlaubt (WGs, parallele Mieter, etc.) — die UNIQUE-Constraint auf
+ * property_id wurde mit Migration 0018 entfernt.
+ */
+export async function createTenant(
   propertyId: string,
   _prev: TenantFormState,
   formData: FormData
@@ -89,7 +93,6 @@ export async function upsertTenant(
   const parsed = tenantSchema.safeParse(parse(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
-  // Defensive: clear contract_end if not fixed-term.
   const payload = {
     ...parsed.data,
     contract_end: parsed.data.is_fixed_term ? parsed.data.contract_end : null,
@@ -98,16 +101,10 @@ export async function upsertTenant(
   const supabase = await createClient();
   const { error } = await supabase
     .from("tenants")
-    .upsert(
-      { ...payload, property_id: propertyId },
-      { onConflict: "property_id" }
-    );
+    .insert({ ...payload, property_id: propertyId });
 
   if (error) {
-    // Vollen Supabase-Fehler in den Server-Logs (Vercel) protokollieren —
-    // die UI sieht nur error.message, aber details/hint sind oft die
-    // entscheidenden Infos (z. B. constraint-Name bei RLS-Block).
-    console.error("[tenants:upsert] supabase error:", {
+    console.error("[tenants:create] supabase error:", {
       message: error.message,
       details: error.details,
       hint: error.hint,
@@ -119,16 +116,59 @@ export async function upsertTenant(
 
   revalidatePath(`/objekte/${propertyId}/mieter`);
   revalidatePath(`/objekte/${propertyId}`);
-  // Workspace-weite Mieter-Übersicht muss neue Einträge sofort zeigen.
   revalidatePath("/mieter");
   return undefined;
 }
 
-export async function deleteTenant(propertyId: string) {
+/**
+ * Aktualisiert einen existierenden Mietvertrag anhand seiner tenant_id.
+ */
+export async function updateTenant(
+  tenantId: string,
+  propertyId: string,
+  _prev: TenantFormState,
+  formData: FormData
+): Promise<TenantFormState> {
+  const parsed = tenantSchema.safeParse(parse(formData));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const payload = {
+    ...parsed.data,
+    contract_end: parsed.data.is_fixed_term ? parsed.data.contract_end : null,
+  };
+
   const supabase = await createClient();
-  await supabase.from("tenants").delete().eq("property_id", propertyId);
+  const { error } = await supabase
+    .from("tenants")
+    .update(payload)
+    .eq("id", tenantId);
+
+  if (error) {
+    console.error("[tenants:update] supabase error:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      tenant_id: tenantId,
+    });
+    return { error: error.message };
+  }
+
   revalidatePath(`/objekte/${propertyId}/mieter`);
   revalidatePath(`/objekte/${propertyId}`);
-  // Workspace-weite Mieter-Übersicht muss ebenfalls neu rendern.
+  revalidatePath("/mieter");
+  return undefined;
+}
+
+/**
+ * Löscht einen Mietvertrag anhand seiner tenant_id. Wir nehmen die
+ * property_id als zusätzliches Argument, um die richtigen Caches zu
+ * invalidieren — Lookup via DB wäre ein zusätzlicher Roundtrip.
+ */
+export async function deleteTenant(tenantId: string, propertyId: string) {
+  const supabase = await createClient();
+  await supabase.from("tenants").delete().eq("id", tenantId);
+  revalidatePath(`/objekte/${propertyId}/mieter`);
+  revalidatePath(`/objekte/${propertyId}`);
   revalidatePath("/mieter");
 }

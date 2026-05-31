@@ -325,7 +325,12 @@
     "ancillary_costs_per_month": "Ancillary costs (€/month)",
     "ancillary_costs_help": "Monthly advance ancillary-cost payment the tenant pays in addition to the cold rent. Gross rent = cold rent + ancillary costs.",
     "rent_per_sqm": "Rent €/m²",
-    "single_tenant_help": "Exactly one tenancy per unit. Multi-family houses: create the MFH as kind \"house\" and each unit as a separate property with the house as its parent — each unit gets its own tenant."
+    "single_tenant_help": "Exactly one tenancy per unit. Multi-family houses: create the MFH as kind \"house\" and each unit as a separate property with the house as its parent — each unit gets its own tenant.",
+    "multi_tenant_help": "Multiple lease contracts per property are supported (e.g. flatshares or successor tenants with overlap). The gross rent in cashflow is the sum of cold rents from all currently active contracts.",
+    "empty_property": "No lease contract for this property yet.",
+    "status_expired": "Expired",
+    "term_since": "since {date}",
+    "term_fixed_until": "Fixed-term until {date}"
   },
   "valuation": {
     "title": "Valuation",

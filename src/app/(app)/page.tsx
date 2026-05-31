@@ -49,29 +49,39 @@ export default async function DashboardPage() {
     // Mieter sind die Source-of-Truth für Kaltmiete — wir aggregieren die
     // Jahres-Kaltmiete für die Bruttomietrendite direkt von hier, nicht
     // aus den (optionalen, evtl. nicht für jedes Objekt vorhandenen)
-    // pnl-Snapshots. So zählt jede vermietete Einheit, unabhängig davon,
-    // ob bereits ein Cashflow-Snapshot existiert.
+    // pnl-Snapshots. Seit Migration 0018 sind mehrere Verträge pro
+    // Objekt möglich; wir summieren sie alle und filtern auf „aktiv“
+    // (unbefristet ODER befristet mit contract_end >= heute).
     supabase
       .from("tenants")
-      .select("property_id, cold_rent_per_month, properties!inner(workspace_id)")
+      .select(
+        "property_id, cold_rent_per_month, is_fixed_term, contract_end, properties!inner(workspace_id)"
+      )
       .eq("properties.workspace_id", active.id),
   ]);
 
   const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
   let totalSqm = 0;
   let totalPurchase = 0;
   let totalValue = 0;
   let totalLoans = 0;
   let totalAfterTax = 0;
 
-  // Bruttomietrendite-Basis: Jahres-Kaltmiete aus allen Mieter-Datensätzen
-  // des Workspaces. Quelle ist explizit der Mieter (cold_rent_per_month),
-  // nicht der Cashflow-Snapshot — Objekte ohne Snapshot zählen damit auch.
+  // Bruttomietrendite-Basis: Jahres-Kaltmiete aus den AKTIVEN Mietverträgen.
+  // Abgelaufene befristete Verträge zählen nicht — sie generieren keinen
+  // laufenden Cashflow.
   let totalColdRentAnnual = 0;
   for (const tr of tenants ?? []) {
-    const monthly = Number(
-      (tr as { cold_rent_per_month: string | number | null }).cold_rent_per_month ?? 0
-    );
+    const row = tr as {
+      cold_rent_per_month: string | number | null;
+      is_fixed_term: boolean | null;
+      contract_end: string | null;
+    };
+    const active =
+      !row.is_fixed_term || !row.contract_end || row.contract_end >= todayIso;
+    if (!active) continue;
+    const monthly = Number(row.cold_rent_per_month ?? 0);
     if (Number.isFinite(monthly)) totalColdRentAnnual += monthly * 12;
   }
 

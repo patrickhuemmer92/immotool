@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { deleteTenant } from "../objekte/[id]/mieter/actions";
 
-export function DeleteTenantButton({ propertyId }: { propertyId: string }) {
+export function DeleteTenantButton({
+  tenantId,
+  propertyId,
+}: {
+  tenantId: string;
+  propertyId: string;
+}) {
   const t = useTranslations();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -16,7 +22,7 @@ export function DeleteTenantButton({ propertyId }: { propertyId: string }) {
       onClick={() => {
         if (!confirm(t("common.confirm_delete"))) return;
         start(async () => {
-          await deleteTenant(propertyId);
+          await deleteTenant(tenantId, propertyId);
           router.refresh();
         });
       }}
