@@ -119,6 +119,8 @@ export async function upsertTenant(
 
   revalidatePath(`/objekte/${propertyId}/mieter`);
   revalidatePath(`/objekte/${propertyId}`);
+  // Workspace-weite Mieter-Übersicht muss neue Einträge sofort zeigen.
+  revalidatePath("/mieter");
   return undefined;
 }
 
@@ -127,4 +129,6 @@ export async function deleteTenant(propertyId: string) {
   await supabase.from("tenants").delete().eq("property_id", propertyId);
   revalidatePath(`/objekte/${propertyId}/mieter`);
   revalidatePath(`/objekte/${propertyId}`);
+  // Workspace-weite Mieter-Übersicht muss ebenfalls neu rendern.
+  revalidatePath("/mieter");
 }
