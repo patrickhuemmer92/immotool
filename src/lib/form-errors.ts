@@ -43,6 +43,11 @@ export function errorToTranslationKey(raw: string): {
       return { key: "owners.select_person" };
     case "member_exists":
       return { key: "errors.generic" };
+    case "tier_limit_exceeded":
+      return {
+        key: "errors.tier_limit_exceeded",
+        params: { tier: value ?? "" },
+      };
     default:
       // Unbekannter Fehler-Code (typischerweise: durchgereichte Supabase-/
       // Postgres-Message). Statt "Etwas ist schiefgelaufen" anzuzeigen,
