@@ -325,7 +325,12 @@
     "ancillary_costs_per_month": "Nebenkosten (€/Monat)",
     "ancillary_costs_help": "Nebenkostenvorauszahlung, die der Mieter zusätzlich zur Kaltmiete leistet. Bruttomiete = Kaltmiete + Nebenkosten.",
     "rent_per_sqm": "Miete €/m²",
-    "single_tenant_help": "Genau ein Mietverhältnis je Einheit. Mehrfamilienhäuser: das MFH als Haus anlegen und jede Wohneinheit als eigenes Objekt mit dem Haus als „Übergeordnetes Objekt“ — jede Einheit hat dann ihren eigenen Mieter."
+    "single_tenant_help": "Genau ein Mietverhältnis je Einheit. Mehrfamilienhäuser: das MFH als Haus anlegen und jede Wohneinheit als eigenes Objekt mit dem Haus als „Übergeordnetes Objekt“ — jede Einheit hat dann ihren eigenen Mieter.",
+    "multi_tenant_help": "Pro Objekt sind mehrere Mietverträge möglich (z. B. WGs oder Folgemieter mit Überlappung). Die Bruttomiete im Cashflow ist die Summe der Kaltmieten aller aktuell aktiven Verträge.",
+    "empty_property": "Noch kein Mietvertrag für dieses Objekt angelegt.",
+    "status_expired": "Abgelaufen",
+    "term_since": "seit {date}",
+    "term_fixed_until": "Befristet bis {date}"
   },
   "valuation": {
     "title": "Bewertung",

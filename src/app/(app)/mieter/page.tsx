@@ -6,12 +6,9 @@ import { formatPropertyAddress } from "@/lib/properties";
 import { DeleteTenantButton } from "./delete-tenant-button";
 
 /**
- * Workspace-weite Mieter-Übersicht.
- *
- * Da pro Objekt genau ein Mietvertrag existiert (unique constraint auf
- * property_id), brauchen wir keine Sortierung/Filter — die Liste ist
- * 1:1 die Liste der vermieteten Objekte. Bearbeiten + Löschen direkt in
- * der Zeile, Neuanlegen über das jeweilige Objekt.
+ * Workspace-weite Mieter-Übersicht. Seit Migration 0018 sind beliebig
+ * viele Mietverträge pro Objekt erlaubt — jeder Vertrag erscheint hier
+ * als eigene Zeile, mit Objekt-Adresse als Gruppen-Anker.
  */
 export default async function TenantsOverviewPage() {
   const t = await getTranslations();
@@ -19,14 +16,12 @@ export default async function TenantsOverviewPage() {
   if (!active) return null;
 
   const supabase = await createClient();
-  // Wir lesen aus properties + nested tenants (inner join), damit wir die
-  // Objekt-Adresse direkt mitbekommen — und nur Objekte mit Mieter zeigen.
   const { data: rows } = await supabase
     .from("properties")
     .select(
       `id, street, postal_code, city, location_detail, description,
-       tenants!inner(id, name, cold_rent_per_month, ancillary_costs_per_month,
-                     contract_start, contract_end, is_fixed_term)`
+       tenants(id, name, cold_rent_per_month, ancillary_costs_per_month,
+               contract_start, contract_end, is_fixed_term)`
     )
     .eq("workspace_id", active.id)
     .order("city")
@@ -44,30 +39,24 @@ export default async function TenantsOverviewPage() {
 
   const editable = canEdit(active.role);
 
-  const tenants =
-    (rows ?? [])
-      .map((p) => {
-        const t = (p.tenants as unknown as TenantRow[] | TenantRow | null);
-        const row = Array.isArray(t) ? t[0] : t;
-        if (!row) return null;
-        return {
-          propertyId: p.id,
-          propertyAddress: formatPropertyAddress(p),
-          tenant: row,
-        };
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null);
+  // Flach: jede (property, tenant)-Kombination eine Zeile.
+  const flat = (rows ?? []).flatMap((p) => {
+    const ts = (p.tenants as unknown as TenantRow[] | null) ?? [];
+    return ts.map((t) => ({
+      propertyId: p.id,
+      propertyAddress: formatPropertyAddress(p),
+      tenant: t,
+    }));
+  });
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("tenants.title")}
-        </h1>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">
+        {t("tenants.title")}
+      </h1>
 
       <div className="mt-6">
-        {tenants.length === 0 ? (
+        {flat.length === 0 ? (
           <p className="text-sm text-neutral-500 dark:text-neutral-400">
             {t("tenants.empty_list")}
           </p>
@@ -88,11 +77,14 @@ export default async function TenantsOverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {tenants.map(({ propertyId, propertyAddress, tenant }) => {
+                {flat.map(({ propertyId, propertyAddress, tenant }) => {
                   const cold = num(tenant.cold_rent_per_month);
                   const anc = num(tenant.ancillary_costs_per_month);
                   const gross =
-                    cold === null && anc === null ? null : (cold ?? 0) + (anc ?? 0);
+                    cold === null && anc === null
+                      ? null
+                      : (cold ?? 0) + (anc ?? 0);
+                  const active = isActive(tenant);
                   return (
                     <tr
                       key={tenant.id}
@@ -106,7 +98,14 @@ export default async function TenantsOverviewPage() {
                           {propertyAddress}
                         </Link>
                       </Td>
-                      <Td className="font-medium">{tenant.name}</Td>
+                      <Td>
+                        <span className="font-medium">{tenant.name}</span>
+                        {!active && (
+                          <span className="ml-2 text-[10px] rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 px-1.5 py-0.5 uppercase tracking-wider">
+                            {t("tenants.status_expired")}
+                          </span>
+                        )}
+                      </Td>
                       <Td className="tabular-nums text-right">
                         {formatCurrency(cold)}
                       </Td>
@@ -132,7 +131,10 @@ export default async function TenantsOverviewPage() {
                             {t("common.edit")} →
                           </Link>
                           {editable && (
-                            <DeleteTenantButton propertyId={propertyId} />
+                            <DeleteTenantButton
+                              tenantId={tenant.id}
+                              propertyId={propertyId}
+                            />
                           )}
                         </div>
                       </Td>
@@ -170,6 +172,15 @@ function formatDate(iso: string | null | undefined): string {
     month: "2-digit",
     year: "numeric",
   });
+}
+
+function isActive(t: {
+  is_fixed_term: boolean;
+  contract_end: string | null;
+}): boolean {
+  if (!t.is_fixed_term) return true;
+  if (!t.contract_end) return true;
+  return t.contract_end >= new Date().toISOString().slice(0, 10);
 }
 
 function TermBadge({

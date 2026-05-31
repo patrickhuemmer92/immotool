@@ -3,7 +3,11 @@
 import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
-import { upsertTenant, type TenantFormState } from "./actions";
+import {
+  createTenant,
+  updateTenant,
+  type TenantFormState,
+} from "./actions";
 
 export type TenantDefaults = {
   name: string;
@@ -27,18 +31,26 @@ export const EMPTY_TENANT_DEFAULTS: TenantDefaults = {
 
 export function TenantForm({
   propertyId,
+  tenantId,
   defaults,
   readOnly,
+  onCancel,
 }: {
   propertyId: string;
+  /** Wenn gesetzt → Update-Mode, sonst → Create-Mode. */
+  tenantId?: string;
   defaults: TenantDefaults;
   readOnly: boolean;
+  onCancel?: () => void;
 }) {
   const t = useTranslations();
-  const [state, formAction, pending] = useActionState<
-    TenantFormState,
-    FormData
-  >(upsertTenant.bind(null, propertyId), undefined);
+  const action = tenantId
+    ? updateTenant.bind(null, tenantId, propertyId)
+    : createTenant.bind(null, propertyId);
+  const [state, formAction, pending] = useActionState<TenantFormState, FormData>(
+    action,
+    undefined
+  );
   const [isFixedTerm, setIsFixedTerm] = useState<boolean>(defaults.is_fixed_term);
 
   return (
@@ -176,8 +188,21 @@ export function TenantForm({
             disabled={pending}
             className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
-            {pending ? t("common.loading") : t("common.save")}
+            {pending
+              ? t("common.loading")
+              : tenantId
+                ? t("common.save")
+                : t("common.create")}
           </button>
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            >
+              {t("common.cancel")}
+            </button>
+          )}
         </div>
       </fieldset>
     </form>
