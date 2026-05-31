@@ -26,6 +26,7 @@ export async function TaxProjectionCard({
               <Th>{t("pnl.interest")}</Th>
               <Th>{t("pnl.principal")}</Th>
               <Th>{t("pnl.depreciation")}</Th>
+              <Th>{t("pnl.projection_invest_deductible")}</Th>
               <Th>{t("pnl.pretax_profit")}</Th>
               <Th>{t("pnl.tax_effect")}</Th>
               <Th>{t("pnl.after_tax_cashflow")}</Th>
@@ -46,6 +47,12 @@ export async function TaxProjectionCard({
                 <Money value={-r.interest} />
                 <Money value={-r.principal} muted />
                 <Money value={-r.depreciation} muted />
+                <Money
+                  value={
+                    r.investmentDeductible === 0 ? 0 : -r.investmentDeductible
+                  }
+                  muted
+                />
                 <Money value={r.pretaxProfit} />
                 <Money value={-r.taxEffect} />
                 <Money value={r.afterTaxCashflow} strong />

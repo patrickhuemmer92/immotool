@@ -307,6 +307,22 @@ export type PropertyKPIArgs = {
  *     verschiebt sich.
  *   - AfA folgt der gewählten Methode (linear / degressiv / Sonder).
  */
+export type InvestmentForProjection = {
+  year: number | null;
+  is_long_term: boolean | null;
+  amount: string | number | null;
+  tax_treatment:
+    | "expense_immediate"
+    | "expense_82b"
+    | "capitalized_building"
+    | "capitalized_separate"
+    | "non_deductible"
+    | string
+    | null;
+  expense_82b_years: number | null;
+  useful_life_years: number | null;
+};
+
 export type TaxProjectionRow = {
   /** AfA-Jahr (1-basiert). */
   year: number;
@@ -316,11 +332,19 @@ export type TaxProjectionRow = {
   interest: number;
   /** Jahres-Tilgung. */
   principal: number;
-  /** Jahres-AfA. */
+  /** Jahres-Gebäude-AfA. */
   depreciation: number;
-  /** Cashflow vor Steuer p.a. */
+  /** Anteil aus Investitionen, der dieses Jahr steuerlich abzugsfähig ist
+   *  (Erhaltungsaufwand sofort, § 82b-Tranche, AfA-Tranche aus
+   *  capitalized_separate, AfA aus capitalized_building). */
+  investmentDeductible: number;
+  /** Cash-Abfluss aus Investitionen, der dieses Jahr fällig wird
+   *  (capitalized_* zahlt im Jahr der Anschaffung 100 % Cash, wird aber
+   *  über Jahre steuerlich verteilt). */
+  investmentCashOutflow: number;
+  /** Cashflow vor Steuer p.a. (inkl. Investment-Cash). */
   cashflowBeforeTax: number;
-  /** Steuerlicher Gewinn p.a. */
+  /** Steuerlicher Gewinn p.a. (inkl. Investment-Abzug). */
   pretaxProfit: number;
   /** Steuereffekt p.a. (positiv = Steuerzahlung, negativ = Erstattung). */
   taxEffect: number;
@@ -332,29 +356,86 @@ export const TAX_PROJECTION_YEARS: readonly number[] = [
   1, 3, 5, 10, 15, 20, 30,
 ];
 
+/**
+ * Compute the deductible amount and cash outflow from investment plans
+ * for a single calendar year. See investment_plans.tax_treatment for the
+ * five treatments — this is the projection-side counterpart.
+ */
+function investmentImpactForYear(
+  investments: InvestmentForProjection[],
+  calendarYear: number,
+  buildingAfaRate: number
+): { deductible: number; cashOutflow: number } {
+  let deductible = 0;
+  let cashOutflow = 0;
+  for (const inv of investments) {
+    const yr = inv.year;
+    if (yr == null) continue; // long-term: nicht in der Zeitreihe
+    const amount = Number(inv.amount ?? 0);
+    if (amount <= 0) continue;
+    const treatment = inv.tax_treatment ?? "expense_immediate";
+
+    // Cash-Abfluss immer im Jahr der Maßnahme.
+    if (treatment !== "non_deductible" || calendarYear === yr) {
+      // Egal welches Treatment — fließt im Anschaffungsjahr Cash ab.
+    }
+    if (calendarYear === yr) {
+      cashOutflow += amount;
+    }
+
+    if (treatment === "non_deductible") continue;
+
+    if (treatment === "expense_immediate") {
+      if (calendarYear === yr) deductible += amount;
+    } else if (treatment === "expense_82b") {
+      const years = inv.expense_82b_years ?? 3;
+      if (calendarYear >= yr && calendarYear < yr + years) {
+        deductible += amount / years;
+      }
+    } else if (treatment === "capitalized_separate") {
+      const years = inv.useful_life_years ?? 10;
+      if (calendarYear >= yr && calendarYear < yr + years) {
+        deductible += amount / years;
+      }
+    } else if (treatment === "capitalized_building") {
+      // Wird wie Gebäude abgeschrieben — vereinfacht über Restnutzungsdauer
+      // mit dem aktuellen Gebäude-AfA-Satz (linear).
+      const years = buildingAfaRate > 0 ? Math.round(1 / buildingAfaRate) : 50;
+      if (calendarYear >= yr && calendarYear < yr + years) {
+        deductible += amount / years;
+      }
+    }
+  }
+  return { deductible, cashOutflow };
+}
+
 export function computeTaxProjection(args: {
   snapshot: SnapshotInputRow;
   property: PropertyForPnL;
   loans: LoanForPnL[];
   settings: SettingsForPnL;
+  investments?: InvestmentForProjection[];
   years?: readonly number[];
 }): TaxProjectionRow[] {
   const startYear = resolveDepreciationStartYear(args.property);
   if (startYear == null) return [];
   const targetYears = args.years ?? TAX_PROJECTION_YEARS;
+  const investments = args.investments ?? [];
+  const taxRate = Number(args.settings.tax_rate ?? 0);
+  // Gebäude-AfA-Rate für die Zerlegung von capitalized_building.
+  const buildingAfaRate =
+    num(args.property.depreciation_rate) ??
+    num(args.settings.default_depreciation_rate) ??
+    0.02;
 
   return targetYears.map((y) => {
     const calendarYear = startYear + y - 1;
-    // Build a 12-month period that covers exactly this calendar year so
-    // the PnL helpers can do their per-period scaling.
     const start = `${calendarYear}-01-01`;
     const end = `${calendarYear}-12-01`;
     const periodSnap: SnapshotInputRow = {
       ...args.snapshot,
       period_start: start,
       period_end: end,
-      // Force auto-loan: ignore previously stored overrides so the
-      // projection uses the schedule.
       annuity_override: null,
       interest_override: null,
       principal_override: null,
@@ -365,16 +446,34 @@ export function computeTaxProjection(args: {
       args.loans,
       args.settings
     );
+
+    const { deductible, cashOutflow } = investmentImpactForYear(
+      investments,
+      calendarYear,
+      buildingAfaRate
+    );
+
+    // Investitionen wirken zusätzlich:
+    //   - Cashflow: minus cashOutflow (Cash, der raus ging)
+    //   - Pretax: minus deductible (Steuerabzug verteilt)
+    //   - Steuer: pretax × rate; cashflowAfterTax = cashflowBeforeTax − tax
+    const cashflowBeforeTax = r.cashflowBeforeTax - cashOutflow;
+    const pretaxProfit = r.pretaxProfit - deductible;
+    const taxEffect = pretaxProfit * taxRate;
+    const afterTaxCashflow = cashflowBeforeTax - taxEffect;
+
     return {
       year: y,
       calendarYear,
       interest: r.interest,
       principal: r.principal,
       depreciation: r.depreciation,
-      cashflowBeforeTax: r.cashflowBeforeTax,
-      pretaxProfit: r.pretaxProfit,
-      taxEffect: r.taxEffect,
-      afterTaxCashflow: r.afterTaxCashflow,
+      investmentDeductible: deductible,
+      investmentCashOutflow: cashOutflow,
+      cashflowBeforeTax,
+      pretaxProfit,
+      taxEffect,
+      afterTaxCashflow,
     };
   });
 }

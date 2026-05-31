@@ -46,6 +46,7 @@ export default async function PropertyPnLPage({
     { data: settings },
     { data: valuations },
     { data: tenant },
+    { data: investments },
   ] = await Promise.all([
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
@@ -77,6 +78,12 @@ export default async function PropertyPnLPage({
       .select("cold_rent_per_month, ancillary_costs_per_month")
       .eq("property_id", id)
       .maybeSingle(),
+    supabase
+      .from("investment_plans")
+      .select(
+        "year, is_long_term, amount, tax_treatment, expense_82b_years, useful_life_years"
+      )
+      .eq("property_id", id),
   ]);
 
   if (!property) notFound();
@@ -292,6 +299,14 @@ export default async function PropertyPnLPage({
               property: propertyForCalc,
               loans: loansForCalc,
               settings: settingsForCalc,
+              investments: (investments ?? []).map((i) => ({
+                year: i.year,
+                is_long_term: i.is_long_term,
+                amount: i.amount,
+                tax_treatment: i.tax_treatment,
+                expense_82b_years: i.expense_82b_years,
+                useful_life_years: i.useful_life_years,
+              })),
             });
             return <TaxProjectionCard rows={rows} />;
           })()}
