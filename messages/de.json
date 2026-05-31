@@ -35,6 +35,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "properties": "Objekte",
+    "portfolios": "Portfolios",
     "owners": "Eigentümer",
     "tenants": "Mieter",
     "finance": "Finanzen",
@@ -148,6 +149,30 @@
     "add_member": "Person hinzufügen",
     "add_member_action": "+ Hinzufügen",
     "select_person": "Person wählen…"
+  },
+  "portfolios": {
+    "title": "Portfolios",
+    "new": "Neues Portfolio",
+    "edit": "Portfolio bearbeiten",
+    "name": "Name",
+    "name_placeholder": "z. B. „Berlin Bestand“ oder „Rendite-Top“",
+    "description": "Beschreibung",
+    "description_placeholder": "Frei wählbar — Hinweise zu Strategie, Region, etc.",
+    "intro": "Portfolios bündeln eine Auswahl deiner Objekte — z. B. nach Region, Strategie oder Käufer. Ein Objekt darf in mehreren Portfolios gleichzeitig sein, und für jedes Portfolio kannst du ein eigenes Factbook (PDF) generieren.",
+    "empty": "Noch keine Portfolios. Lege eines an, um Objekte zu gruppieren.",
+    "objects_count": "{count, plural, =0 {Keine Objekte} =1 {1 Objekt} other {# Objekte}}",
+    "kpi_count": "Objekte",
+    "kpi_purchase_total": "Kaufpreissumme",
+    "add_property": "Objekt hinzufügen",
+    "choose_property": "Objekt wählen…",
+    "no_candidates": "Alle vorhandenen Objekte sind bereits im Portfolio.",
+    "no_members": "Noch keine Objekte zugewiesen.",
+    "members_section": "Objekte im Portfolio",
+    "remove": "Entfernen",
+    "confirm_remove": "Objekt wirklich aus dem Portfolio entfernen? (Das Objekt selbst bleibt erhalten.)",
+    "confirm_delete": "Portfolio wirklich löschen? Die zugewiesenen Objekte selbst bleiben erhalten.",
+    "duplicate_portfolio_name": "Ein Portfolio mit diesem Namen existiert bereits.",
+    "download_factbook": "Factbook (PDF)"
   },
   "properties": {
     "title": "Objekte",

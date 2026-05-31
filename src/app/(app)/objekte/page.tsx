@@ -77,12 +77,20 @@ export default async function PropertiesPage() {
             {t("factsheet.download_factbook")}
           </a>
           {canEdit(active.role) && (
-            <Link
-              href="/objekte/neu"
-              className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
-            >
-              + {t("properties.new")}
-            </Link>
+            <>
+              <Link
+                href="/portfolios/neu"
+                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              >
+                + {t("portfolios.new")}
+              </Link>
+              <Link
+                href="/objekte/neu"
+                className="rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90"
+              >
+                + {t("properties.new")}
+              </Link>
+            </>
           )}
         </div>
       </div>
