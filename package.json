@@ -8,7 +8,8 @@
     "start": "cross-env NODE_OPTIONS=--use-system-ca next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "stripe:setup": "cross-env NODE_OPTIONS=--use-system-ca node scripts/stripe-setup.mjs"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
@@ -21,6 +22,7 @@
     "react-dom": "19.2.4",
     "react-image-crop": "^11.0.10",
     "recharts": "^3.8.1",
+    "stripe": "^22.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

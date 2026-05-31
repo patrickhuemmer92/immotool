@@ -95,6 +95,7 @@
     "workspace": "Workspace",
     "workspace_name": "Name",
     "members": "Mitglieder",
+    "billing": "Abrechnung",
     "members_invite": "Mitglied einladen",
     "members_email": "E-Mail",
     "members_role": "Rolle",
