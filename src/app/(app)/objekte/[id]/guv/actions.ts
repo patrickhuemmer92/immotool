@@ -22,10 +22,13 @@ const optNum = z
   })
   .transform((v) => (v && v.length ? parseDecimal(v) : null));
 
+// cold_rent ist NICHT mehr Teil des Form-Schemas — der Wert wird beim
+// Speichern live aus der tenants-Tabelle gezogen. Damit ist der Mieter
+// die Single Source of Truth für die Kaltmiete und kann nicht aus
+// Versehen pro Snapshot abweichen.
 const schema = z.object({
   period_start: z.string().min(1),
   period_end: z.string().min(1),
-  cold_rent: optNum,
   ancillary_costs: optNum,
   annuity_override: optNum,
   principal_override: optNum,
@@ -41,6 +44,24 @@ const schema = z.object({
     .transform((v) => (v && v.length ? v : null)),
 });
 
+/**
+ * Holt die Kaltmiete (€/Monat) des aktuellen Mieters für ein Objekt.
+ * `null` heißt: kein Mieter angelegt oder Kaltmiete leer.
+ */
+async function getTenantColdRent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  propertyId: string
+): Promise<number | null> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("cold_rent_per_month")
+    .eq("property_id", propertyId)
+    .maybeSingle();
+  if (!data?.cold_rent_per_month) return null;
+  const n = Number(data.cold_rent_per_month);
+  return Number.isFinite(n) ? n : null;
+}
+
 function getStr(formData: FormData, key: string): string | undefined {
   const v = formData.get(key);
   return v === null ? undefined : (v as string);
@@ -54,7 +75,6 @@ export async function createSnapshot(
   const parsed = schema.safeParse({
     period_start: getStr(formData, "period_start"),
     period_end: getStr(formData, "period_end"),
-    cold_rent: getStr(formData, "cold_rent"),
     ancillary_costs: getStr(formData, "ancillary_costs"),
     annuity_override: getStr(formData, "annuity_override"),
     principal_override: getStr(formData, "principal_override"),
@@ -79,9 +99,10 @@ export async function createSnapshot(
   }
 
   const supabase = await createClient();
+  const coldRent = await getTenantColdRent(supabase, propertyId);
   const { error } = await supabase
     .from("pnl_snapshots")
-    .insert({ ...parsed.data, property_id: propertyId });
+    .insert({ ...parsed.data, cold_rent: coldRent, property_id: propertyId });
 
   if (error) {
     // Unique constraint pnl_snapshots_property_id_period_start_period_end_key.
@@ -105,7 +126,6 @@ export async function updateSnapshot(
   const parsed = schema.safeParse({
     period_start: getStr(formData, "period_start"),
     period_end: getStr(formData, "period_end"),
-    cold_rent: getStr(formData, "cold_rent"),
     ancillary_costs: getStr(formData, "ancillary_costs"),
     annuity_override: getStr(formData, "annuity_override"),
     principal_override: getStr(formData, "principal_override"),
@@ -129,9 +149,10 @@ export async function updateSnapshot(
   }
 
   const supabase = await createClient();
+  const coldRent = await getTenantColdRent(supabase, propertyId);
   const { error } = await supabase
     .from("pnl_snapshots")
-    .update(parsed.data)
+    .update({ ...parsed.data, cold_rent: coldRent })
     .eq("id", snapshotId);
 
   if (error) {

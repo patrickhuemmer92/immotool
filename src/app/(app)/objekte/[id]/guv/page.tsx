@@ -151,14 +151,20 @@ export default async function PropertyPnLPage({
 
   const editable = canEdit(active.role);
 
-  // Pre-fill the new-snapshot form with Kaltmiete + NK from the tenant. The
-  // user can still override per period, but in the common case the snapshot
-  // just adopts whatever lease is currently in place.
+  // Pre-fill the new-snapshot form mit NK aus dem Mieter. Kaltmiete wird
+  // nicht mehr ins Form übernommen — sie ist Tenant-Live-Wert und wird in
+  // der Server-Action beim Insert/Update direkt aus tenants gezogen.
   const snapshotDefaults = buildDefaultsFromTenant(
     new Date(Date.UTC(today.getUTCFullYear(), 0, 1)).toISOString().slice(0, 10),
     new Date(Date.UTC(today.getUTCFullYear(), 11, 31)).toISOString().slice(0, 10),
     tenant
   );
+
+  // Kaltmiete des Mieters (€/Monat) — für den Info-Block im Snapshot-Form.
+  const tenantColdRentMonthly =
+    tenant?.cold_rent_per_month != null
+      ? Number(tenant.cold_rent_per_month)
+      : null;
 
   return (
     <div>
@@ -259,6 +265,7 @@ export default async function PropertyPnLPage({
                 snapshotId={row.id}
                 defaults={rowDefaults}
                 canEdit={editable}
+                tenantColdRentMonthly={tenantColdRentMonthly}
                 periodStart={row.period_start}
                 periodEnd={row.period_end}
                 investor={investor}
@@ -316,7 +323,11 @@ export default async function PropertyPnLPage({
       {editable && (
         <div className="mt-12 max-w-3xl">
           <h2 className="text-lg font-semibold mb-4">{t("pnl.new_snapshot")}</h2>
-          <SnapshotForm propertyId={id} defaults={snapshotDefaults} />
+          <SnapshotForm
+            propertyId={id}
+            defaults={snapshotDefaults}
+            tenantColdRentMonthly={tenantColdRentMonthly}
+          />
         </div>
       )}
     </div>

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
   if (!active) return null;
 
   const supabase = await createClient();
-  const [{ data: properties }, { data: settings }] = await Promise.all([
+  const [{ data: properties }, { data: settings }, { data: tenants }] = await Promise.all([
     supabase
       .from("properties")
       .select(
@@ -46,6 +46,15 @@ export default async function DashboardPage() {
       .select("tax_rate, default_depreciation_rate")
       .eq("workspace_id", active.id)
       .maybeSingle(),
+    // Mieter sind die Source-of-Truth für Kaltmiete — wir aggregieren die
+    // Jahres-Kaltmiete für die Bruttomietrendite direkt von hier, nicht
+    // aus den (optionalen, evtl. nicht für jedes Objekt vorhandenen)
+    // pnl-Snapshots. So zählt jede vermietete Einheit, unabhängig davon,
+    // ob bereits ein Cashflow-Snapshot existiert.
+    supabase
+      .from("tenants")
+      .select("property_id, cold_rent_per_month, properties!inner(workspace_id)")
+      .eq("properties.workspace_id", active.id),
   ]);
 
   const today = new Date();
@@ -54,7 +63,17 @@ export default async function DashboardPage() {
   let totalValue = 0;
   let totalLoans = 0;
   let totalAfterTax = 0;
+
+  // Bruttomietrendite-Basis: Jahres-Kaltmiete aus allen Mieter-Datensätzen
+  // des Workspaces. Quelle ist explizit der Mieter (cold_rent_per_month),
+  // nicht der Cashflow-Snapshot — Objekte ohne Snapshot zählen damit auch.
   let totalColdRentAnnual = 0;
+  for (const tr of tenants ?? []) {
+    const monthly = Number(
+      (tr as { cold_rent_per_month: string | number | null }).cold_rent_per_month ?? 0
+    );
+    if (Number.isFinite(monthly)) totalColdRentAnnual += monthly * 12;
+  }
 
   // Aggregate diversification per city.
   const cityTotals = new Map<string, number>();
@@ -168,10 +187,6 @@ export default async function DashboardPage() {
         settingsForCalc
       );
       totalAfterTax += r.afterTaxCashflow;
-      // Annualize the latest snapshot's cold rent for the gross-yield KPI.
-      const coldRentMonthly = Number(latestSnap.cold_rent ?? 0) || 0;
-      totalColdRentAnnual += coldRentMonthly * 12;
-
       // Build per-year projection for this property and aggregate.
       const proj = computeTaxProjection({
         snapshot: latestSnap,
