@@ -338,6 +338,7 @@
     "hausgeld_mode_help": "Du kannst das Hausgeld entweder als einen Gesamtbetrag erfassen oder in umlagefähig (Heizung, Wasser, Müll, …) und nicht umlagefähig (Verwalter, Versicherung, …) splitten — nicht beides. Die Aufteilung ist nur fürs steuerliche Reporting relevant; im Cashflow ergibt sich derselbe Saldo.",
     "hausgeld_total_help": "Volles Hausgeld inkl. umlagefähiger Teile — Rücklage trägst du separat unten ein.",
     "hausgeld_split_sum": "Summe Hausgeld: {sum}",
+    "investor_include_maw_label": "Mietausfallwagnis ({value} p.a.) einbeziehen — standardmäßig nur in der Bank-Sicht",
     "projection_invest_deductible": "Investitionen (Abzug p.a.)",
     "projection_title": "Steuereffekt-Verlauf",
     "projection_help": "Hochrechnung auf Basis des aktuellsten Cashflow-Eintrags: gleiche Miete, gleiches Hausgeld, gleiche Rücklage über die Jahre — Zins/Tilgung verschieben sich gemäß Tilgungsplan, AfA folgt der gewählten Methode.",

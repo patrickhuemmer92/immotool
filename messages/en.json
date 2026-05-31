@@ -338,6 +338,7 @@
     "hausgeld_mode_help": "You can either capture Hausgeld as a single total or split it into recoverable (heating, water, waste, …) and non-recoverable (management, insurance, …) — not both. The split matters only for tax reporting; the cashflow saldo is identical either way.",
     "hausgeld_total_help": "Full Hausgeld including recoverable parts — the reserve goes separately below.",
     "hausgeld_split_sum": "Hausgeld total: {sum}",
+    "investor_include_maw_label": "Include vacancy reserve ({value} p.a.) — by default only in the bank view",
     "projection_invest_deductible": "Investments (deductible p.a.)",
     "projection_title": "Tax effect over time",
     "projection_help": "Projection based on the latest cashflow entry: same rent, Hausgeld and reserve over the years — interest/principal shift per the amortization schedule, depreciation follows the chosen method.",
