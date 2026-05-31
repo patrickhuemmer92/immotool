@@ -19,12 +19,20 @@ export function SnapshotForm({
   propertyId,
   snapshotId,
   defaults,
+  tenantColdRentMonthly,
   onCancel,
 }: {
   propertyId: string;
   /** When provided, the form updates an existing snapshot. */
   snapshotId?: string;
   defaults: SnapshotDefaults;
+  /**
+   * Aktuelle Kaltmiete des hinterlegten Mieters (€/Monat) — wird im Form
+   * als Info angezeigt. Speicherung passiert serverseitig: die Action
+   * zieht den Wert live aus tenants beim Insert/Update, sodass Snapshots
+   * nicht mehr aus dem Mieter-Datensatz auseinanderlaufen können.
+   */
+  tenantColdRentMonthly: number | null;
   /** Render a cancel button (useful for inline-edit). */
   onCancel?: () => void;
 }) {
@@ -76,15 +84,37 @@ export function SnapshotForm({
 
       {/* ============ Einnahmen ============ */}
       <Section title={t("pnl.section_rent")}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field id="cold_rent" label={t("pnl.cold_rent")}>
-            <MoneyInput
-              id="cold_rent"
-              name="cold_rent"
-              defaultValue={defaults.cold_rent}
-            />
-          </Field>
-        </div>
+        {tenantColdRentMonthly != null && tenantColdRentMonthly > 0 ? (
+          <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2.5 text-sm">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-neutral-700 dark:text-neutral-300">
+                {t("pnl.cold_rent_from_tenant")}
+              </span>
+              <span className="font-medium tabular-nums">
+                {tenantColdRentMonthly.toLocaleString("de-DE", {
+                  style: "currency",
+                  currency: "EUR",
+                  maximumFractionDigits: 2,
+                })}{" "}
+                <span className="text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                  / {t("pnl.month")}
+                </span>
+              </span>
+            </div>
+            <p className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
+              {t("pnl.cold_rent_from_tenant_help")}
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 px-3 py-2.5 text-sm">
+            <p className="text-neutral-700 dark:text-neutral-300">
+              {t("pnl.cold_rent_no_tenant")}
+            </p>
+            <p className="mt-1 text-[11px] text-neutral-600 dark:text-neutral-400 leading-snug">
+              {t("pnl.cold_rent_no_tenant_help")}
+            </p>
+          </div>
+        )}
       </Section>
 
       {/* ============ Hausgeld ============ */}

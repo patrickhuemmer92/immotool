@@ -22,6 +22,7 @@ export function SnapshotItem({
   snapshotId,
   defaults,
   canEdit,
+  tenantColdRentMonthly,
   // CashflowResultCard props passed straight through:
   periodStart,
   periodEnd,
@@ -37,6 +38,7 @@ export function SnapshotItem({
   snapshotId: string;
   defaults: SnapshotDefaults;
   canEdit: boolean;
+  tenantColdRentMonthly: number | null;
   periodStart: string;
   periodEnd: string;
   investor: PnLResult;
@@ -59,6 +61,7 @@ export function SnapshotItem({
           propertyId={propertyId}
           snapshotId={snapshotId}
           defaults={defaults}
+          tenantColdRentMonthly={tenantColdRentMonthly}
           onCancel={() => setEditing(false)}
         />
       </div>
