@@ -103,7 +103,19 @@ export async function upsertTenant(
       { onConflict: "property_id" }
     );
 
-  if (error) return { error: error.message };
+  if (error) {
+    // Vollen Supabase-Fehler in den Server-Logs (Vercel) protokollieren —
+    // die UI sieht nur error.message, aber details/hint sind oft die
+    // entscheidenden Infos (z. B. constraint-Name bei RLS-Block).
+    console.error("[tenants:upsert] supabase error:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+      property_id: propertyId,
+    });
+    return { error: error.message };
+  }
 
   revalidatePath(`/objekte/${propertyId}/mieter`);
   revalidatePath(`/objekte/${propertyId}`);
