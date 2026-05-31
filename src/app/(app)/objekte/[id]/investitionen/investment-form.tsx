@@ -3,7 +3,11 @@
 import { useActionState, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
-import { createInvestment, type InvestmentState } from "./actions";
+import {
+  createInvestment,
+  type InvestmentState,
+  type TaxTreatment,
+} from "./actions";
 
 const TYPES = [
   "fixed_individual",
@@ -14,9 +18,20 @@ const TYPES = [
   "optional_common_levy",
 ] as const;
 
+const TAX_TREATMENTS: TaxTreatment[] = [
+  "expense_immediate",
+  "expense_82b",
+  "capitalized_building",
+  "capitalized_separate",
+  "non_deductible",
+];
+
 export function InvestmentForm({ propertyId }: { propertyId: string }) {
   const t = useTranslations();
   const [longTerm, setLongTerm] = useState(false);
+  const [taxTreatment, setTaxTreatment] = useState<TaxTreatment>(
+    "expense_immediate"
+  );
   const [state, formAction, pending] = useActionState<InvestmentState, FormData>(
     createInvestment.bind(null, propertyId),
     undefined
@@ -90,7 +105,74 @@ export function InvestmentForm({ propertyId }: { propertyId: string }) {
             </option>
           ))}
         </select>
+        <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+          {t("investments.measure_type_help")}
+        </p>
       </div>
+
+      <div>
+        <label className="text-xs font-medium block mb-1">
+          {t("investments.tax_treatment")}
+        </label>
+        <select
+          name="tax_treatment"
+          value={taxTreatment}
+          onChange={(e) => setTaxTreatment(e.target.value as TaxTreatment)}
+          className={inputClass}
+        >
+          {TAX_TREATMENTS.map((tt) => (
+            <option key={tt} value={tt}>
+              {t(`investments.tax_${tt}`)}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400 leading-snug">
+          {t(`investments.tax_${taxTreatment}_help`)}
+        </p>
+      </div>
+
+      {taxTreatment === "expense_82b" && (
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            {t("investments.expense_82b_years")}
+          </label>
+          <select
+            name="expense_82b_years"
+            defaultValue="3"
+            required
+            className={inputClass}
+          >
+            {[2, 3, 4, 5].map((y) => (
+              <option key={y} value={y}>
+                {y} {t("investments.years_label")}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+            {t("investments.expense_82b_years_help")}
+          </p>
+        </div>
+      )}
+
+      {taxTreatment === "capitalized_separate" && (
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            {t("investments.useful_life_years")}
+          </label>
+          <input
+            name="useful_life_years"
+            type="number"
+            min={1}
+            max={100}
+            defaultValue={10}
+            required
+            className={inputClass}
+          />
+          <p className="mt-1 text-[11px] text-neutral-500 dark:text-neutral-400">
+            {t("investments.useful_life_years_help")}
+          </p>
+        </div>
+      )}
 
       <div>
         <label className="text-xs font-medium block mb-1">
