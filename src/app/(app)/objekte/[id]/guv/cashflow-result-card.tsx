@@ -52,6 +52,17 @@ export function CashflowResultCard({
   const [stress, setStress] = useState(false);
   const activeBank = stress ? bankStressed : bank;
 
+  // Mietausfallwagnis ist in der Investor-Sicht standardmäßig AUS (Investoren
+  // rechnen typischerweise ohne diese Vorsichtsmarge). Da MAW steuerlich
+  // sowieso nicht abzugsfähig ist (kalkulatorisch), ändert sich nur der
+  // Cashflow-Teil; pretaxProfit + taxEffect bleiben unberührt — wir können
+  // den Toggle daher reines Client-Display machen.
+  const [includeMawInvestor, setIncludeMawInvestor] = useState(false);
+  const mawDelta = includeMawInvestor ? 0 : investor.vacancyLoss;
+  const investorOperatingCosts = investor.operatingCosts - mawDelta;
+  const investorCashflowBeforeTax = investor.cashflowBeforeTax + mawDelta;
+  const investorAfterTaxCashflow = investor.afterTaxCashflow + mawDelta;
+
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
       <div className="flex items-center justify-between gap-3">
@@ -137,7 +148,7 @@ export function CashflowResultCard({
                   value={-investor.managementTotal}
                 />
               )}
-              {investor.vacancyLoss > 0 && (
+              {investor.vacancyLoss > 0 && includeMawInvestor && (
                 <ResultRow
                   label={t("pnl.vacancy_total")}
                   value={-investor.vacancyLoss}
@@ -146,11 +157,25 @@ export function CashflowResultCard({
               )}
               <ResultRow
                 label={t("pnl.cashflow_before_tax")}
-                value={investor.cashflowBeforeTax}
+                value={investorCashflowBeforeTax}
                 strong
               />
             </tbody>
           </table>
+
+          {investor.vacancyLoss > 0 && (
+            <label className="mt-3 inline-flex items-center gap-2 text-xs text-neutral-600 dark:text-neutral-400">
+              <input
+                type="checkbox"
+                checked={includeMawInvestor}
+                onChange={(e) => setIncludeMawInvestor(e.target.checked)}
+                className="accent-[var(--color-accent)]"
+              />
+              {t("pnl.investor_include_maw_label", {
+                value: eurExact(investor.vacancyLoss),
+              })}
+            </label>
+          )}
 
           {/* AfA + Steuereffekt — kompakt, nicht prominent mittig. */}
           <div className="mt-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 p-3 text-xs">
@@ -192,7 +217,7 @@ export function CashflowResultCard({
             <tbody>
               <ResultRow
                 label={t("pnl.after_tax_cashflow")}
-                value={investor.afterTaxCashflow}
+                value={investorAfterTaxCashflow}
                 strong
               />
             </tbody>
