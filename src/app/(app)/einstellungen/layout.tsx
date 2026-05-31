@@ -18,6 +18,9 @@ export default async function SettingsLayout({
         <TabLink href="/einstellungen/mitglieder">
           {t("settings.members")}
         </TabLink>
+        <TabLink href="/einstellungen/abrechnung">
+          {t("settings.billing")}
+        </TabLink>
       </nav>
 
       <div className="mt-6">{children}</div>
