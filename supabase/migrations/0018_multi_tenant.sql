@@ -20,6 +20,8 @@ do $$
 declare
   cname text;
 begin
+  -- pg_attribute.attname ist Typ `name`; explizit nach text casten,
+  -- sonst gibt es einen Operator-Mismatch beim Vergleich mit text[].
   select c.conname into cname
   from pg_constraint c
   join pg_class t on t.oid = c.conrelid
@@ -28,10 +30,10 @@ begin
     and t.relname = 'tenants'
     and c.contype = 'u'
     and (
-      select array_agg(a.attname order by a.attnum)
+      select array_agg(a.attname::text order by a.attnum)
       from pg_attribute a
       where a.attrelid = c.conrelid and a.attnum = any(c.conkey)
-    ) = array['property_id'];
+    ) = array['property_id']::text[];
   if cname is not null then
     execute format('alter table public.tenants drop constraint %I', cname);
   end if;
