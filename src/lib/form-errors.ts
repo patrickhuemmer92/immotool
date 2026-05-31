@@ -44,6 +44,10 @@ export function errorToTranslationKey(raw: string): {
     case "member_exists":
       return { key: "errors.generic" };
     default:
-      return { key: "errors.generic" };
+      // Unbekannter Fehler-Code (typischerweise: durchgereichte Supabase-/
+      // Postgres-Message). Statt "Etwas ist schiefgelaufen" anzuzeigen,
+      // reichen wir die Original-Message an die UI durch — sonst tappt
+      // man bei Debugging im Dunkeln.
+      return { key: "errors.with_detail", params: { detail: raw } };
   }
 }

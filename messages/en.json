@@ -599,6 +599,7 @@
     "forbidden": "No permission.",
     "invalid_number": "Invalid number: \"{value}\"",
     "invalid_percent": "Invalid percent value: \"{value}\". Please enter a number (e.g. \"2.5\").",
-    "invalid_year": "Invalid year."
+    "invalid_year": "Invalid year.",
+    "with_detail": "Error: {detail}"
   }
 }

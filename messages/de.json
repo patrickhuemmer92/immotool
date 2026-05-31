@@ -599,6 +599,7 @@
     "forbidden": "Keine Berechtigung.",
     "invalid_number": "Ungültige Zahl: „{value}\"",
     "invalid_percent": "Ungültiger Prozentwert: „{value}\". Bitte als Zahl (z. B. „2,5\") eingeben.",
-    "invalid_year": "Ungültige Jahreszahl."
+    "invalid_year": "Ungültige Jahreszahl.",
+    "with_detail": "Fehler: {detail}"
   }
 }
