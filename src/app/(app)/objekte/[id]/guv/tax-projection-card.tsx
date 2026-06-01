@@ -29,7 +29,7 @@ export async function TaxProjectionCard({
               <Th>{t("pnl.projection_invest_deductible")}</Th>
               <Th>{t("pnl.pretax_profit")}</Th>
               <Th>{t("pnl.tax_effect")}</Th>
-              <Th>{t("pnl.after_tax_cashflow")}</Th>
+              <Th>{t("pnl.after_tax_result")}</Th>
             </tr>
           </thead>
           <tbody>
