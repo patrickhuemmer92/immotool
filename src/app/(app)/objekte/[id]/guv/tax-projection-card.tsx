@@ -27,9 +27,16 @@ export async function TaxProjectionCard({
               <Th>{t("pnl.principal")}</Th>
               <Th>{t("pnl.depreciation")}</Th>
               <Th>{t("pnl.projection_invest_deductible")}</Th>
-              <Th>{t("pnl.pretax_profit")}</Th>
-              <Th>{t("pnl.tax_effect")}</Th>
-              <Th>{t("pnl.after_tax_result")}</Th>
+              <Th tip={t("pnl.pretax_profit_help")}>
+                {t("pnl.pretax_profit")}
+              </Th>
+              <Th tip={t("pnl.tax_effect_help")}>{t("pnl.tax_effect")}</Th>
+              <Th tip={t("pnl.after_tax_result_help")}>
+                {t("pnl.after_tax_result")}
+              </Th>
+              <Th tip={t("pnl.after_tax_cashflow_help")}>
+                {t("pnl.after_tax_cashflow")}
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -55,6 +62,7 @@ export async function TaxProjectionCard({
                 />
                 <Money value={r.pretaxProfit} />
                 <Money value={-r.taxEffect} />
+                <Money value={r.afterTaxResult} strong />
                 <Money value={r.afterTaxCashflow} strong />
               </tr>
             ))}
@@ -65,10 +73,29 @@ export async function TaxProjectionCard({
   );
 }
 
-function Th({ children }: { children?: React.ReactNode }) {
+function Th({
+  children,
+  tip,
+}: {
+  children?: React.ReactNode;
+  /** Optional: zeigt einen Info-Tip an. Greift auf das HTML-title-Attribut
+   *  zurück — universell, accessible und ohne extra Library. */
+  tip?: string;
+}) {
   return (
     <th className="px-4 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-      {children}
+      <span className="inline-flex items-center gap-1">
+        {children}
+        {tip && (
+          <span
+            title={tip}
+            aria-label={tip}
+            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full border border-neutral-300 dark:border-neutral-600 text-[9px] text-neutral-500 dark:text-neutral-400 cursor-help"
+          >
+            ?
+          </span>
+        )}
+      </span>
     </th>
   );
 }
