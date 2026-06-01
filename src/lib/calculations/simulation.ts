@@ -247,8 +247,11 @@ export function computeSimulationProjection(args: {
     const cashflowBeforeTax = r.cashflowBeforeTax - cashOutflow;
     const pretaxProfit = r.pretaxProfit - deductible;
     const taxEffect = pretaxProfit * taxRate;
-    // Gleiche Konvention wie Tax-Projection (Ergebnis nach Steuer)
-    const afterTaxCashflow = pretaxProfit - taxEffect;
+    // Gleiche Konvention wie Tax-Projection: zwei Sichten nebeneinander.
+    //   afterTaxResult   = pretaxProfit  - taxEffect  (Buch-Sicht, mit AfA)
+    //   afterTaxCashflow = cashflowBeforeTax - taxEffect (Cash-Sicht, mit Tilgung)
+    const afterTaxResult = pretaxProfit - taxEffect;
+    const afterTaxCashflow = cashflowBeforeTax - taxEffect;
 
     const scenario: TaxProjectionRow = {
       year: baseRow.year,
@@ -261,6 +264,7 @@ export function computeSimulationProjection(args: {
       cashflowBeforeTax,
       pretaxProfit,
       taxEffect,
+      afterTaxResult,
       afterTaxCashflow,
     };
     return scenario;
