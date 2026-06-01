@@ -50,6 +50,8 @@ export function errorToTranslationKey(raw: string): {
       };
     case "duplicate_portfolio_name":
       return { key: "portfolios.duplicate_portfolio_name" };
+    case "duplicate_simulation_name":
+      return { key: "simulations.duplicate_simulation_name" };
     default:
       // Unbekannter Fehler-Code (typischerweise: durchgereichte Supabase-/
       // Postgres-Message). Statt "Etwas ist schiefgelaufen" anzuzeigen,
