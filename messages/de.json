@@ -376,7 +376,7 @@
     "investor_include_maw_label": "Mietausfallwagnis ({value} p.a.) einbeziehen — standardmäßig nur in der Bank-Sicht",
     "projection_invest_deductible": "Investitionen (Abzug p.a.)",
     "projection_title": "Steuereffekt-Verlauf",
-    "projection_help": "Hochrechnung auf Basis des aktuellsten Cashflow-Eintrags: gleiche Miete, gleiches Hausgeld, gleiche Rücklage über die Jahre — Zins/Tilgung verschieben sich gemäß Tilgungsplan, AfA folgt der gewählten Methode.",
+    "projection_help": "Hochrechnung auf Basis des aktuellsten Cashflow-Eintrags: gleiche Miete, gleiches Hausgeld, gleiche Rücklage über die Jahre — Zins/Tilgung verschieben sich gemäß Tilgungsplan, AfA folgt der gewählten Methode. Cashflow nach Steuer = Steuerliches Ergebnis + Steuereffekt.",
     "projection_year": "Jahr",
     "section_cashflow": "Cashflow",
     "section_tax": "Steuerliche Überleitung",

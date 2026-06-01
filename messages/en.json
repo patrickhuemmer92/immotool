@@ -376,7 +376,7 @@
     "investor_include_maw_label": "Include vacancy reserve ({value} p.a.) — by default only in the bank view",
     "projection_invest_deductible": "Investments (deductible p.a.)",
     "projection_title": "Tax effect over time",
-    "projection_help": "Projection based on the latest cashflow entry: same rent, Hausgeld and reserve over the years — interest/principal shift per the amortization schedule, depreciation follows the chosen method.",
+    "projection_help": "Projection based on the latest cashflow entry: same rent, Hausgeld and reserve over the years — interest/principal shift per the amortization schedule, depreciation follows the chosen method. Cashflow post-tax = Taxable result + Tax effect.",
     "projection_year": "Year",
     "section_cashflow": "Cashflow",
     "section_tax": "Tax reconciliation",
