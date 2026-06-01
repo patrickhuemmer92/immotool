@@ -454,13 +454,29 @@ export function computeTaxProjection(args: {
     );
 
     // Investitionen wirken zusätzlich:
-    //   - Cashflow: minus cashOutflow (Cash, der raus ging)
+    //   - cashflowBeforeTax: minus cashOutflow (Cash, der raus ging) — wird
+    //     hier weiter ausgewiesen, aber nicht mehr Basis von afterTaxCashflow.
     //   - Pretax: minus deductible (Steuerabzug verteilt)
-    //   - Steuer: pretax × rate; cashflowAfterTax = cashflowBeforeTax − tax
+    //   - Steuer: pretax × rate (positiv = Steuerzahlung, negativ = Erstattung)
+    //
+    // Konvention "Cashflow nach Steuer" in der Steuereffekt-Projektion:
+    //   afterTaxCashflow = Steuerliches Ergebnis − Steuereffekt
+    //                    = pretaxProfit − (pretaxProfit × taxRate)
+    //                    = pretaxProfit × (1 − taxRate)
+    //
+    // Beispiel: pretaxProfit = −1.253,72, taxRate = 0,42
+    //   → taxEffect = −526,56 (negativ = Erstattung)
+    //   → afterTaxCashflow = −1.253,72 − (−526,56) = −727,16
+    //
+    // Diese "ergebnis-orientierte" Sicht ist die intuitivere für die
+    // Steuerplanung — der User liest "Steuerliches Ergebnis + Steuereffekt"
+    // direkt aus der Zeile ab. Die "echte" Cash-Sicht (mit Tilgung, ohne AfA)
+    // lebt auf der Snapshot-Karte (CashflowResultCard) — dort ist sie nötig,
+    // weil dort tatsächliche Liquiditätsplanung passiert.
     const cashflowBeforeTax = r.cashflowBeforeTax - cashOutflow;
     const pretaxProfit = r.pretaxProfit - deductible;
     const taxEffect = pretaxProfit * taxRate;
-    const afterTaxCashflow = cashflowBeforeTax - taxEffect;
+    const afterTaxCashflow = pretaxProfit - taxEffect;
 
     return {
       year: y,
