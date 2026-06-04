@@ -37,7 +37,15 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/signup") ||
     pathname.startsWith("/passwort-vergessen") ||
     pathname.startsWith("/invite/") ||
-    pathname.startsWith("/auth");
+    pathname.startsWith("/auth") ||
+    // Stripe-Webhooks rufen ohne Auth-Session auf — Signatur-Validation
+    // passiert in der Route selbst über den whsec-Header.
+    pathname.startsWith("/api/billing/webhook") ||
+    pathname.startsWith("/api/connect/webhooks/") ||
+    // Connected-Account-Storefront ist öffentlich für Endkunden.
+    pathname.startsWith("/connect/storefront/") ||
+    // Endkunden-Checkout auf der Storefront (anonyme Käufer).
+    pathname.startsWith("/api/connect/checkout/");
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
