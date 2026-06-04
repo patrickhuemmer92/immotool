@@ -109,8 +109,11 @@ export async function POST(req: Request) {
     cancel_url: `${base}/einstellungen/abrechnung?status=cancelled`,
     allow_promotion_codes: true,
     billing_address_collection: "required",
-    automatic_tax: { enabled: true },
-    tax_id_collection: { enabled: true },
+    // Kleinunternehmer (§19 UStG): keine USt. ausweisen, kein Tax-ID-
+    // Collection. Falls du die KU-Grenze überschreitest, hier auf true
+    // umschalten + Stripe Tax im Dashboard aktivieren.
+    automatic_tax: { enabled: false },
+    tax_id_collection: { enabled: false },
     locale: "de",
   });
 
