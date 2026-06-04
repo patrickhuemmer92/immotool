@@ -45,7 +45,12 @@ export async function updateSession(request: NextRequest) {
     // Connected-Account-Storefront ist öffentlich für Endkunden.
     pathname.startsWith("/connect/storefront/") ||
     // Endkunden-Checkout auf der Storefront (anonyme Käufer).
-    pathname.startsWith("/api/connect/checkout/");
+    pathname.startsWith("/api/connect/checkout/") ||
+    // Rechtliche Pflichtangaben — TMG/DDG + DSGVO verlangen freien
+    // Zugang ohne Login.
+    pathname === "/impressum" ||
+    pathname === "/datenschutz" ||
+    pathname === "/agb";
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

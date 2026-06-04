@@ -52,6 +52,10 @@ export function errorToTranslationKey(raw: string): {
       return { key: "portfolios.duplicate_portfolio_name" };
     case "duplicate_simulation_name":
       return { key: "simulations.duplicate_simulation_name" };
+    case "consent_required":
+      return { key: "auth.consent_required" };
+    case "email_mismatch":
+      return { key: "settings.account_delete_email_mismatch" };
     default:
       // Unbekannter Fehler-Code (typischerweise: durchgereichte Supabase-/
       // Postgres-Message). Statt "Etwas ist schiefgelaufen" anzuzeigen,

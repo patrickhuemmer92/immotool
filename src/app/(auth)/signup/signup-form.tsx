@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { signup, type AuthState } from "../auth-actions";
@@ -11,6 +11,10 @@ export function SignupForm({ redirectTo }: { redirectTo: string }) {
     signup,
     undefined
   );
+  // Pflicht-Consent für AGB + Datenschutz. Wir prüfen das clientseitig
+  // (UI-Disable des Submit-Buttons) UND serverseitig in signup() —
+  // doppelt hält besser.
+  const [consent, setConsent] = useState(false);
 
   if (state?.emailSent) {
     return (
@@ -58,12 +62,49 @@ export function SignupForm({ redirectTo }: { redirectTo: string }) {
         />
       </div>
 
+      {/* Pflicht-Einwilligung — DSGVO Art. 7 + nachweisbare Zustimmung
+          beim Account-Anlegen. Inline-Links zu Datenschutz/AGB. */}
+      <label className="flex items-start gap-2 text-xs text-neutral-600">
+        <input
+          type="checkbox"
+          name="consent"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          required
+          className="mt-0.5 accent-[var(--color-accent)]"
+        />
+        <span>
+          {t.rich("auth.consent_label", {
+            terms: (chunks) => (
+              <a
+                href="/agb"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-neutral-900"
+              >
+                {chunks}
+              </a>
+            ),
+            privacy: (chunks) => (
+              <a
+                href="/datenschutz"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-neutral-900"
+              >
+                {chunks}
+              </a>
+            ),
+          })}
+        </span>
+      </label>
+
       <FormError raw={state?.error} />
 
       <button
         type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        disabled={pending || !consent}
+        className="w-full rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {pending ? t("auth.signing_up") : t("auth.signup")}
       </button>

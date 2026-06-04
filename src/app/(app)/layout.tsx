@@ -8,6 +8,7 @@ import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { NavLink } from "@/components/nav-link";
 import { Wordmark } from "@/components/wordmark";
 import { PropertySidebar } from "@/components/property-sidebar";
+import { AppFooter } from "@/components/app-footer";
 import { logout } from "@/app/(auth)/auth-actions";
 
 export default async function AppLayout({
@@ -98,6 +99,7 @@ export default async function AppLayout({
           </div>
         </header>
         <main className="flex-1 p-8 overflow-auto">{children}</main>
+        <AppFooter />
       </div>
     </div>
   );
