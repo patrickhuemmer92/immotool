@@ -45,8 +45,14 @@ export async function signup(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
+  const consent = formData.get("consent") === "on" || formData.get("consent") === "true";
   const redirectTo = String(formData.get("redirect_to") ?? "/");
   const origin = await originUrl();
+
+  // DSGVO: Akzeptanz von AGB + Datenschutz vor Account-Anlage ist Pflicht.
+  if (!consent) {
+    return { error: "consent_required" };
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -56,6 +62,12 @@ export async function signup(
       emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(
         redirectTo
       )}`,
+      // Zustimmung mit Zeitstempel im user_metadata speichern —
+      // dokumentiert die Einwilligung gemäß Art. 7 Abs. 1 DSGVO.
+      data: {
+        consent_accepted_at: new Date().toISOString(),
+        consent_version: "1.0",
+      },
     },
   });
 
