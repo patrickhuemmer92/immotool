@@ -95,6 +95,9 @@ async function syncSubscriptionForWorkspace(
   const price = item?.price;
   const lookupKey = price?.lookup_key ?? null;
   const tier = tierByLookupKey(lookupKey);
+  // Modell D: subscribed_quantity ist die "wie viele Objekte hat der User
+  // gebucht"-Zahl. Bei Tiered-Pricing ist quantity der Stufen-Indikator.
+  const subscribedQuantity = item?.quantity ?? 1;
 
   const customerId =
     typeof subscription.customer === "string"
@@ -121,6 +124,7 @@ async function syncSubscriptionForWorkspace(
     p_cancel_at_period_end: subscription.cancel_at_period_end,
     p_canceled_at: tsFromUnix(subscription.canceled_at),
     p_trial_end: tsFromUnix(subscription.trial_end),
+    p_subscribed_quantity: subscribedQuantity,
   });
 
   if (error) {

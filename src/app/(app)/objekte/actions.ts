@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { parseDecimal } from "@/lib/format";
 import { buildAutoDescription } from "@/lib/properties";
-import { getWorkspaceBilling } from "@/lib/billing/subscription";
-import { canCreateProperty, requiredTierForCount } from "@/lib/billing/tiers";
+import { getPremiumStatus, FREE_TIER_LIMIT } from "@/lib/billing/premium";
 
 export type PropertyFormState = { error?: string } | undefined;
 
@@ -182,13 +181,36 @@ export async function createProperty(
   const active = await getActiveWorkspace();
   if (!active) return { error: "no_workspace" };
 
-  // --- Soft-Block: Tier-Limit prüfen, bevor das Objekt geschrieben wird.
-  // Bestehende Objekte bleiben erhalten — geblockt wird nur das Anlegen
-  // weiterer, bis ein passendes Abo gebucht ist.
-  const billing = await getWorkspaceBilling(active.id);
-  if (!canCreateProperty(billing.tier, billing.propertyCount)) {
-    const need = requiredTierForCount(billing.propertyCount + 1);
-    return { error: `tier_limit_exceeded:${need.name}` };
+  // ----- Modell D: Premium-Check vor dem Anlegen ---------------------
+  // - 1. Objekt:           durchlassen, alles free
+  // - 2.+ Objekt:
+  //     • Bezahltes Abo mit ausreichender Quantity → durchlassen
+  //     • Bezahltes Abo, aber Quantity reicht nicht → quantity_upgrade_needed
+  //     • Kein Abo:
+  //         - acknowledge_no_premium=true im Form → durchlassen (Free-Continue)
+  //         - sonst → premium_choice_needed (Client zeigt Dialog)
+  const premium = await getPremiumStatus(active.id);
+  const newCount = premium.propertyCount + 1;
+  const acknowledgeNoPremium =
+    formData.get("acknowledge_no_premium") === "true";
+
+  if (newCount > FREE_TIER_LIMIT) {
+    if (premium.hasPaidSubscription) {
+      // Bestehendes Abo, aber Quantity reicht nicht → Upgrade nötig.
+      if (premium.subscribedQuantity < newCount) {
+        return {
+          error: `quantity_upgrade_needed:${premium.subscribedQuantity}:${newCount}`,
+        };
+      }
+      // Abo + Quantity ausreichend → durchlassen.
+    } else {
+      // Kein Abo → User muss wählen (Premium oder Free-Continue).
+      if (!acknowledgeNoPremium) {
+        return { error: `premium_choice_needed:${newCount}` };
+      }
+      // User hat explizit "ohne Premium weiter" gewählt → durchlassen,
+      // Premium-Features bleiben gelockt (siehe getPremiumStatus → false).
+    }
   }
 
   const parsed = propertySchema.safeParse(readForm(formData));

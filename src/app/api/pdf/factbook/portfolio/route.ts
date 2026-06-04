@@ -4,6 +4,7 @@ import { resolveLocale } from "@/lib/pdf/translate";
 import { PortfolioFactbookDocument } from "@/components/pdf/PortfolioFactbookDocument";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { createClient } from "@/lib/supabase/server";
+import { requirePremiumOrLock } from "@/lib/billing/gate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,12 +12,16 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const locale = resolveLocale(url.searchParams.get("lang"));
-  // Optional: nur Objekte aus einem konkreten Portfolio rendern.
-  // Ohne Parameter → alle Workspace-Objekte (Default-Verhalten).
   const portfolioId = url.searchParams.get("portfolioId");
 
   const active = await getActiveWorkspace();
   if (!active) return new Response("unauthorized", { status: 401 });
+
+  // Premium-Gate: Factbook ist ein Premium-Feature.
+  const gate = await requirePremiumOrLock(active.id);
+  if (gate.locked) {
+    return new Response("premium_required", { status: 402 });
+  }
 
   const supabase = await createClient();
 

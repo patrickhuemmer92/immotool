@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { FormError } from "@/components/form-error";
 import { MoneyInput } from "@/components/money-input";
@@ -140,6 +141,67 @@ export function PropertyForm({
     FormData
   >(action, undefined);
 
+  // ----- Modell-D-Premium-Dialog ------------------------------------
+  // Bei Create kann die Server-Action `premium_choice_needed:N` oder
+  // `quantity_upgrade_needed:current:needed` returnen. Wir parsen den
+  // Error-Code, zeigen den passenden Dialog und re-submitten mit
+  // acknowledge_no_premium=true (Free-Continue), oder leiten zur
+  // /einstellungen/abrechnung-Page weiter (Premium-Abo).
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [premiumDialog, setPremiumDialog] = useState<
+    | { kind: "choice"; targetCount: number }
+    | { kind: "upgrade"; currentQty: number; neededQty: number }
+    | null
+  >(null);
+
+  useEffect(() => {
+    const err = state?.error;
+    if (!err) return;
+    if (err.startsWith("premium_choice_needed:")) {
+      const n = Number(err.split(":")[1] ?? 0);
+      setPremiumDialog({ kind: "choice", targetCount: n });
+    } else if (err.startsWith("quantity_upgrade_needed:")) {
+      const [, c, n] = err.split(":");
+      setPremiumDialog({
+        kind: "upgrade",
+        currentQty: Number(c ?? 0),
+        neededQty: Number(n ?? 0),
+      });
+    }
+  }, [state?.error]);
+
+  async function onConfirmUpgrade(neededQty: number) {
+    const res = await fetch("/api/billing/quantity-upgrade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity: neededQty }),
+    });
+    if (!res.ok) return;
+    // Nach erfolgreichem Upgrade Form erneut absenden — der zweite
+    // Server-Call sieht subscribed_quantity ≥ propertyCount und lässt durch.
+    setPremiumDialog(null);
+    formRef.current?.requestSubmit();
+  }
+
+  function onChooseFreeContinue() {
+    // Setze Hidden-Input + re-submit. Server lässt dann durch ohne Premium.
+    const input = formRef.current?.querySelector<HTMLInputElement>(
+      "input[name='acknowledge_no_premium']"
+    );
+    if (input) input.value = "true";
+    setPremiumDialog(null);
+    formRef.current?.requestSubmit();
+  }
+
+  function onChoosePremium(targetCount: number) {
+    // Pre-fill Quantity in der Billing-Page und springe direkt zum
+    // Checkout-Wizard.
+    router.push(
+      `/einstellungen/abrechnung?focus_subscribe=true&quantity=${targetCount}`
+    );
+  }
+
   const parseShareLocal = (s: string): number => {
     if (!s) return 0;
     const n = Number(s.replace(",", "."));
@@ -174,7 +236,15 @@ export function PropertyForm({
   const submitLandValue = splitMode === "eur" ? landValue : landEur;
 
   return (
-    <form action={formAction} className="space-y-8 max-w-3xl">
+    <form
+      ref={formRef}
+      action={formAction}
+      className="space-y-8 max-w-3xl"
+    >
+      {/* Hidden-Flag, wird vom Premium-Dialog auf "true" gesetzt, wenn
+          der User "ohne Premium fortfahren" wählt. Bei jedem normalen
+          Submit ist es "" → Server-Action zeigt Premium-Dialog. */}
+      <input type="hidden" name="acknowledge_no_premium" defaultValue="" />
       <fieldset disabled={readOnly} className="space-y-8">
         <Section title={t("properties.section_type")}>
           <div>
@@ -784,7 +854,13 @@ export function PropertyForm({
           </Field>
         </Section>
 
-        <FormError raw={state?.error} />
+        {/* Premium-spezifische Errors werden im Dialog gerendert, nicht
+            als FormError-Text — alles andere zeigen wir wie gewohnt. */}
+        {state?.error &&
+          !state.error.startsWith("premium_choice_needed:") &&
+          !state.error.startsWith("quantity_upgrade_needed:") && (
+            <FormError raw={state.error} />
+          )}
 
         <div className="flex gap-2">
           <button
@@ -805,6 +881,23 @@ export function PropertyForm({
           </button>
         </div>
       </fieldset>
+
+      {premiumDialog?.kind === "choice" && (
+        <PremiumChoiceDialog
+          targetCount={premiumDialog.targetCount}
+          onChoosePremium={() => onChoosePremium(premiumDialog.targetCount)}
+          onChooseFreeContinue={onChooseFreeContinue}
+          onClose={() => setPremiumDialog(null)}
+        />
+      )}
+      {premiumDialog?.kind === "upgrade" && (
+        <QuantityUpgradeDialog
+          currentQty={premiumDialog.currentQty}
+          neededQty={premiumDialog.neededQty}
+          onConfirm={() => onConfirmUpgrade(premiumDialog.neededQty)}
+          onClose={() => setPremiumDialog(null)}
+        />
+      )}
     </form>
   );
 }
@@ -826,6 +919,143 @@ function Section({
       </h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * Dialog beim Anlegen des 2. (bzw. eines weiteren) Objekts ohne aktives
+ * Abo. User entscheidet: Premium abschließen ODER ohne Premium-Features
+ * weiterarbeiten.
+ */
+function PremiumChoiceDialog({
+  targetCount,
+  onChoosePremium,
+  onChooseFreeContinue,
+  onClose,
+}: {
+  targetCount: number;
+  onChoosePremium: () => void;
+  onChooseFreeContinue: () => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations();
+  return (
+    <ModalShell onClose={onClose}>
+      <h3 className="text-lg font-semibold">
+        {t("billing.choice_dialog_title")}
+      </h3>
+      <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+        {t("billing.choice_dialog_intro", { count: targetCount })}
+      </p>
+      <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onChoosePremium}
+          className="rounded-lg border border-[var(--color-accent)] bg-[var(--color-accent)]/5 px-4 py-3 text-left hover:bg-[var(--color-accent)]/10"
+        >
+          <span className="block font-semibold">
+            {t("billing.choice_premium_title")}
+          </span>
+          <span className="block mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+            {t("billing.choice_premium_help")}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onChooseFreeContinue}
+          className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800"
+        >
+          <span className="block font-semibold">
+            {t("billing.choice_free_title")}
+          </span>
+          <span className="block mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+            {t("billing.choice_free_help")}
+          </span>
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/**
+ * Dialog, wenn das geplante Objekt die gebuchte Quantity überschreitet —
+ * z. B. 6. Objekt bei Subscription mit Quantity 5. Stripe rechnet die
+ * Proration selbst aus; wir bestätigen nur, dass der User OK gibt.
+ */
+function QuantityUpgradeDialog({
+  currentQty,
+  neededQty,
+  onConfirm,
+  onClose,
+}: {
+  currentQty: number;
+  neededQty: number;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  const t = useTranslations();
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <ModalShell onClose={onClose}>
+      <h3 className="text-lg font-semibold">
+        {t("billing.upgrade_dialog_title")}
+      </h3>
+      <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+        {t("billing.upgrade_dialog_intro", {
+          current: currentQty,
+          needed: neededQty,
+        })}
+      </p>
+      <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+        {t("billing.upgrade_dialog_proration_note")}
+      </p>
+      <div className="mt-5 flex gap-2 justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800"
+        >
+          {t("common.cancel")}
+        </button>
+        <button
+          type="button"
+          disabled={confirming}
+          onClick={() => {
+            setConfirming(true);
+            onConfirm();
+          }}
+          className="rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {confirming
+            ? t("common.loading")
+            : t("billing.upgrade_dialog_confirm")}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ModalShell({
+  children,
+  onClose,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
+        className="rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 max-w-xl w-full shadow-xl"
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
