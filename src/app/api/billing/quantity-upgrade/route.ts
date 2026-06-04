@@ -70,35 +70,75 @@ export async function POST(req: Request) {
   // Quantity-Update mit Proration → Stripe verlangt sofort die Differenz.
   // `proration_behavior: "always_invoice"` → Stripe stellt einen Invoice
   // sofort an, der die Differenz abbucht (ohne nächste Periode abzuwarten).
-  await stripe.subscriptions.update(sub.stripe_subscription_id, {
-    items: [
-      {
-        id: item.id,
-        quantity: newQuantity,
-      },
-    ],
-    proration_behavior: "always_invoice",
-  });
+  const previousQuantity = item.quantity ?? 0;
+  const updatedSub = await stripe.subscriptions.update(
+    sub.stripe_subscription_id,
+    {
+      items: [
+        {
+          id: item.id,
+          quantity: newQuantity,
+        },
+      ],
+      proration_behavior: "always_invoice",
+    }
+  );
+
+  // Letzte Invoice holen — der proration-Effekt steht in invoice.total
+  // (positiv = Belastung, negativ = Gutschrift / Credit für Restzeit).
+  // amount_paid zeigt, was tatsächlich von der Karte eingezogen wurde
+  // (Credit landet als account_balance, wird nicht direkt ausgezahlt).
+  let prorationTotalCents = 0;
+  let amountPaidCents = 0;
+  let currency = "eur";
+  if (updatedSub.latest_invoice) {
+    const invoiceId =
+      typeof updatedSub.latest_invoice === "string"
+        ? updatedSub.latest_invoice
+        : updatedSub.latest_invoice.id;
+    try {
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      prorationTotalCents = invoice.total ?? 0;
+      amountPaidCents = invoice.amount_paid ?? 0;
+      currency = invoice.currency ?? "eur";
+    } catch (err) {
+      console.warn(
+        "[quantity-upgrade] konnte Invoice nicht laden:",
+        err instanceof Error ? err.message : err
+      );
+    }
+  }
 
   // DB-Cache aktualisieren — Webhook tut das auch, aber wir wollen die UI
   // sofort konsistent haben.
   await supabase.rpc("upsert_subscription", {
     p_workspace_id: active.id,
     p_stripe_customer_id:
-      typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer.id,
-    p_stripe_subscription_id: subscription.id,
+      typeof updatedSub.customer === "string"
+        ? updatedSub.customer
+        : updatedSub.customer.id,
+    p_stripe_subscription_id: updatedSub.id,
     p_stripe_price_id: item.price.id,
     p_tier_lookup_key: item.price.lookup_key ?? null,
-    p_status: subscription.status,
+    p_status: updatedSub.status,
     p_current_period_start: null,
     p_current_period_end: null,
-    p_cancel_at_period_end: subscription.cancel_at_period_end,
+    p_cancel_at_period_end: updatedSub.cancel_at_period_end,
     p_canceled_at: null,
     p_trial_end: null,
     p_subscribed_quantity: newQuantity,
   });
 
-  return NextResponse.json({ ok: true, subscribed_quantity: newQuantity });
+  return NextResponse.json({
+    ok: true,
+    subscribed_quantity: newQuantity,
+    previous_quantity: previousQuantity,
+    /** Total der Proration-Invoice in Cent. Positiv = Belastung,
+     *  negativ = Gutschrift (Credit für Restperiode). */
+    proration_total_cents: prorationTotalCents,
+    /** Tatsächlich von der Karte eingezogener Betrag. Bei Downgrade
+     *  in der Regel 0 (Credit landet im Account-Balance). */
+    amount_paid_cents: amountPaidCents,
+    currency,
+  });
 }

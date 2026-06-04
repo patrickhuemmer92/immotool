@@ -1,8 +1,17 @@
 "use client";
 
 import { useState, useTransition, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { PRICING_TIERS, tierForQuantity } from "@/lib/billing/pricing";
+
+type UpgradeResult = {
+  previousQuantity: number;
+  newQuantity: number;
+  prorationTotalCents: number;
+  amountPaidCents: number;
+  currency: string;
+};
 
 /**
  * Quantity-Slider + Aktivieren-Button. Bei aktiver Subscription:
@@ -24,10 +33,13 @@ export function BillingClient({
   initialQuantity: number;
 }) {
   const t = useTranslations();
+  const router = useRouter();
   const subscribeRef = useRef<HTMLDivElement>(null);
   const [quantity, setQuantity] = useState<number>(initialQuantity);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /** Erfolgs-Banner nach Quantity-Upgrade/Downgrade. */
+  const [upgradeResult, setUpgradeResult] = useState<UpgradeResult | null>(null);
 
   // Wenn /einstellungen/abrechnung?focus_subscribe=true (aus Property-
   // Dialog), springe sofort auf den Subscribe-Bereich.
@@ -86,6 +98,7 @@ export function BillingClient({
 
   async function onQuantityUpgrade() {
     setError(null);
+    setUpgradeResult(null);
     start(async () => {
       const res = await fetch("/api/billing/quantity-upgrade", {
         method: "POST",
@@ -95,16 +108,34 @@ export function BillingClient({
       const json = (await res.json()) as {
         ok?: boolean;
         subscribed_quantity?: number;
+        previous_quantity?: number;
+        proration_total_cents?: number;
+        amount_paid_cents?: number;
+        currency?: string;
         error?: string;
       };
       if (!res.ok || !json.ok) {
         setError(json.error ?? "unknown");
         return;
       }
-      // Re-render mit frischem Status (Webhook updated DB asynchron, daher
-      // ist router.refresh sicherer als window.reload — Server-Component
-      // rendert mit aktuellen Stripe-/DB-Daten).
-      window.location.reload();
+      // Erfolgs-Banner anzeigen + Server-State refreshen (Status-Karte
+      // oben + Quantity-Slider-Default lesen den neuen Wert).
+      setUpgradeResult({
+        previousQuantity: json.previous_quantity ?? 0,
+        newQuantity: json.subscribed_quantity ?? upgradeQuantity,
+        prorationTotalCents: json.proration_total_cents ?? 0,
+        amountPaidCents: json.amount_paid_cents ?? 0,
+        currency: json.currency ?? "eur",
+      });
+      router.refresh();
+    });
+  }
+
+  function formatCents(cents: number, currency: string): string {
+    return (cents / 100).toLocaleString("de-DE", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 2,
     });
   }
 
@@ -113,6 +144,12 @@ export function BillingClient({
       ref={subscribeRef}
       className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5"
     >
+      {upgradeResult && <UpgradeSuccessBanner
+        result={upgradeResult}
+        formatCents={formatCents}
+        onDismiss={() => setUpgradeResult(null)}
+      />}
+
       {hasPaidSubscription ? (
         <>
           <h2 className="text-lg font-semibold">
@@ -317,5 +354,83 @@ export function BillingClient({
         </ul>
       </details>
     </section>
+  );
+}
+
+/**
+ * Grünes (Upgrade) bzw. blaues (Downgrade) Erfolgs-Banner direkt nach
+ * dem Quantity-Update. Zeigt vorigen → neuen Wert und den von Stripe
+ * abgebuchten / gutgeschriebenen Betrag.
+ *
+ * Wird nicht automatisch ausgeblendet — der User kann es selbst
+ * schließen, damit er den Betrag in Ruhe lesen kann.
+ */
+function UpgradeSuccessBanner({
+  result,
+  formatCents,
+  onDismiss,
+}: {
+  result: UpgradeResult;
+  formatCents: (cents: number, currency: string) => string;
+  onDismiss: () => void;
+}) {
+  const t = useTranslations();
+  const isUpgrade = result.newQuantity > result.previousQuantity;
+  const charged = result.amountPaidCents;
+  const total = result.prorationTotalCents;
+
+  // Bei Upgrade: Stripe hat den positiven `amount_paid` direkt eingezogen.
+  // Bei Downgrade: amount_paid ist meistens 0, der Credit landet als
+  // negativer `total` im account_balance des Customers.
+  const showCharge = isUpgrade && charged > 0;
+  const showCredit = !isUpgrade && total < 0;
+
+  return (
+    <div
+      className={
+        "mb-5 rounded-xl border px-4 py-3 text-sm " +
+        (isUpgrade
+          ? "border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200"
+          : "border-sky-200 dark:border-sky-900 bg-sky-50 dark:bg-sky-950 text-sky-800 dark:text-sky-200")
+      }
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="font-semibold">
+            {isUpgrade
+              ? t("billing.banner_upgrade_title")
+              : t("billing.banner_downgrade_title")}
+          </p>
+          <p className="mt-1">
+            {t("billing.banner_quantity_change", {
+              from: result.previousQuantity,
+              to: result.newQuantity,
+            })}
+          </p>
+          {showCharge && (
+            <p className="mt-1">
+              {t("billing.banner_charged", {
+                amount: formatCents(charged, result.currency),
+              })}
+            </p>
+          )}
+          {showCredit && (
+            <p className="mt-1">
+              {t("billing.banner_credited", {
+                amount: formatCents(Math.abs(total), result.currency),
+              })}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label={t("common.cancel")}
+          className="shrink-0 text-lg leading-none opacity-70 hover:opacity-100"
+        >
+          ×
+        </button>
+      </div>
+    </div>
   );
 }
