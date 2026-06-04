@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, listMemberships } from "@/lib/workspace";
+import { isAdminEmail } from "@/lib/auth/is-admin";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { NavLink } from "@/components/nav-link";
@@ -41,6 +42,11 @@ export default async function AppLayout({
   }
 
   const t = await getTranslations();
+  // Stripe Connect ist ein internes / experimentelles Feature und
+  // erscheint nur für Admin-User in der Sidebar (Whitelist via
+  // ADMIN_EMAILS-ENV). Andere User sehen den Link nicht und werden bei
+  // direktem Aufruf von /connect zur Startseite redirected.
+  const showConnect = isAdminEmail(user.email ?? null);
 
   return (
     <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950">
@@ -66,7 +72,9 @@ export default async function AppLayout({
           <NavSection>
             <NavLink href="/investitionen">{t("nav.investments")}</NavLink>
             <NavLink href="/simulationen">{t("nav.simulations")}</NavLink>
-            <NavLink href="/connect">{t("nav.connect")}</NavLink>
+            {showConnect && (
+              <NavLink href="/connect">{t("nav.connect")}</NavLink>
+            )}
           </NavSection>
           <NavSection>
             <NavLink href="/einstellungen">{t("nav.settings")}</NavLink>

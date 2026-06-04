@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { isCurrentUserAdmin } from "@/lib/auth/is-admin";
 import {
   getAccountStatus,
   getWorkspaceConnectAccount,
@@ -18,6 +19,9 @@ import {
 export async function GET() {
   const active = await getActiveWorkspace();
   if (!active) return NextResponse.json({ error: "no_workspace" }, { status: 401 });
+  if (!(await isCurrentUserAdmin())) {
+    return NextResponse.json({ error: "admin_only" }, { status: 403 });
+  }
 
   const connect = await getWorkspaceConnectAccount(active.id);
   if (!connect) {

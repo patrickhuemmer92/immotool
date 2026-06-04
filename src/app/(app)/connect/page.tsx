@@ -7,6 +7,7 @@ import {
 } from "@/lib/connect/account";
 import { stripeMode } from "@/lib/billing/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { isAdminEmail } from "@/lib/auth/is-admin";
 import { ConnectDashboardClient } from "./dashboard-client";
 
 /**
@@ -28,6 +29,14 @@ export default async function ConnectPage({
   if (!active) return null;
   if (!isOwner(active.role)) redirect("/");
 
+  // E-Mail-Default für die Account-Create-Maske + Admin-Gate.
+  const supabase = await createClient();
+  const { data: userData } = await supabase.auth.getUser();
+  const ownerEmail = userData.user?.email ?? "";
+  // Admin-Gate: Stripe Connect ist nur für Whitelist-User sichtbar.
+  // Non-Admins werden lautlos zur Startseite redirected.
+  if (!isAdminEmail(ownerEmail)) redirect("/");
+
   const params = await searchParams;
   const queryStatus = typeof params.status === "string" ? params.status : null;
 
@@ -38,11 +47,6 @@ export default async function ConnectPage({
         return null;
       })
     : null;
-
-  // E-Mail-Default für die Account-Create-Maske: aktueller User.
-  const supabase = await createClient();
-  const { data: userData } = await supabase.auth.getUser();
-  const ownerEmail = userData.user?.email ?? "";
 
   // Produkte auf dem Connected Account vorausladen (server-side), damit
   // die UI initial schon was zeigt — Live-Refresh läuft danach Client-

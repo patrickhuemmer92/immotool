@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspace, isOwner } from "@/lib/workspace";
+import { isCurrentUserAdmin } from "@/lib/auth/is-admin";
 import {
   createWorkspaceConnectAccount,
   getWorkspaceConnectAccount,
@@ -26,6 +27,10 @@ export async function POST(req: Request) {
   if (!active) return NextResponse.json({ error: "no_workspace" }, { status: 401 });
   if (!isOwner(active.role)) {
     return NextResponse.json({ error: "owner_only" }, { status: 403 });
+  }
+  // Stripe Connect ist Admin-only (ADMIN_EMAILS-Whitelist).
+  if (!(await isCurrentUserAdmin())) {
+    return NextResponse.json({ error: "admin_only" }, { status: 403 });
   }
 
   // Idempotenz: wenn schon ein Account existiert, einfach zurückgeben.

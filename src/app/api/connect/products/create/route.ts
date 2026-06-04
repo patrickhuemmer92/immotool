@@ -12,6 +12,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
+import { isCurrentUserAdmin } from "@/lib/auth/is-admin";
 import { getStripe } from "@/lib/connect/stripe";
 import { getWorkspaceConnectAccount } from "@/lib/connect/account";
 
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
   if (!active) return NextResponse.json({ error: "no_workspace" }, { status: 401 });
   if (!canEdit(active.role)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (!(await isCurrentUserAdmin())) {
+    return NextResponse.json({ error: "admin_only" }, { status: 403 });
   }
 
   const connect = await getWorkspaceConnectAccount(active.id);
