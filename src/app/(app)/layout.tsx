@@ -66,7 +66,10 @@ export default async function AppLayout({
           <NavSection>
             <NavLink href="/investitionen">{t("nav.investments")}</NavLink>
             <NavLink href="/simulationen">{t("nav.simulations")}</NavLink>
-            <NavLink href="/connect">{t("nav.connect")}</NavLink>
+            {/* Stripe Connect (Marketplace-Mode) ist bewusst NICHT in der
+                Nav: die Plattform empfängt selbst Zahlungen (Stripe Billing),
+                kein Marketplace-Use-Case. Code unter /connect bleibt für
+                spätere Reaktivierung erhalten. */}
           </NavSection>
           <NavSection>
             <NavLink href="/einstellungen">{t("nav.settings")}</NavLink>
