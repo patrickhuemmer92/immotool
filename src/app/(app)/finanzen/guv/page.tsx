@@ -32,6 +32,21 @@ export default async function PortfolioPnLPage() {
   const active = await getActiveWorkspace();
   if (!active) return null;
 
+  // Premium-Gate: Workspace-Cashflow ist ein Premium-Feature.
+  const { requirePremiumOrLock } = await import("@/lib/billing/gate");
+  const { PremiumLocked } = await import("@/components/premium-locked");
+  const gate = await requirePremiumOrLock(active.id);
+  if (gate.locked) {
+    return (
+      <PremiumLocked
+        feature="cashflow"
+        reason={gate.reason}
+        currentCount={gate.status.propertyCount}
+        subscribedQuantity={gate.status.subscribedQuantity}
+      />
+    );
+  }
+
   const supabase = await createClient();
 
   const [{ data: properties }, { data: settings }] = await Promise.all([

@@ -2,11 +2,26 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
+import { requirePremiumOrLock } from "@/lib/billing/gate";
+import { PremiumLocked } from "@/components/premium-locked";
 
 export default async function PortfoliosPage() {
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
+
+  // Premium-Gate: Portfolios sind ein Premium-Feature.
+  const gate = await requirePremiumOrLock(active.id);
+  if (gate.locked) {
+    return (
+      <PremiumLocked
+        feature="portfolios"
+        reason={gate.reason}
+        currentCount={gate.status.propertyCount}
+        subscribedQuantity={gate.status.subscribedQuantity}
+      />
+    );
+  }
 
   const supabase = await createClient();
   // Anzahl Objekte pro Portfolio via Embedded-Count holen.

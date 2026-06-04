@@ -1,12 +1,15 @@
 /**
  * POST /api/billing/checkout
  *
- * Erstellt eine Stripe Checkout Session für einen Workspace-Owner.
- * Stripe übernimmt den kompletten Zahlungs-Flow — wir geben den User nur
- * an Stripe weiter und warten auf das Webhook-Event.
+ * Erstellt eine Stripe Checkout Session für die Workspace-Subscription
+ * (Modell D: ein einziger Tiered-Price + quantity = Anzahl Objekte).
  *
- * Body: { lookupKey: "imm_starter_year" | "imm_pro_year" | "imm_portfolio_year" }
- * Response: { url: string }  → Client redirected
+ * Stripe rechnet anhand der Quantity automatisch die richtige Tier-Stufe
+ * aus (1 → 0 €, 2-5 → 39,99 € etc.) — wir müssen nichts mitsteuern als
+ * die gewünschte Quantity.
+ *
+ * Body: { quantity: number }  — wie viele Objekte will der User abdecken?
+ * Response: { url: string }   — Client redirected zum Stripe-Checkout
  */
 
 import { NextResponse } from "next/server";
@@ -14,18 +17,29 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, isOwner } from "@/lib/workspace";
 import { getStripe } from "@/lib/billing/stripe";
-import { TIERS } from "@/lib/billing/tiers";
 
 const bodySchema = z.object({
-  lookupKey: z.string().min(1),
+  quantity: z.number().int().min(2).max(999),
 });
 
 function getBaseUrl(req: Request): string {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL;
   if (envUrl) return envUrl.replace(/\/$/, "");
-  // Fallback: aus dem Request rekonstruieren
   const url = new URL(req.url);
   return `${url.protocol}//${url.host}`;
+}
+
+/** Wirft mit klarer Message, wenn STRIPE_TIERED_PRICE_ID fehlt. */
+function getTieredPriceId(): string {
+  const id = process.env.STRIPE_TIERED_PRICE_ID;
+  if (!id) {
+    throw new Error(
+      "STRIPE_TIERED_PRICE_ID ist nicht gesetzt. Lege im Stripe-Dashboard " +
+        "ein Produkt mit Tiered-Pricing an (1=0€, 2-5=39,99€, …) und " +
+        "trage die Price-ID (Format: price_...) in .env.local ein."
+    );
+  }
+  return id;
 }
 
 export async function POST(req: Request) {
@@ -40,38 +54,23 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "bad_body" }, { status: 400 });
   }
-  const lookupKey = parsed.data.lookupKey;
+  const quantity = parsed.data.quantity;
 
-  const tier = TIERS.find((t) => t.lookupKey === lookupKey);
-  if (!tier || !tier.lookupKey) {
-    return NextResponse.json({ error: "unknown_tier" }, { status: 400 });
+  let priceId: string;
+  try {
+    priceId = getTieredPriceId();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "no_price";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 
   const stripe = getStripe();
-
-  // Price-ID via lookup_key auflösen
-  const prices = await stripe.prices.list({
-    lookup_keys: [lookupKey],
-    active: true,
-    limit: 1,
-  });
-  const price = prices.data[0];
-  if (!price) {
-    return NextResponse.json(
-      {
-        error: "price_not_configured",
-        hint: "Führe scripts/stripe-setup.mjs aus, um die Prices in Stripe anzulegen.",
-      },
-      { status: 500 }
-    );
-  }
-
-  // User-E-Mail für Stripe — wenn vorhanden, vorausfüllen
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   const userEmail = userData.user?.email;
 
-  // Existierender Customer? Wenn ja, dem Checkout mitgeben.
+  // Bestehender Customer? Wenn ja, wiederverwenden, damit Karte/Tax-IDs
+  // erhalten bleiben.
   const { data: existing } = await supabase
     .from("subscriptions")
     .select("stripe_customer_id")
@@ -82,41 +81,35 @@ export async function POST(req: Request) {
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price: price.id, quantity: 1 }],
-    // Wir hängen die Workspace-ID an die Subscription, damit der Webhook
-    // die DB-Zeile zuordnen kann.
+    line_items: [{ price: priceId, quantity }],
     subscription_data: {
       metadata: {
         workspace_id: active.id,
-        tier_lookup_key: lookupKey,
+        subscribed_quantity: String(quantity),
       },
     },
-    // Falls schon Stripe-Customer existiert, wiederverwenden — sonst
-    // Email vorausfüllen und Stripe legt automatisch einen Customer an.
     ...(existing?.stripe_customer_id
       ? { customer: existing.stripe_customer_id }
       : userEmail
         ? { customer_email: userEmail }
         : {}),
-    // Auch auf der Session-Ebene hinterlegen — für das
-    // checkout.session.completed-Event.
     client_reference_id: active.id,
     metadata: {
       workspace_id: active.id,
-      tier_lookup_key: lookupKey,
+      subscribed_quantity: String(quantity),
     },
     success_url: `${base}/einstellungen/abrechnung?status=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/einstellungen/abrechnung?status=cancelled`,
     allow_promotion_codes: true,
     billing_address_collection: "required",
-    automatic_tax: { enabled: true },
-    tax_id_collection: { enabled: true },
+    // Kleinunternehmer (§19 UStG): keine USt., keine Tax-ID-Collection.
+    automatic_tax: { enabled: false },
+    tax_id_collection: { enabled: false },
     locale: "de",
   });
 
   if (!session.url) {
     return NextResponse.json({ error: "no_session_url" }, { status: 500 });
   }
-
   return NextResponse.json({ url: session.url });
 }

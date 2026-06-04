@@ -3,11 +3,25 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
+import { requirePremiumOrLock } from "@/lib/billing/gate";
+import { PremiumLocked } from "@/components/premium-locked";
 
 export default async function SimulationsPage() {
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
+
+  const gate = await requirePremiumOrLock(active.id);
+  if (gate.locked) {
+    return (
+      <PremiumLocked
+        feature="simulations"
+        reason={gate.reason}
+        currentCount={gate.status.propertyCount}
+        subscribedQuantity={gate.status.subscribedQuantity}
+      />
+    );
+  }
 
   const supabase = await createClient();
   const { data: simulations } = await supabase

@@ -1,25 +1,40 @@
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { getActiveWorkspace, isOwner } from "@/lib/workspace";
-import { getWorkspaceBilling } from "@/lib/billing/subscription";
-import { TIERS, FREE_TIER, requiredTierForCount } from "@/lib/billing/tiers";
+import { getPremiumStatus, PRICING_TIERS, tierForQuantity } from "@/lib/billing/premium";
 import { stripeMode } from "@/lib/billing/stripe";
-import { BillingActions } from "./billing-actions";
+import { BillingClient } from "./billing-client";
 
+/**
+ * Workspace-Billing nach Modell D.
+ *
+ * Zeigt:
+ *   - Aktuellen Premium-Status (free / paid / free-continue / quantity-mismatch)
+ *   - Pricing-Tabelle (Tier-Übersicht aus PRICING_TIERS)
+ *   - Quantity-Slider + "Premium aktivieren"-Button → Checkout
+ *   - Bei aktiver Subscription: Portal-Link + aktuelle Quantity
+ *
+ * Stripe übernimmt Checkout/Portal/Invoice komplett — wir sind nur die
+ * Connection.
+ */
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
-  // Nur Owner sieht Billing — andere Members können nicht zahlen.
   if (!isOwner(active.role)) redirect("/einstellungen");
 
-  const { status: queryStatus } = await searchParams;
-  const billing = await getWorkspaceBilling(active.id);
-  const required = requiredTierForCount(billing.propertyCount);
+  const params = await searchParams;
+  const queryStatus = typeof params.status === "string" ? params.status : null;
+  const focusSubscribe = params.focus_subscribe === "true";
+  const initialQuantity = Number(
+    typeof params.quantity === "string" ? params.quantity : "2"
+  );
+
+  const status = await getPremiumStatus(active.id);
   const mode = stripeMode();
 
   return (
@@ -31,126 +46,113 @@ export default async function BillingPage({
         <Banner kind="info">{t("billing.checkout_cancelled")}</Banner>
       )}
 
-      {/* Aktueller Tier-Status */}
       <section className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-              {t("billing.current_plan")}
-            </p>
-            <h2 className="mt-1 text-xl font-semibold">
-              {billing.tier.name}
-              {billing.status && billing.status !== "active" && (
-                <span className="ml-2 text-xs rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200 px-2 py-0.5">
-                  {t(`billing.status_${billing.status}` as never, {
-                    default: billing.status,
-                  } as never)}
-                </span>
-              )}
-            </h2>
-            <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-              {t("billing.objects_used", {
-                used: billing.propertyCount,
-                max:
-                  billing.tier.maxObjects === null
-                    ? "∞"
-                    : String(billing.tier.maxObjects),
-              })}
-            </p>
-            {billing.currentPeriodEnd && (
-              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                {billing.cancelAtPeriodEnd
-                  ? t("billing.ends_at", {
-                      date: formatDate(billing.currentPeriodEnd),
-                    })
-                  : t("billing.renews_at", {
-                      date: formatDate(billing.currentPeriodEnd),
-                    })}
-              </p>
-            )}
+        <p className="text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+          {t("billing.current_status")}
+        </p>
+        <h2 className="mt-1 text-xl font-semibold">
+          {status.hasPaidSubscription
+            ? t("billing.status_paid", {
+                qty: status.subscribedQuantity,
+                tier: tierForQuantity(status.subscribedQuantity).label,
+              })
+            : status.propertyCount <= 1
+              ? t("billing.status_free_implicit")
+              : t("billing.status_free_continue", {
+                  count: status.propertyCount,
+                })}
+        </h2>
+        <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
+          {t("billing.current_property_count", {
+            count: status.propertyCount,
+          })}
+        </p>
+        {status.needsQuantityUpgrade && (
+          <div className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 px-3 py-2 text-sm">
+            {t("billing.needs_quantity_upgrade", {
+              current: status.subscribedQuantity,
+              count: status.propertyCount,
+            })}
           </div>
-
-          {billing.stripeCustomerId && (
-            <BillingActions kind="portal" />
-          )}
-        </div>
-
-        {required.key !== billing.tier.key &&
-          (required.priceEurYear ?? 0) > (billing.tier.priceEurYear ?? 0) && (
-            <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 px-3 py-2 text-sm">
-              {t("billing.upgrade_required", {
-                count: billing.propertyCount,
-                tier: required.name,
-              })}
-            </div>
-          )}
+        )}
       </section>
 
-      {/* Plan-Auswahl */}
+      <BillingClient
+        propertyCount={status.propertyCount}
+        hasPaidSubscription={status.hasPaidSubscription}
+        subscribedQuantity={status.subscribedQuantity}
+        focusSubscribe={focusSubscribe}
+        initialQuantity={
+          Number.isFinite(initialQuantity) && initialQuantity >= 2
+            ? initialQuantity
+            : Math.max(2, status.propertyCount)
+        }
+      />
+
+      {/* Pricing-Tabelle */}
       <section>
         <h2 className="text-lg font-semibold mb-3">
-          {t("billing.choose_plan")}
+          {t("billing.pricing_table_title")}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          {TIERS.map((tier) => {
-            const isCurrent = tier.key === billing.tier.key;
-            const isFree = tier.key === FREE_TIER.key;
-            return (
-              <div
-                key={tier.key}
-                className={`rounded-2xl border p-4 flex flex-col ${
-                  isCurrent
-                    ? "border-[var(--color-accent)] bg-[var(--color-accent)]/5"
-                    : "border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900"
-                }`}
-              >
-                <h3 className="font-semibold">{tier.name}</h3>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">
-                  {tier.priceEurYear === 0
-                    ? t("billing.free")
-                    : `${tier.priceEurYear} €`}
-                  {tier.priceEurYear > 0 && (
-                    <span className="text-xs font-normal text-neutral-500 dark:text-neutral-400">
-                      {" "}
-                      / {t("billing.per_year")}
-                    </span>
-                  )}
-                </p>
-                <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                  {tier.maxObjects === null
-                    ? t("billing.objects_unlimited", { min: tier.minObjects })
-                    : tier.minObjects === tier.maxObjects
-                      ? t("billing.objects_exact", { count: tier.minObjects })
-                      : t("billing.objects_range", {
-                          min: tier.minObjects,
-                          max: tier.maxObjects,
-                        })}
-                </p>
-
-                <div className="mt-4 flex-1 flex items-end">
-                  {isCurrent ? (
-                    <span className="w-full inline-flex justify-center rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 px-3 py-2 text-sm">
-                      {t("billing.current_plan_short")}
-                    </span>
-                  ) : isFree ? (
-                    <span className="w-full inline-flex justify-center text-xs text-neutral-500 dark:text-neutral-400 px-3 py-2">
-                      {t("billing.downgrade_via_portal")}
-                    </span>
-                  ) : (
-                    <BillingActions
-                      kind="checkout"
-                      lookupKey={tier.lookupKey!}
-                      label={
-                        billing.hasActiveSubscription
-                          ? t("billing.switch_plan")
-                          : t("billing.subscribe")
-                      }
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 dark:bg-neutral-950">
+              <tr className="text-left">
+                <th className="px-4 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  {t("billing.pricing_tier_label")}
+                </th>
+                <th className="px-4 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
+                  {t("billing.pricing_quantity_label")}
+                </th>
+                <th className="px-4 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider text-right">
+                  {t("billing.pricing_yearly_label")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {PRICING_TIERS.map((tier) => {
+                const currentTier =
+                  status.subscribedQuantity > 0
+                    ? tierForQuantity(status.subscribedQuantity)
+                    : null;
+                const isActive = currentTier?.label === tier.label;
+                return (
+                  <tr
+                    key={tier.label}
+                    className={
+                      "border-t border-neutral-200 dark:border-neutral-800 " +
+                      (isActive ? "bg-[var(--color-accent)]/5" : "")
+                    }
+                  >
+                    <td className="px-4 py-2 font-medium">
+                      {tier.label}
+                      {isActive && (
+                        <span className="ml-2 text-[10px] uppercase tracking-wider text-[var(--color-accent)]">
+                          {t("billing.pricing_active")}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-neutral-600 dark:text-neutral-400">
+                      {tier.maxQty === null
+                        ? t("billing.pricing_range_open", { min: tier.minQty })
+                        : tier.minQty === tier.maxQty
+                          ? `${tier.minQty}`
+                          : `${tier.minQty}–${tier.maxQty}`}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {tier.yearlyEur === 0
+                        ? t("billing.free")
+                        : `${tier.yearlyEur.toLocaleString("de-DE", {
+                            style: "currency",
+                            currency: "EUR",
+                            minimumFractionDigits: 2,
+                          })} / ${t("billing.per_year")}`}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -179,12 +181,4 @@ function Banner({
       {children}
     </div>
   );
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("de-DE", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
 }
