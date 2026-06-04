@@ -12,7 +12,7 @@ import {
   type LoanForPnL,
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
-import { deleteProperty } from "../actions";
+import { DeletePropertyButton } from "./delete-property-button";
 
 const SIGNED_URL_TTL = 60 * 60;
 
@@ -329,14 +329,10 @@ export default async function PropertyFactsheetPage({
             {t("factsheet.download_factsheet")}
           </a>
           {isOwner(active.role) && (
-            <form action={deleteProperty.bind(null, property.id)}>
-              <button
-                type="submit"
-                className="text-sm text-red-600 dark:text-red-400 hover:underline px-2"
-              >
-                {t("common.delete")}
-              </button>
-            </form>
+            <DeletePropertyButton
+              propertyId={property.id}
+              propertyAddress={formatPropertyAddress(property)}
+            />
           )}
         </div>
       </div>
