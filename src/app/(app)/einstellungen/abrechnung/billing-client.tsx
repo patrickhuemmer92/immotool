@@ -75,6 +75,39 @@ export function BillingClient({
   const minQuantity = Math.max(2, propertyCount);
   const maxQuantity = 100;
 
+  // Bei aktivem Abo: Slider startet bei der aktuell gebuchten Quantity.
+  // Downgrade ist erlaubt, solange property_count ≤ neue Quantity (sonst
+  // verlieren die Premium-Features ihre Berechtigung).
+  const [upgradeQuantity, setUpgradeQuantity] = useState<number>(
+    Math.max(subscribedQuantity, propertyCount)
+  );
+  const upgradeTier = tierForQuantity(upgradeQuantity);
+  const isQuantityChanged = upgradeQuantity !== subscribedQuantity;
+
+  async function onQuantityUpgrade() {
+    setError(null);
+    start(async () => {
+      const res = await fetch("/api/billing/quantity-upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quantity: upgradeQuantity }),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        subscribed_quantity?: number;
+        error?: string;
+      };
+      if (!res.ok || !json.ok) {
+        setError(json.error ?? "unknown");
+        return;
+      }
+      // Re-render mit frischem Status (Webhook updated DB asynchron, daher
+      // ist router.refresh sicherer als window.reload — Server-Component
+      // rendert mit aktuellen Stripe-/DB-Daten).
+      window.location.reload();
+    });
+  }
+
   return (
     <section
       ref={subscribeRef}
@@ -95,14 +128,101 @@ export function BillingClient({
               ),
             })}
           </p>
-          <button
-            type="button"
-            onClick={onOpenPortal}
-            disabled={pending}
-            className="mt-4 rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50"
-          >
-            {pending ? t("common.loading") : t("billing.manage_subscription")}
-          </button>
+
+          {/* Quantity-Adjust direkt in der App. Stripe rechnet Proration. */}
+          <div className="mt-6 border-t border-neutral-200 dark:border-neutral-800 pt-5">
+            <h3 className="text-sm font-semibold">
+              {t("billing.adjust_quantity_title")}
+            </h3>
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              {t("billing.adjust_quantity_help")}
+            </p>
+
+            <div className="mt-4">
+              <label className="text-sm font-medium block mb-2">
+                {t("billing.quantity_label")}:{" "}
+                <span className="tabular-nums">{upgradeQuantity}</span>{" "}
+                <span className="text-neutral-500 dark:text-neutral-400">
+                  ({t("billing.quantity_unit")})
+                </span>
+              </label>
+              <input
+                type="range"
+                min={Math.max(propertyCount, 2)}
+                max={maxQuantity}
+                step={1}
+                value={upgradeQuantity}
+                onChange={(e) => setUpgradeQuantity(Number(e.target.value))}
+                className="w-full accent-[var(--color-accent)]"
+              />
+              <div className="mt-2 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 tabular-nums">
+                <span>{Math.max(propertyCount, 2)}</span>
+                <span>{maxQuantity}+</span>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-lg bg-neutral-50 dark:bg-neutral-950 p-3 border border-neutral-200 dark:border-neutral-800">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-sm text-neutral-700 dark:text-neutral-300">
+                  {upgradeTier.label} ({upgradeQuantity} {t("billing.quantity_unit_short")})
+                </span>
+                <span className="text-xl font-semibold tabular-nums">
+                  {upgradeTier.yearlyEur === 0
+                    ? t("billing.free")
+                    : upgradeTier.yearlyEur.toLocaleString("de-DE", {
+                        style: "currency",
+                        currency: "EUR",
+                        minimumFractionDigits: 2,
+                      })}
+                  <span className="text-xs font-normal text-neutral-500 dark:text-neutral-400">
+                    {upgradeTier.yearlyEur > 0 && ` / ${t("billing.per_year")}`}
+                  </span>
+                </span>
+              </div>
+              {isQuantityChanged && (
+                <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 leading-snug">
+                  {upgradeQuantity > subscribedQuantity
+                    ? t("billing.adjust_proration_up", {
+                        from: subscribedQuantity,
+                        to: upgradeQuantity,
+                      })
+                    : t("billing.adjust_proration_down", {
+                        from: subscribedQuantity,
+                        to: upgradeQuantity,
+                      })}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onQuantityUpgrade}
+              disabled={pending || !isQuantityChanged}
+              className="mt-4 rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {pending
+                ? t("common.loading")
+                : upgradeQuantity > subscribedQuantity
+                  ? t("billing.adjust_upgrade_action")
+                  : upgradeQuantity < subscribedQuantity
+                    ? t("billing.adjust_downgrade_action")
+                    : t("billing.adjust_no_change")}
+            </button>
+          </div>
+
+          <div className="mt-6 border-t border-neutral-200 dark:border-neutral-800 pt-5">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">
+              {t("billing.manage_subscription_help")}
+            </p>
+            <button
+              type="button"
+              onClick={onOpenPortal}
+              disabled={pending}
+              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-4 py-2 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {pending ? t("common.loading") : t("billing.manage_subscription")}
+            </button>
+          </div>
         </>
       ) : (
         <>
