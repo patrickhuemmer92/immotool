@@ -180,13 +180,20 @@ export function formatPropertyAddress(p: {
   postal_code: string;
   city: string;
   location_detail?: string | null;
+  /**
+   * description wird absichtlich NICHT mehr in die Adresse aufgenommen.
+   * Bei description_auto=true (Default) ist `description` selbst schon
+   * `street + location_detail` — also würde es hier zur Doppelung führen
+   * („Straße, PLZ Ort, Lage, Straße, Lage").
+   * Die description ist ein eigenes Feld (z. B. „3-Zimmer-Wohnung")
+   * und sollte separat angezeigt werden, falls relevant.
+   */
   description?: string | null;
 }): string {
   return [
     p.street,
     `${p.postal_code} ${p.city}`,
     p.location_detail || null,
-    p.description || null,
   ]
     .filter(Boolean)
     .join(", ");
