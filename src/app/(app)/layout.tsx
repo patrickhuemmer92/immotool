@@ -66,6 +66,7 @@ export default async function AppLayout({
           <NavSection>
             <NavLink href="/investitionen">{t("nav.investments")}</NavLink>
             <NavLink href="/simulationen">{t("nav.simulations")}</NavLink>
+            <NavLink href="/connect">{t("nav.connect")}</NavLink>
           </NavSection>
           <NavSection>
             <NavLink href="/einstellungen">{t("nav.settings")}</NavLink>
