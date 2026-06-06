@@ -61,9 +61,9 @@ export function PortfolioBalanceBar({
               }}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="purchase" name={labels.purchase} fill="#0f766e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="purchase" name={labels.purchase} fill="#00e5c7" radius={[4, 4, 0, 0]} />
             <Bar dataKey="remaining" name={labels.remaining} fill="#dc2626" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="equity" name={labels.equity} fill="#1f2937" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="equity" name={labels.equity} fill="#152538" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

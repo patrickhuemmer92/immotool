@@ -47,7 +47,10 @@
     "simulations": "Simulationen",
     "connect": "Stripe Connect",
     "settings": "Einstellungen",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "overview_group": "Übersicht",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen"
   },
   "property_nav": {
     "overview": "Übersicht",
@@ -312,6 +315,9 @@
     "delete_confirm_warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
     "delete_confirm_action": "Endgültig löschen",
     "empty": "Noch keine Objekte angelegt.",
+    "demo_banner_title": "Beispiel-Objekt",
+    "demo_banner_body": "Diese Wohnung haben wir mit Beispieldaten befüllt, damit du Cashflow, AfA und Bewertung gleich in Aktion siehst. Lösch sie, sobald du dein erstes echtes Objekt anlegst.",
+    "demo_banner_remove": "Beispiel entfernen",
     "kind_label": "Objekt-Typ",
     "kind_apartment": "Wohnung",
     "kind_house": "Haus",
