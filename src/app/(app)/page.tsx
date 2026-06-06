@@ -269,29 +269,43 @@ export default async function DashboardPage() {
       {/* Portfolio KPI grid — kept tight so it still reads cleanly with many objects. */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         <Kpi
+          icon="building"
           label={t("portfolio.kpi_objects")}
           value={String((properties ?? []).length)}
         />
         <Kpi
+          icon="ruler"
           label={t("portfolio.kpi_sqm")}
           value={totalSqm.toLocaleString("de-DE", { maximumFractionDigits: 0 })}
         />
         <Kpi
+          icon="euro"
           label={t("portfolio.kpi_purchase_total")}
           value={eur(totalPurchase)}
         />
-        <Kpi label={t("portfolio.kpi_value_combined")} value={eur(totalValue)} />
-        <Kpi label={t("portfolio.kpi_remaining_loans")} value={eur(totalLoans)} />
         <Kpi
+          icon="trending"
+          label={t("portfolio.kpi_value_combined")}
+          value={eur(totalValue)}
+        />
+        <Kpi
+          icon="bank"
+          label={t("portfolio.kpi_remaining_loans")}
+          value={eur(totalLoans)}
+        />
+        <Kpi
+          icon="wallet"
           label={t("portfolio.kpi_equity")}
           value={eur(totalValue - totalLoans)}
           strong
         />
         <Kpi
+          icon="percent"
           label={t("portfolio.kpi_gross_yield")}
           value={grossYieldPct != null ? `${grossYieldPct.toFixed(2)} %` : "—"}
         />
         <Kpi
+          icon="ltv"
           label={t("portfolio.kpi_ltv")}
           value={ltvPct != null ? `${ltvPct.toFixed(1)} %` : "—"}
         />
@@ -299,6 +313,7 @@ export default async function DashboardPage() {
 
       <div className="mt-3">
         <Kpi
+          icon="cash"
           label={t("portfolio.kpi_cashflow_after_tax")}
           value={eur(totalAfterTax)}
           strong
@@ -375,27 +390,129 @@ function ChartPlaceholder({
   );
 }
 
+type KpiIcon =
+  | "building"
+  | "ruler"
+  | "euro"
+  | "trending"
+  | "bank"
+  | "wallet"
+  | "cash"
+  | "percent"
+  | "ltv";
+
 function Kpi({
   label,
   value,
+  icon,
   strong,
 }: {
   label: string;
   value: string;
+  icon?: KpiIcon;
   strong?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
-      <div className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-        {label}
+      <div className="flex items-center gap-2.5">
+        {icon && (
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent border border-accent/30 shrink-0">
+            <KpiIconGlyph name={icon} />
+          </span>
+        )}
+        <div className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400 truncate">
+          {label}
+        </div>
       </div>
       <div
-        className={`mt-1 tabular-nums ${strong ? "text-lg font-semibold" : "text-sm"}`}
+        className={`mt-2 tabular-nums ${strong ? "text-lg font-semibold" : "text-sm"}`}
       >
         {value}
       </div>
     </div>
   );
+}
+
+function KpiIconGlyph({ name }: { name: KpiIcon }) {
+  const common = {
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+  switch (name) {
+    case "building":
+      return (
+        <svg {...common}>
+          <rect x="4" y="2" width="16" height="20" rx="2" />
+          <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01" />
+          <path d="M9 22v-4h6v4" />
+        </svg>
+      );
+    case "ruler":
+      return (
+        <svg {...common}>
+          <path d="M16 2l6 6L8 22l-6-6z" />
+          <path d="M7 17l1-1M10 14l1-1M13 11l1-1M16 8l1-1" />
+        </svg>
+      );
+    case "euro":
+      return (
+        <svg {...common}>
+          <path d="M4 10h11M4 14h11" />
+          <path d="M19 5a8 8 0 1 0 0 14" />
+        </svg>
+      );
+    case "trending":
+      return (
+        <svg {...common}>
+          <path d="M3 17l6-6 4 4 8-8" />
+          <path d="M14 7h7v7" />
+        </svg>
+      );
+    case "bank":
+      return (
+        <svg {...common}>
+          <path d="M3 21h18M3 10h18M12 2L3 7v3h18V7l-9-5z" />
+          <path d="M6 10v8M10 10v8M14 10v8M18 10v8" />
+        </svg>
+      );
+    case "wallet":
+      return (
+        <svg {...common}>
+          <path d="M19 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z" />
+          <path d="M17 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4" />
+          <circle cx="17" cy="14" r="1.5" />
+        </svg>
+      );
+    case "cash":
+      return (
+        <svg {...common}>
+          <path d="M12 6v12" />
+          <path d="M17 9a4 4 0 0 0-4-3h-2a3 3 0 0 0 0 6h2a3 3 0 0 1 0 6h-2a4 4 0 0 1-4-3" />
+        </svg>
+      );
+    case "percent":
+      return (
+        <svg {...common}>
+          <line x1="19" y1="5" x2="5" y2="19" />
+          <circle cx="7" cy="7" r="2" />
+          <circle cx="17" cy="17" r="2" />
+        </svg>
+      );
+    case "ltv":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h9V3" />
+        </svg>
+      );
+  }
 }
 
 function eur(n: number): string {
