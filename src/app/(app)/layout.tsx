@@ -1,15 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, listMemberships } from "@/lib/workspace";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
-import { NavLink } from "@/components/nav-link";
-import { Wordmark } from "@/components/wordmark";
 import { PropertySidebar } from "@/components/property-sidebar";
 import { AppFooter } from "@/components/app-footer";
 import { TopbarAccount } from "@/components/topbar-account";
+import { AppSidebar, type SidebarGroup } from "@/components/app-sidebar";
 import { logout } from "@/app/(auth)/auth-actions";
 import { getPremiumStatus } from "@/lib/billing/premium";
 
@@ -83,40 +81,42 @@ export default async function AppLayout({
     : t("topbar.tier_free");
   const showUpgradeCta = !hasPaidSubscription;
 
+  const sidebarGroups: SidebarGroup[] = [
+    {
+      heading: t("nav.overview_group"),
+      items: [
+        { href: "/", label: t("nav.dashboard"), icon: "dashboard" },
+        { href: "/objekte", label: t("nav.properties"), icon: "building" },
+        { href: "/portfolios", label: t("nav.portfolios"), icon: "briefcase" },
+        { href: "/eigentuemer", label: t("nav.owners"), icon: "user" },
+        { href: "/mieter", label: t("nav.tenants"), icon: "users" },
+      ],
+    },
+    {
+      heading: t("nav.finance"),
+      items: [
+        { href: "/finanzen/guv", label: t("nav.pnl"), icon: "calculator" },
+        { href: "/finanzen/darlehen", label: t("nav.loans"), icon: "building-bank" },
+        { href: "/finanzen/afa", label: t("nav.depreciation"), icon: "chart-line" },
+      ],
+    },
+    {
+      items: [
+        { href: "/investitionen", label: t("nav.investments"), icon: "trending-up" },
+        { href: "/simulationen", label: t("nav.simulations"), icon: "wand" },
+      ],
+    },
+  ];
+
   return (
     <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950">
-      <aside className="w-60 shrink-0 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col">
-        <div className="px-5 py-5 border-b border-neutral-200">
-          <Link href="/" aria-label={t("app.name")} className="block">
-            <Wordmark size="md" tagline />
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-0.5 text-sm">
-          <NavSection>
-            <NavLink href="/">{t("nav.dashboard")}</NavLink>
-            <NavLink href="/objekte">{t("nav.properties")}</NavLink>
-            <NavLink href="/portfolios">{t("nav.portfolios")}</NavLink>
-            <NavLink href="/eigentuemer">{t("nav.owners")}</NavLink>
-            <NavLink href="/mieter">{t("nav.tenants")}</NavLink>
-          </NavSection>
-          <NavGroup label={t("nav.finance")}>
-            <NavLink href="/finanzen/guv">{t("nav.pnl")}</NavLink>
-            <NavLink href="/finanzen/darlehen">{t("nav.loans")}</NavLink>
-            <NavLink href="/finanzen/afa">{t("nav.depreciation")}</NavLink>
-          </NavGroup>
-          <NavSection>
-            <NavLink href="/investitionen">{t("nav.investments")}</NavLink>
-            <NavLink href="/simulationen">{t("nav.simulations")}</NavLink>
-            {/* Stripe Connect (Marketplace-Mode) ist bewusst NICHT in der
-                Nav: die Plattform empfängt selbst Zahlungen (Stripe Billing),
-                kein Marketplace-Use-Case. Code unter /connect bleibt für
-                spätere Reaktivierung erhalten. */}
-          </NavSection>
-          <NavSection>
-            <NavLink href="/einstellungen">{t("nav.settings")}</NavLink>
-          </NavSection>
-        </nav>
-      </aside>
+      <AppSidebar
+        groups={sidebarGroups}
+        brandLabel={t("app.name")}
+        brandTagline={t("app.tagline")}
+        collapseLabelOn={t("nav.collapse")}
+        collapseLabelOff={t("nav.expand")}
+      />
       <PropertySidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-14 px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between gap-4">
@@ -139,24 +139,4 @@ export default async function AppLayout({
   );
 }
 
-function NavSection({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-0.5 mb-3">{children}</div>;
-}
-
-function NavGroup({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-3">
-      <div className="px-2 pt-2 pb-1 text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-        {label}
-      </div>
-      <div className="space-y-0.5">{children}</div>
-    </div>
-  );
-}
 

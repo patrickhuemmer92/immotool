@@ -13,6 +13,7 @@ import {
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { DeletePropertyButton } from "./delete-property-button";
+import { deleteProperty } from "../actions";
 
 const SIGNED_URL_TTL = 60 * 60;
 
@@ -285,6 +286,33 @@ export default async function PropertyFactsheetPage({
               className="w-full h-full object-cover"
             />
           </div>
+        </div>
+      )}
+
+      {property.is_demo && isOwner(active.role) && (
+        <div className="mt-4 rounded-2xl border border-accent/30 bg-accent-soft px-4 py-3 flex items-start gap-3">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent/15 text-accent-foreground border border-accent/30 shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 8v4" /><path d="M12 16h.01" />
+            </svg>
+          </span>
+          <div className="flex-1">
+            <div className="text-sm font-medium">
+              {t("properties.demo_banner_title")}
+            </div>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-0.5">
+              {t("properties.demo_banner_body")}
+            </p>
+          </div>
+          <form action={deleteProperty.bind(null, property.id)}>
+            <button
+              type="submit"
+              className="rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            >
+              {t("properties.demo_banner_remove")}
+            </button>
+          </form>
         </div>
       )}
 
