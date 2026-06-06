@@ -89,6 +89,30 @@
     "invalid_or_used": "This invitation is invalid or has already been used.",
     "accepted": "Invitation accepted."
   },
+  "topbar": {
+    "trial_active": "Trial: {days} days left",
+    "trial_ending_soon": "Trial ends tomorrow",
+    "trial_last_day": "Trial ends today",
+    "trial_expired": "Trial expired",
+    "upgrade": "Upgrade",
+    "menu_my_invoices": "My invoices",
+    "menu_subscription": "Subscription",
+    "menu_settings": "Settings",
+    "menu_referral": "Refer a friend",
+    "menu_logout": "Sign out",
+    "tier_free": "Free",
+    "tier_premium": "Premium",
+    "open_menu": "Open account menu"
+  },
+  "referral": {
+    "title": "Refer a friend",
+    "lead": "Estateably grows by word of mouth. Send your tax advisor, your investor network or landlord friends our way — we will reward you with a discount once the referral program officially launches.",
+    "share_link_label": "Share via email",
+    "share_link_cta": "Compose email",
+    "share_subject": "You should check out Estateably",
+    "share_body": "Hi, I'm using Estateably as a factbook for my real estate — cashflow, depreciation, valuation, amortization plan, PDF export. Take a look: https://estateably.vercel.app",
+    "coming_soon": "Reward program in the making."
+  },
   "settings": {
     "title": "Settings",
     "general": "General",

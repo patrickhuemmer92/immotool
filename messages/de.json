@@ -89,6 +89,30 @@
     "invalid_or_used": "Diese Einladung ist ungültig oder wurde bereits verwendet.",
     "accepted": "Einladung angenommen."
   },
+  "topbar": {
+    "trial_active": "Trial: noch {days} Tage",
+    "trial_ending_soon": "Trial endet morgen",
+    "trial_last_day": "Trial endet heute",
+    "trial_expired": "Trial abgelaufen",
+    "upgrade": "Upgrade",
+    "menu_my_invoices": "Meine Rechnungen",
+    "menu_subscription": "Abonnement",
+    "menu_settings": "Einstellungen",
+    "menu_referral": "Empfehlung",
+    "menu_logout": "Abmelden",
+    "tier_free": "Free",
+    "tier_premium": "Premium",
+    "open_menu": "Konto-Menü öffnen"
+  },
+  "referral": {
+    "title": "Empfehlung",
+    "lead": "Estateably wächst durch Weiterempfehlung. Schick deinen Steuerberater, dein Investorennetzwerk oder befreundete Vermieter:innen vorbei — wir bedanken uns mit einem Rabatt sobald das Empfehlungsprogramm offiziell startet.",
+    "share_link_label": "Teilen über E-Mail",
+    "share_link_cta": "E-Mail vorbereiten",
+    "share_subject": "Du solltest dir Estateably ansehen",
+    "share_body": "Hi, ich nutze Estateably als Factbook für meine Immobilien — Cashflow, AfA, Bewertung, Tilgungsplan, PDF-Export. Schau mal: https://estateably.vercel.app",
+    "coming_soon": "Belohnungs-Programm in Arbeit."
+  },
   "settings": {
     "title": "Einstellungen",
     "general": "Allgemein",
