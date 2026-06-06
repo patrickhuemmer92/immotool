@@ -17,6 +17,10 @@ import {
 import { DiversificationPie } from "@/components/charts/diversification-pie";
 import { CashflowProjectionLine } from "@/components/charts/cashflow-projection-line";
 import { HintBanner } from "@/components/hint-banner";
+import {
+  OnboardingStepper,
+  type OnboardingStep,
+} from "@/components/onboarding-stepper";
 
 /**
  * Dashboard — strictly portfolio-level. No per-property rows or charts here;
@@ -298,6 +302,56 @@ export default async function DashboardPage() {
               }
             : { key: "download_factbook", href: "/api/pdf/factbook/portfolio" };
 
+  // Onboarding-Stepper (Spec Task 2) — vier Schritte. Der "Factbook"-Schritt
+  // wird als erledigt markiert, sobald alle vorherigen erledigt sind; ein
+  // tatsächliches "Download ist erfolgt"-Flag haben wir nicht.
+  const steps: OnboardingStep[] = (() => {
+    const propertyDone = realPropCount > 0;
+    const loanDone = propertyDone && hasAnyLoan;
+    const tenantOrCashflowDone = loanDone && (hasAnyTenant || hasAnySnapshot);
+    const factbookDone = tenantOrCashflowDone;
+    const states = [
+      propertyDone,
+      loanDone,
+      tenantOrCashflowDone,
+      factbookDone,
+    ];
+    // Erster pending = active.
+    const activeIdx = states.findIndex((s) => !s);
+    const stateOf = (i: number): "done" | "active" | "pending" =>
+      states[i] ? "done" : i === activeIdx ? "active" : "pending";
+    return [
+      {
+        id: "property",
+        label: t("dashboard.step_property"),
+        state: stateOf(0),
+        href: "/objekte/neu",
+      },
+      {
+        id: "loan",
+        label: t("dashboard.step_loan"),
+        state: stateOf(1),
+        href: firstRealProperty
+          ? `/objekte/${firstRealProperty.id}/darlehen/neu`
+          : "/objekte",
+      },
+      {
+        id: "tenant_or_cashflow",
+        label: t("dashboard.step_tenant_or_cashflow"),
+        state: stateOf(2),
+        href: firstRealProperty
+          ? `/objekte/${firstRealProperty.id}/mieter`
+          : "/objekte",
+      },
+      {
+        id: "factbook",
+        label: t("dashboard.step_factbook"),
+        state: stateOf(3),
+        href: "/api/pdf/factbook/portfolio",
+      },
+    ];
+  })();
+
   // Ampel-Logik (Schwellen dokumentiert):
   //   Cashflow nach Steuer:   <0 negativ, >0 positiv
   //   Bruttomietrendite:      ≥4% positiv, <3% negativ
@@ -324,6 +378,16 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      {/* Onboarding-Stepper (Spec Task 2): zeigt den 4-Schritte-Pfad, bis
+          alles erledigt ist (und der User dismissed). */}
+      <div className="mb-4">
+        <OnboardingStepper
+          steps={steps}
+          dismissLabel={t("dashboard.stepper_dismiss")}
+          allDoneLabel={t("dashboard.stepper_all_done")}
+        />
+      </div>
+
       {/* Persönlicher Hero (Spec Task 4): heller Akzent-Verlauf, Greeting +
           Next-Step-CTA. Factbook-Download wandert in den Hero, weil "lade
           dein Factbook" oft genau der nächste Schritt ist. */}
@@ -404,8 +468,9 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Sekundär-KPIs kompakter. Bruttomietrendite + LTV mit Ampel. */}
-      <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+      {/* Sekundär-KPIs kompakter. Labels nutzen die "_short"-Varianten, damit
+          kein Truncate nötig ist. Bruttomietrendite + LTV mit Ampel. */}
+      <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3">
         <Kpi
           icon="building"
           label={t("portfolio.kpi_objects")}
@@ -413,33 +478,33 @@ export default async function DashboardPage() {
         />
         <Kpi
           icon="ruler"
-          label={t("portfolio.kpi_sqm")}
+          label={t("portfolio.kpi_sqm_short")}
           value={totalSqm.toLocaleString("de-DE", { maximumFractionDigits: 0 })}
         />
         <Kpi
           icon="euro"
-          label={t("portfolio.kpi_purchase_total")}
+          label={t("portfolio.kpi_purchase_total_short")}
           value={eur(totalPurchase)}
         />
         <Kpi
           icon="trending"
-          label={t("portfolio.kpi_value_combined")}
+          label={t("portfolio.kpi_value_combined_short")}
           value={eur(totalValue)}
         />
         <Kpi
           icon="bank"
-          label={t("portfolio.kpi_remaining_loans")}
+          label={t("portfolio.kpi_remaining_loans_short")}
           value={eur(totalLoans)}
         />
         <Kpi
           icon="percent"
-          label={t("portfolio.kpi_gross_yield")}
+          label={t("portfolio.kpi_gross_yield_short")}
           value={grossYieldPct != null ? `${grossYieldPct.toFixed(2)} %` : "—"}
           tone={yieldTone}
         />
         <Kpi
           icon="ltv"
-          label={t("portfolio.kpi_ltv")}
+          label={t("portfolio.kpi_ltv_short")}
           value={ltvPct != null ? `${ltvPct.toFixed(1)} %` : "—"}
           tone={ltvTone}
         />

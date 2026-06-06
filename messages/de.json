@@ -130,7 +130,26 @@
     "hint_no_tenant_cta": "Mieter erfassen",
     "hint_no_valuation_title": "Noch keine Bewertung",
     "hint_no_valuation_body": "Der Marktwert fehlt — leg eine Bewertung an (Ertragswert + Sachwert), damit LTV und Equity stimmen.",
-    "hint_no_valuation_cta": "Bewertung anlegen"
+    "hint_no_valuation_cta": "Bewertung anlegen",
+    "step_property": "Objekt anlegen",
+    "step_loan": "Darlehen erfassen",
+    "step_tenant_or_cashflow": "Mieter & Cashflow",
+    "step_factbook": "Factbook exportieren",
+    "stepper_dismiss": "Ausblenden",
+    "stepper_all_done": "Alle Schritte erledigt — Portfolio bereit für die Bank."
+  },
+  "search": {
+    "title": "Suche",
+    "placeholder": "Suche nach Objekt, Eigentümer, Mieter …",
+    "open_button": "Suche öffnen",
+    "loading": "Wird geladen …",
+    "empty": "Keine Treffer.",
+    "kind_property": "Objekt",
+    "kind_portfolio": "Portfolio",
+    "kind_owner": "Eigentümer",
+    "kind_tenant": "Mieter",
+    "hint_navigate": "navigieren",
+    "hint_open": "öffnen"
   },
   "referral": {
     "title": "Empfehlung",
@@ -747,6 +766,10 @@
     "kpi_purchase_total_short": "Anschaffung",
     "kpi_remaining_loans_short": "Restschuld",
     "kpi_equity_short": "Eigenkapital",
+    "kpi_sqm_short": "Wohnfläche (m²)",
+    "kpi_value_combined_short": "Marktwert",
+    "kpi_gross_yield_short": "Mietrendite",
+    "kpi_ltv_short": "Beleihung",
     "owner_subtotal": "Zwischensumme",
     "grand_total": "Gesamt",
     "no_owner": "Ohne Eigentümer",
