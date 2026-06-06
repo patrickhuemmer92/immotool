@@ -96,7 +96,12 @@ export default async function DashboardPage() {
   // Aggregate diversification per city.
   const cityTotals = new Map<string, number>();
   // Aggregate cashflow projection per calendar year across all properties.
+  // Wir tracken zusätzlich pro Property den ersten/letzten Kalenderjahr-
+  // Datenpunkt — damit wir später auf den Überlapp aller Properties cappen
+  // können (sonst entstehen am Anfang/Ende Aggregations-Cliffs, wenn die
+  // Properties unterschiedliche transfer_date haben).
   const projectionByYear = new Map<number, number>();
+  const projectionRanges: Array<{ min: number; max: number }> = [];
   const projectionYears = Array.from({ length: 30 }, (_, i) => i + 1);
 
   const settingsForCalc = settings ?? {
@@ -213,6 +218,13 @@ export default async function DashboardPage() {
         settings: settingsForCalc,
         years: projectionYears,
       });
+      if (proj.length > 0) {
+        const years = proj.map((r) => r.calendarYear);
+        projectionRanges.push({
+          min: Math.min(...years),
+          max: Math.max(...years),
+        });
+      }
       for (const row of proj) {
         projectionByYear.set(
           row.calendarYear,
@@ -220,6 +232,20 @@ export default async function DashboardPage() {
         );
       }
     }
+  }
+
+  // Cliff-Fix: nur Jahre behalten, in denen jede projezierende Property
+  // einen Beitrag geliefert hat (= Überlapp aller Ranges). Vermeidet
+  // Aggregations-Sprünge am Anfang/Ende, wenn die Objekte unterschiedliche
+  // transfer_date haben.
+  const overlapMin = projectionRanges.length
+    ? Math.max(...projectionRanges.map((r) => r.min))
+    : Infinity;
+  const overlapMax = projectionRanges.length
+    ? Math.min(...projectionRanges.map((r) => r.max))
+    : -Infinity;
+  for (const y of Array.from(projectionByYear.keys())) {
+    if (y < overlapMin || y > overlapMax) projectionByYear.delete(y);
   }
 
   const totalsBarRows: PortfolioTotalsRow[] = [
