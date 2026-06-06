@@ -130,7 +130,26 @@
     "hint_no_tenant_cta": "Add tenant",
     "hint_no_valuation_title": "No valuation yet",
     "hint_no_valuation_body": "Market value is missing — add a valuation (income + replacement) so LTV and equity are right.",
-    "hint_no_valuation_cta": "Add valuation"
+    "hint_no_valuation_cta": "Add valuation",
+    "step_property": "Add property",
+    "step_loan": "Add loan",
+    "step_tenant_or_cashflow": "Tenant & cashflow",
+    "step_factbook": "Export factbook",
+    "stepper_dismiss": "Hide",
+    "stepper_all_done": "All steps done — portfolio ready for the bank."
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search property, owner, tenant …",
+    "open_button": "Open search",
+    "loading": "Loading …",
+    "empty": "No matches.",
+    "kind_property": "Property",
+    "kind_portfolio": "Portfolio",
+    "kind_owner": "Owner",
+    "kind_tenant": "Tenant",
+    "hint_navigate": "navigate",
+    "hint_open": "open"
   },
   "referral": {
     "title": "Refer a friend",
@@ -747,6 +766,10 @@
     "kpi_purchase_total_short": "Acquisition",
     "kpi_remaining_loans_short": "Debt",
     "kpi_equity_short": "Equity",
+    "kpi_sqm_short": "Area (m²)",
+    "kpi_value_combined_short": "Market value",
+    "kpi_gross_yield_short": "Yield",
+    "kpi_ltv_short": "LTV",
     "owner_subtotal": "Subtotal",
     "grand_total": "Total",
     "no_owner": "Without owner",

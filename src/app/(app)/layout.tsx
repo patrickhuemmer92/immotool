@@ -8,6 +8,8 @@ import { PropertySidebar } from "@/components/property-sidebar";
 import { AppFooter } from "@/components/app-footer";
 import { TopbarAccount } from "@/components/topbar-account";
 import { AppSidebar, type SidebarGroup } from "@/components/app-sidebar";
+import { CommandPalette } from "@/components/command-palette";
+import { CommandPaletteTrigger } from "@/components/command-palette-trigger";
 import { logout } from "@/app/(auth)/auth-actions";
 import { getPremiumStatus } from "@/lib/billing/premium";
 
@@ -110,6 +112,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950">
+      <CommandPalette />
       <AppSidebar
         groups={sidebarGroups}
         brandLabel={t("app.name")}
@@ -122,6 +125,7 @@ export default async function AppLayout({
         <header className="h-14 px-6 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex items-center justify-between gap-4">
           <WorkspaceSwitcher workspaces={memberships} active={active} />
           <div className="flex items-center gap-3">
+            <CommandPaletteTrigger />
             <LocaleSwitcher />
             <TopbarAccount
               email={user.email ?? ""}
