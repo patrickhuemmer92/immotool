@@ -107,6 +107,21 @@
     "tier_premium": "Premium",
     "open_menu": "Konto-Menü öffnen"
   },
+  "dashboard": {
+    "welcome": "Willkommen, {name}",
+    "next_create_real_title": "Dein nächster Schritt",
+    "next_create_real_body": "Lege dein erstes echtes Objekt an — du kannst die Beispiel-Wohnung danach jederzeit entfernen.",
+    "next_create_real_cta": "Objekt anlegen",
+    "next_add_loan_title": "Dein nächster Schritt",
+    "next_add_loan_body": "Hinterlege ein Darlehen, damit Restschuld, Cashflow und LTV korrekt rechnen.",
+    "next_add_loan_cta": "Darlehen anlegen",
+    "next_add_snapshot_title": "Dein nächster Schritt",
+    "next_add_snapshot_body": "Erfasse einen Cashflow-Snapshot — danach sind Bruttomietrendite und Cashflow nach Steuer aktiv.",
+    "next_add_snapshot_cta": "Cashflow erfassen",
+    "next_download_factbook_title": "Bereit für die Bank?",
+    "next_download_factbook_body": "Dein Portfolio ist vollständig erfasst — lade jetzt dein Factbook als PDF herunter.",
+    "next_download_factbook_cta": "Factbook herunterladen"
+  },
   "referral": {
     "title": "Empfehlung",
     "lead": "Estateably wächst durch Weiterempfehlung. Schick deinen Steuerberater, dein Investorennetzwerk oder befreundete Vermieter:innen vorbei — wir bedanken uns mit einem Rabatt sobald das Empfehlungsprogramm offiziell startet.",

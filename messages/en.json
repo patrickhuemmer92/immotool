@@ -107,6 +107,21 @@
     "tier_premium": "Premium",
     "open_menu": "Open account menu"
   },
+  "dashboard": {
+    "welcome": "Welcome, {name}",
+    "next_create_real_title": "Your next step",
+    "next_create_real_body": "Add your first real property — you can remove the demo apartment any time after that.",
+    "next_create_real_cta": "Add property",
+    "next_add_loan_title": "Your next step",
+    "next_add_loan_body": "Add a loan so debt, cashflow and LTV compute correctly.",
+    "next_add_loan_cta": "Add loan",
+    "next_add_snapshot_title": "Your next step",
+    "next_add_snapshot_body": "Record a cashflow snapshot — gross yield and after-tax cashflow turn on after that.",
+    "next_add_snapshot_cta": "Record cashflow",
+    "next_download_factbook_title": "Ready for the bank?",
+    "next_download_factbook_body": "Your portfolio is fully captured — download your factbook as a PDF now.",
+    "next_download_factbook_cta": "Download factbook"
+  },
   "referral": {
     "title": "Refer a friend",
     "lead": "Estateably grows by word of mouth. Send your tax advisor, your investor network or landlord friends our way — we will reward you with a discount once the referral program officially launches.",
