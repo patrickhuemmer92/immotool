@@ -13,8 +13,6 @@ import { CommandPaletteTrigger } from "@/components/command-palette-trigger";
 import { logout } from "@/app/(auth)/auth-actions";
 import { getPremiumStatus } from "@/lib/billing/premium";
 
-const SIGNUP_TRIAL_DAYS = 7;
-
 function daysBetween(future: Date, now: Date): number {
   const ms = future.getTime() - now.getTime();
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
@@ -61,18 +59,17 @@ export default async function AppLayout({
     premiumStatus = null;
   }
   const now = new Date();
+  // Stripe-Trial gewinnt, falls einer aktiv ist; sonst der Workspace-
+  // Setup-Trial (7 Tage ab Workspace-Anlage). Beide hängen am gleichen
+  // Premium-Gate — was die Topbar zeigt, ist genau das, was die Backend-
+  // Logik durchsetzt.
   const stripeTrialDays =
     premiumStatus?.stripeTrialEnd
       ? daysBetween(new Date(premiumStatus.stripeTrialEnd), now)
       : null;
-  const signupTrialEnd = new Date(
-    new Date(user.created_at).getTime() +
-      SIGNUP_TRIAL_DAYS * 24 * 60 * 60 * 1000
-  );
-  const signupTrialDays =
-    !premiumStatus?.hasPaidSubscription && signupTrialEnd.getTime() > now.getTime()
-      ? daysBetween(signupTrialEnd, now)
-      : null;
+  const signupTrialDays = premiumStatus?.inSignupTrial
+    ? daysBetween(new Date(premiumStatus.signupTrialEndsAt!), now)
+    : null;
   const trialDaysRemaining =
     stripeTrialDays != null && stripeTrialDays >= 0
       ? stripeTrialDays

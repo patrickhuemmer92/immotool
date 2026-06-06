@@ -46,6 +46,11 @@ export type PremiumStatus = {
   stripeSubscriptionId: string | null;
   /** Stripe trial_end timestamp falls vorhanden. */
   stripeTrialEnd: string | null;
+  /** 7-Tage-Workspace-Setup-Trial (workspaces.trial_ends_at). NULL = legacy
+   *  Workspace ohne Trial-Wert; ansonsten ISO timestamp wann der Trial endet. */
+  signupTrialEndsAt: string | null;
+  /** Convenience: true wenn signupTrialEndsAt in der Zukunft liegt. */
+  inSignupTrial: boolean;
   /**
    * KERN-FLAG: Hat dieser Workspace Premium-Features verfügbar?
    * true wenn (propertyCount ≤ 1) ODER (active subscription + subscribed_quantity ≥ propertyCount)
@@ -69,19 +74,25 @@ export async function getPremiumStatus(
   workspaceId: string
 ): Promise<PremiumStatus> {
   const supabase = await createClient();
-  const [{ count: propertyCount }, { data: sub }] = await Promise.all([
-    supabase
-      .from("properties")
-      .select("id", { count: "exact", head: true })
-      .eq("workspace_id", workspaceId),
-    supabase
-      .from("subscriptions")
-      .select(
-        "stripe_customer_id, stripe_subscription_id, status, subscribed_quantity, trial_end"
-      )
-      .eq("workspace_id", workspaceId)
-      .maybeSingle(),
-  ]);
+  const [{ count: propertyCount }, { data: sub }, { data: ws }] =
+    await Promise.all([
+      supabase
+        .from("properties")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspaceId),
+      supabase
+        .from("subscriptions")
+        .select(
+          "stripe_customer_id, stripe_subscription_id, status, subscribed_quantity, trial_end"
+        )
+        .eq("workspace_id", workspaceId)
+        .maybeSingle(),
+      supabase
+        .from("workspaces")
+        .select("trial_ends_at")
+        .eq("id", workspaceId)
+        .maybeSingle(),
+    ]);
 
   const count = propertyCount ?? 0;
   const subStatus = sub?.status ?? null;
@@ -90,13 +101,21 @@ export async function getPremiumStatus(
     ? ACTIVE_STATUSES.has(subStatus) && subQty >= 2
     : false;
 
+  const signupTrialEndsAt = ws?.trial_ends_at ?? null;
+  const inSignupTrial =
+    signupTrialEndsAt != null &&
+    new Date(signupTrialEndsAt).getTime() > Date.now();
+
   const requiredQuantity = Math.max(1, count);
 
   const isPremiumByFree = count <= FREE_TIER_LIMIT;
   const isPremiumByPaid =
     !!subStatus && ACTIVE_STATUSES.has(subStatus) && subQty >= count;
 
-  const isPremium = isPremiumByFree || isPremiumByPaid;
+  // Während des Workspace-Trials hat der User volle Premium-Features —
+  // auch über das Free-Limit hinaus. Nach Ablauf greifen die normalen
+  // Regeln (1 Objekt frei, ab 2 wird Abo benötigt).
+  const isPremium = isPremiumByFree || isPremiumByPaid || inSignupTrial;
 
   const needsQuantityUpgrade =
     !!subStatus && ACTIVE_STATUSES.has(subStatus) && subQty < count;
@@ -108,6 +127,8 @@ export async function getPremiumStatus(
     stripeCustomerId: sub?.stripe_customer_id ?? null,
     stripeSubscriptionId: sub?.stripe_subscription_id ?? null,
     stripeTrialEnd: sub?.trial_end ?? null,
+    signupTrialEndsAt,
+    inSignupTrial,
     isPremium,
     hasPaidSubscription,
     needsQuantityUpgrade,
