@@ -285,3 +285,143 @@ export async function deleteProperty(id: string) {
   revalidatePath("/objekte");
   redirect("/objekte");
 }
+
+/**
+ * Manueller Demo-Seed für bestehende User.
+ *
+ * Der `handle_new_user`-Trigger seeded automatisch eine Beispiel-Wohnung
+ * für NEUE Signups (Migration 0023). Bestehende User, die vor der
+ * Migration registriert wurden, sehen diese aber nie — diese Action
+ * füllt die Lücke. Owner-only, idempotent über is_demo-Check.
+ *
+ * Setzt:
+ *   - eine Beispiel-Wohnung in München (350k Kaufpreis, 65 m², ~1y alt)
+ *   - ein Annuitätendarlehen (320k @ 3,5 % Zins, 2 % Tilgung)
+ *   - einen Bestandsmieter (1.150 € Kalt + 220 € NK, unbefristet)
+ *   - eine Portfolio-Bewertung (60 % Ertragswert / 40 % Sachwert)
+ */
+export async function seedDemoProperty(_formData?: FormData): Promise<void> {
+  const active = await getActiveWorkspace();
+  if (!active) {
+    console.error("[seedDemoProperty] no active workspace");
+    return;
+  }
+  if (active.role !== "owner") {
+    console.error("[seedDemoProperty] not owner");
+    return;
+  }
+
+  const supabase = await createClient();
+
+  // Idempotenz: wenn schon ein Demo-Objekt existiert → no-op.
+  const { count } = await supabase
+    .from("properties")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", active.id)
+    .eq("is_demo", true);
+  if ((count ?? 0) > 0) {
+    revalidatePath("/objekte");
+    return;
+  }
+
+  // transfer_dt = vor ~12 Monaten.
+  const today = new Date();
+  const transferDt = new Date(
+    Date.UTC(today.getUTCFullYear() - 1, today.getUTCMonth(), today.getUTCDate())
+  );
+  const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+  const transferIso = isoDay(transferDt);
+  const notaryIso = isoDay(
+    new Date(transferDt.getTime() - 60 * 24 * 60 * 60 * 1000)
+  );
+  const registrationIso = isoDay(
+    new Date(transferDt.getTime() + 90 * 24 * 60 * 60 * 1000)
+  );
+  const firstPaymentIso = isoDay(
+    new Date(transferDt.getTime() + 30 * 24 * 60 * 60 * 1000)
+  );
+  const rateLockIso = isoDay(
+    new Date(
+      Date.UTC(
+        transferDt.getUTCFullYear() + 10,
+        transferDt.getUTCMonth(),
+        transferDt.getUTCDate()
+      )
+    )
+  );
+
+  const { data: prop, error: propErr } = await supabase
+    .from("properties")
+    .insert({
+      workspace_id: active.id,
+      kind: "apartment",
+      is_demo: true,
+      street: "Beispielstraße 12",
+      postal_code: "80331",
+      city: "München",
+      location_detail: "2. OG links",
+      description: "2 Z. ETW",
+      sqm: 65,
+      notary_appointment: notaryIso,
+      transfer_date: transferIso,
+      registration_date: registrationIso,
+      purchase_price: 350000,
+      transfer_tax: 12250,
+      broker_fee: 0,
+      notary_fee: 5250,
+      registration_cost: 1750,
+      equity_amount: 50000,
+      land_value: 70000,
+      building_value_share_pct: 0.8,
+      depreciation_rate: 0.02,
+      notes:
+        "Beispiel-Datensatz — du kannst diese Wohnung jederzeit löschen oder durch dein echtes Objekt ersetzen.",
+    })
+    .select("id")
+    .single();
+
+  if (propErr || !prop) {
+    console.error("[seedDemoProperty] property insert failed:", propErr);
+    return;
+  }
+
+  // Loan + Tenant + Valuation parallel. Fehler an dieser Stelle blockieren
+  // den Seed nicht — die Property steht dann ohne Begleitdaten da und der
+  // User sieht trotzdem etwas.
+  await Promise.all([
+    supabase.from("loans").insert({
+      property_id: prop.id,
+      designation: "Beispiel-Annuitätendarlehen",
+      bank: "Beispielbank",
+      disbursement_date: transferIso,
+      loan_amount: 320000,
+      interest_rate_pa: 0.035,
+      amortization_pa: 0.02,
+      first_payment_date: firstPaymentIso,
+      rate_lock_until: rateLockIso,
+    }),
+    supabase.from("tenants").insert({
+      property_id: prop.id,
+      name: "Familie Beispiel",
+      contract_start: transferIso,
+      is_fixed_term: false,
+      contract_end: null,
+      cold_rent_per_month: 1150,
+      ancillary_costs_per_month: 220,
+      notes: "Demo-Mietvertrag",
+    }),
+    supabase.from("portfolio_valuations").insert({
+      property_id: prop.id,
+      valuation_date: isoDay(today),
+      condition_score: 8,
+      market_rent_per_sqm: 18,
+      multiple: 25,
+      building_value: 300000,
+      income_weight: 0.6,
+    }),
+  ]);
+
+  revalidatePath("/objekte");
+  revalidatePath("/");
+  redirect(`/objekte/${prop.id}`);
+}

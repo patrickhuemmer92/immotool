@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
-import { getActiveWorkspace, canEdit } from "@/lib/workspace";
+import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
 import { formatPropertyAddress, type PropertyKind } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
+import { seedDemoProperty } from "./actions";
 
 export default async function PropertiesPage() {
   const t = await getTranslations();
@@ -14,7 +15,7 @@ export default async function PropertiesPage() {
   const { data: properties } = await supabase
     .from("properties")
     .select(
-      `id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price, land_value,
+      `id, kind, parent_property_id, street, postal_code, city, location_detail, description, sqm, purchase_price, land_value, is_demo,
        portfolio_valuations(valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight)`
     )
     .eq("workspace_id", active.id)
@@ -61,13 +62,39 @@ export default async function PropertiesPage() {
     marketValue.set(p.id, r.combined);
   }
 
+  const hasDemo = (properties ?? []).some((p) => p.is_demo);
+  const canSeedDemo = isOwner(active.role) && !hasDemo;
+
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">
           {t("properties.title")}
         </h1>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {canSeedDemo && (
+            <form action={seedDemoProperty}>
+              <button
+                type="submit"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-accent/30 bg-accent-soft text-accent-foreground px-3 py-1.5 text-sm font-medium hover:bg-accent/20"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                {t("properties.load_demo")}
+              </button>
+            </form>
+          )}
           <a
             href="/api/pdf/factbook/portfolio"
             target="_blank"
