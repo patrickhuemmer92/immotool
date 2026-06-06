@@ -24,7 +24,8 @@
     "none": "Keine",
     "empty": "Keine Einträge",
     "set_cover": "Als Titelbild",
-    "is_cover": "Titelbild"
+    "is_cover": "Titelbild",
+    "close": "Schließen"
   },
   "theme": {
     "light": "Hell",
@@ -120,7 +121,16 @@
     "next_add_snapshot_cta": "Cashflow erfassen",
     "next_download_factbook_title": "Bereit für die Bank?",
     "next_download_factbook_body": "Dein Portfolio ist vollständig erfasst — lade jetzt dein Factbook als PDF herunter.",
-    "next_download_factbook_cta": "Factbook herunterladen"
+    "next_download_factbook_cta": "Factbook herunterladen",
+    "hint_no_loan_title": "Noch kein Darlehen erfasst",
+    "hint_no_loan_body": "LTV und Cashflow rechnen ohne Darlehen unvollständig — leg eines an, damit die Zahlen stimmen.",
+    "hint_no_loan_cta": "Darlehen hinterlegen",
+    "hint_no_tenant_title": "Keine Miete hinterlegt",
+    "hint_no_tenant_body": "Ohne Mieter kann die Bruttomietrendite nicht berechnet werden. Erfasse Kaltmiete und Nebenkosten.",
+    "hint_no_tenant_cta": "Mieter erfassen",
+    "hint_no_valuation_title": "Noch keine Bewertung",
+    "hint_no_valuation_body": "Der Marktwert fehlt — leg eine Bewertung an (Ertragswert + Sachwert), damit LTV und Equity stimmen.",
+    "hint_no_valuation_cta": "Bewertung anlegen"
   },
   "referral": {
     "title": "Empfehlung",

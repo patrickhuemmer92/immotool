@@ -5,6 +5,10 @@ import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
 import { formatPropertyAddress, type PropertyKind } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { seedDemoProperty } from "./actions";
+import {
+  PropertiesTable,
+  type PropertiesTableRow,
+} from "./properties-table";
 
 export default async function PropertiesPage() {
   const t = await getTranslations();
@@ -128,99 +132,21 @@ export default async function PropertiesPage() {
             {t("properties.empty")}
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-            <table className="w-full text-sm">
-              <thead className="bg-neutral-50 dark:bg-neutral-900">
-                <tr className="text-left">
-                  <Th>{t("properties.kind_label")}</Th>
-                  <Th>{t("properties.section_address")}</Th>
-                  <Th>{t("properties.sqm")}</Th>
-                  <Th>{t("properties.purchase_price")}</Th>
-                  <Th>{t("valuation.combined")}</Th>
-                  <Th></Th>
-                </tr>
-              </thead>
-              <tbody>
-                {properties.map((p) => (
-                  <tr
-                    key={p.id}
-                    className="border-t border-neutral-200 dark:border-neutral-800"
-                  >
-                    <Td>
-                      <KindBadge
-                        kind={(p.kind as PropertyKind) ?? "apartment"}
-                        t={t}
-                      />
-                    </Td>
-                    <Td>
-                      <Link
-                        href={`/objekte/${p.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {formatPropertyAddress(p)}
-                      </Link>
-                    </Td>
-                    <Td>{formatNumber(p.sqm)}</Td>
-                    <Td>{formatCurrency(p.purchase_price)}</Td>
-                    <Td>{formatCurrency(marketValue.get(p.id) ?? null)}</Td>
-                    <Td>
-                      <Link
-                        href={`/objekte/${p.id}`}
-                        className="text-sm text-neutral-700 dark:text-neutral-300 hover:underline"
-                      >
-                        {t("common.edit")} →
-                      </Link>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PropertiesTable
+            rows={(properties ?? []).map<PropertiesTableRow>((p) => ({
+              id: p.id,
+              kind: (p.kind as PropertyKind) ?? "apartment",
+              address: formatPropertyAddress(p),
+              sqm: p.sqm == null ? null : Number(p.sqm),
+              purchasePrice:
+                p.purchase_price == null ? null : Number(p.purchase_price),
+              marketValue: marketValue.get(p.id) ?? null,
+              isDemo: !!p.is_demo,
+            }))}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function formatNumber(v: string | number | null | undefined): string {
-  if (v === null || v === undefined || v === "") return "—";
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString("de-DE", { maximumFractionDigits: 2 });
-}
-
-function formatCurrency(v: string | number | null | undefined): string {
-  if (v === null || v === undefined || v === "") return "—";
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return "—";
-  return n.toLocaleString("de-DE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  });
-}
-
-function KindBadge({
-  kind,
-  t,
-}: {
-  kind: PropertyKind;
-  t: (k: string) => string;
-}) {
-  return (
-    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
-      {t(`properties.kind_${kind}`)}
-    </span>
-  );
-}
-
-function Th({ children }: { children?: React.ReactNode }) {
-  return (
-    <th className="px-4 py-2 text-xs font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
-      {children}
-    </th>
-  );
-}
-function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-2 align-middle">{children}</td>;
-}

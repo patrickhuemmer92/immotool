@@ -24,7 +24,8 @@
     "none": "None",
     "empty": "No entries",
     "set_cover": "Set as cover",
-    "is_cover": "Cover"
+    "is_cover": "Cover",
+    "close": "Close"
   },
   "theme": {
     "light": "Light",
@@ -120,7 +121,16 @@
     "next_add_snapshot_cta": "Record cashflow",
     "next_download_factbook_title": "Ready for the bank?",
     "next_download_factbook_body": "Your portfolio is fully captured — download your factbook as a PDF now.",
-    "next_download_factbook_cta": "Download factbook"
+    "next_download_factbook_cta": "Download factbook",
+    "hint_no_loan_title": "No loan recorded yet",
+    "hint_no_loan_body": "LTV and cashflow can't compute without a loan — add one to make the numbers correct.",
+    "hint_no_loan_cta": "Add loan",
+    "hint_no_tenant_title": "No rent on file",
+    "hint_no_tenant_body": "Gross yield can't be computed without a tenant. Record cold rent and ancillary costs.",
+    "hint_no_tenant_cta": "Add tenant",
+    "hint_no_valuation_title": "No valuation yet",
+    "hint_no_valuation_body": "Market value is missing — add a valuation (income + replacement) so LTV and equity are right.",
+    "hint_no_valuation_cta": "Add valuation"
   },
   "referral": {
     "title": "Refer a friend",

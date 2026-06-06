@@ -16,6 +16,7 @@ import {
 } from "@/components/charts/portfolio-totals-bar";
 import { DiversificationPie } from "@/components/charts/diversification-pie";
 import { CashflowProjectionLine } from "@/components/charts/cashflow-projection-line";
+import { HintBanner } from "@/components/hint-banner";
 
 /**
  * Dashboard — strictly portfolio-level. No per-property rows or charts here;
@@ -248,14 +249,25 @@ export default async function DashboardPage() {
   const ltvPct =
     totalValue > 0 ? (totalLoans / totalValue) * 100 : null;
 
-  // Onboarding-State für die persönliche Begrüßung (Spec Task 4).
-  type PropertyRow = { id: string; is_demo?: boolean | null; loans?: unknown[]; pnl_snapshots?: unknown[] };
+  // Onboarding-State für die persönliche Begrüßung (Spec Task 4) +
+  // Hinweis-Banner (Spec Task 5).
+  type PropertyRow = {
+    id: string;
+    is_demo?: boolean | null;
+    loans?: unknown[];
+    pnl_snapshots?: unknown[];
+    portfolio_valuations?: unknown[];
+  };
   const propList = (properties ?? []) as PropertyRow[];
   const propCount = propList.length;
   const realPropCount = propList.filter((p) => !p.is_demo).length;
   const firstRealProperty = propList.find((p) => !p.is_demo);
   const hasAnyLoan = propList.some((p) => (p.loans ?? []).length > 0);
   const hasAnySnapshot = propList.some((p) => (p.pnl_snapshots ?? []).length > 0);
+  const hasAnyValuation = propList.some(
+    (p) => (p.portfolio_valuations ?? []).length > 0
+  );
+  const hasAnyTenant = (tenants ?? []).length > 0;
 
   const firstName = deriveFirstName(
     user?.user_metadata?.first_name,
@@ -335,6 +347,46 @@ export default async function DashboardPage() {
             : null
         }
       />
+
+      {/* Hinweis-Banner (Spec Task 5) — nur wenn überhaupt ein echtes
+          Objekt da ist; sonst übernimmt der Next-Step im Hero die Führung. */}
+      {firstRealProperty && (!hasAnyLoan || !hasAnyTenant || !hasAnyValuation) && (
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {!hasAnyLoan && (
+            <HintBanner
+              id="dashboard-no-loan"
+              tone="warning"
+              title={t("dashboard.hint_no_loan_title")}
+              body={t("dashboard.hint_no_loan_body")}
+              cta={t("dashboard.hint_no_loan_cta")}
+              ctaHref={`/objekte/${firstRealProperty.id}/darlehen/neu`}
+              dismissLabel={t("common.close")}
+            />
+          )}
+          {!hasAnyTenant && (
+            <HintBanner
+              id="dashboard-no-tenant"
+              tone="info"
+              title={t("dashboard.hint_no_tenant_title")}
+              body={t("dashboard.hint_no_tenant_body")}
+              cta={t("dashboard.hint_no_tenant_cta")}
+              ctaHref={`/objekte/${firstRealProperty.id}/mieter`}
+              dismissLabel={t("common.close")}
+            />
+          )}
+          {!hasAnyValuation && (
+            <HintBanner
+              id="dashboard-no-valuation"
+              tone="info"
+              title={t("dashboard.hint_no_valuation_title")}
+              body={t("dashboard.hint_no_valuation_body")}
+              cta={t("dashboard.hint_no_valuation_cta")}
+              ctaHref={`/objekte/${firstRealProperty.id}/bewertung`}
+              dismissLabel={t("common.close")}
+            />
+          )}
+        </div>
+      )}
 
       {/* Primär-KPIs (Spec Task 6): Eigenkapital + Cashflow n. Steuer prominent. */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
