@@ -333,6 +333,7 @@
     "demo_banner_title": "Beispiel-Objekt",
     "demo_banner_body": "Diese Wohnung haben wir mit Beispieldaten befüllt, damit du Cashflow, AfA und Bewertung gleich in Aktion siehst. Lösch sie, sobald du dein erstes echtes Objekt anlegst.",
     "demo_banner_remove": "Beispiel entfernen",
+    "load_demo": "Beispiel laden",
     "kind_label": "Objekt-Typ",
     "kind_apartment": "Wohnung",
     "kind_house": "Haus",

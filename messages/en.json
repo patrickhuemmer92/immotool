@@ -333,6 +333,7 @@
     "demo_banner_title": "Demo property",
     "demo_banner_body": "We seeded this apartment with example data so you can see cashflow, depreciation and valuation in action right away. Remove it once you add your first real property.",
     "demo_banner_remove": "Remove demo",
+    "load_demo": "Load demo",
     "kind_label": "Property type",
     "kind_apartment": "Apartment",
     "kind_house": "House",
