@@ -9,7 +9,16 @@ import { NavLink } from "@/components/nav-link";
 import { Wordmark } from "@/components/wordmark";
 import { PropertySidebar } from "@/components/property-sidebar";
 import { AppFooter } from "@/components/app-footer";
+import { TopbarAccount } from "@/components/topbar-account";
 import { logout } from "@/app/(auth)/auth-actions";
+import { getPremiumStatus } from "@/lib/billing/premium";
+
+const SIGNUP_TRIAL_DAYS = 7;
+
+function daysBetween(future: Date, now: Date): number {
+  const ms = future.getTime() - now.getTime();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
 
 export default async function AppLayout({
   children,
@@ -42,6 +51,37 @@ export default async function AppLayout({
   }
 
   const t = await getTranslations();
+
+  // Premium-/Trial-Status für die Topbar (kein Crash, falls Billing-Tabellen
+  // fehlen — der Endpoint liefert sichere Defaults).
+  let premiumStatus: Awaited<ReturnType<typeof getPremiumStatus>> | null = null;
+  try {
+    premiumStatus = await getPremiumStatus(active.id);
+  } catch {
+    premiumStatus = null;
+  }
+  const now = new Date();
+  const stripeTrialDays =
+    premiumStatus?.stripeTrialEnd
+      ? daysBetween(new Date(premiumStatus.stripeTrialEnd), now)
+      : null;
+  const signupTrialEnd = new Date(
+    new Date(user.created_at).getTime() +
+      SIGNUP_TRIAL_DAYS * 24 * 60 * 60 * 1000
+  );
+  const signupTrialDays =
+    !premiumStatus?.hasPaidSubscription && signupTrialEnd.getTime() > now.getTime()
+      ? daysBetween(signupTrialEnd, now)
+      : null;
+  const trialDaysRemaining =
+    stripeTrialDays != null && stripeTrialDays >= 0
+      ? stripeTrialDays
+      : signupTrialDays;
+  const hasPaidSubscription = premiumStatus?.hasPaidSubscription ?? false;
+  const tierLabel = hasPaidSubscription
+    ? t("topbar.tier_premium")
+    : t("topbar.tier_free");
+  const showUpgradeCta = !hasPaidSubscription;
 
   return (
     <div className="min-h-screen flex bg-neutral-50 dark:bg-neutral-950">
@@ -76,19 +116,6 @@ export default async function AppLayout({
             <NavLink href="/einstellungen">{t("nav.settings")}</NavLink>
           </NavSection>
         </nav>
-        <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
-          <div className="px-2 text-xs text-neutral-500 dark:text-neutral-400 truncate">
-            {user.email}
-          </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="w-full text-left rounded-md px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            >
-              {t("nav.logout")}
-            </button>
-          </form>
-        </div>
       </aside>
       <PropertySidebar />
       <div className="flex-1 flex flex-col min-w-0">
@@ -96,6 +123,13 @@ export default async function AppLayout({
           <WorkspaceSwitcher workspaces={memberships} active={active} />
           <div className="flex items-center gap-3">
             <LocaleSwitcher />
+            <TopbarAccount
+              email={user.email ?? ""}
+              trialDaysRemaining={trialDaysRemaining}
+              hasPaidSubscription={hasPaidSubscription}
+              tierLabel={tierLabel}
+              showUpgradeCta={showUpgradeCta}
+            />
           </div>
         </header>
         <main className="flex-1 p-8 overflow-auto">{children}</main>

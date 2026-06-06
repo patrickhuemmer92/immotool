@@ -44,6 +44,8 @@ export type PremiumStatus = {
   stripeCustomerId: string | null;
   /** Stripe-Subscription-ID falls vorhanden — für Quantity-Updates. */
   stripeSubscriptionId: string | null;
+  /** Stripe trial_end timestamp falls vorhanden. */
+  stripeTrialEnd: string | null;
   /**
    * KERN-FLAG: Hat dieser Workspace Premium-Features verfügbar?
    * true wenn (propertyCount ≤ 1) ODER (active subscription + subscribed_quantity ≥ propertyCount)
@@ -75,7 +77,7 @@ export async function getPremiumStatus(
     supabase
       .from("subscriptions")
       .select(
-        "stripe_customer_id, stripe_subscription_id, status, subscribed_quantity"
+        "stripe_customer_id, stripe_subscription_id, status, subscribed_quantity, trial_end"
       )
       .eq("workspace_id", workspaceId)
       .maybeSingle(),
@@ -105,6 +107,7 @@ export async function getPremiumStatus(
     subscriptionStatus: subStatus,
     stripeCustomerId: sub?.stripe_customer_id ?? null,
     stripeSubscriptionId: sub?.stripe_subscription_id ?? null,
+    stripeTrialEnd: sub?.trial_end ?? null,
     isPremium,
     hasPaidSubscription,
     needsQuantityUpgrade,
