@@ -28,12 +28,15 @@ export default async function DashboardPage() {
   if (!active) return null;
 
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const [{ data: properties }, { data: settings }, { data: tenants }] = await Promise.all([
     supabase
       .from("properties")
       .select(
         `id, street, postal_code, city, location_detail, description, sqm, land_value, purchase_price, transfer_date,
-         transfer_tax, broker_fee, notary_fee, registration_cost, equity_amount,
+         transfer_tax, broker_fee, notary_fee, registration_cost, equity_amount, is_demo,
          building_value_share_pct, depreciation_rate,
          portfolio_valuations(id, valuation_date, market_rent_per_sqm, multiple, building_value, land_value, income_weight),
          loans(loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate,
@@ -245,29 +248,112 @@ export default async function DashboardPage() {
   const ltvPct =
     totalValue > 0 ? (totalLoans / totalValue) * 100 : null;
 
+  // Onboarding-State für die persönliche Begrüßung (Spec Task 4).
+  type PropertyRow = { id: string; is_demo?: boolean | null; loans?: unknown[]; pnl_snapshots?: unknown[] };
+  const propList = (properties ?? []) as PropertyRow[];
+  const propCount = propList.length;
+  const realPropCount = propList.filter((p) => !p.is_demo).length;
+  const firstRealProperty = propList.find((p) => !p.is_demo);
+  const hasAnyLoan = propList.some((p) => (p.loans ?? []).length > 0);
+  const hasAnySnapshot = propList.some((p) => (p.pnl_snapshots ?? []).length > 0);
+
+  const firstName = deriveFirstName(
+    user?.user_metadata?.first_name,
+    user?.email
+  );
+
+  type NextStep =
+    | { key: "create_real"; href: string }
+    | { key: "add_loan"; href: string }
+    | { key: "add_snapshot"; href: string }
+    | { key: "download_factbook"; href: string }
+    | null;
+
+  const nextStep: NextStep =
+    propCount === 0
+      ? { key: "create_real", href: "/objekte/neu" }
+      : realPropCount === 0
+        ? { key: "create_real", href: "/objekte/neu" }
+        : !hasAnyLoan
+          ? {
+              key: "add_loan",
+              href: `/objekte/${firstRealProperty!.id}/darlehen/neu`,
+            }
+          : !hasAnySnapshot
+            ? {
+                key: "add_snapshot",
+                href: `/objekte/${firstRealProperty!.id}/guv`,
+              }
+            : { key: "download_factbook", href: "/api/pdf/factbook/portfolio" };
+
+  // Ampel-Logik (Schwellen dokumentiert):
+  //   Cashflow nach Steuer:   <0 negativ, >0 positiv
+  //   Bruttomietrendite:      ≥4% positiv, <3% negativ
+  //   LTV:                    ≤60% positiv, ≥80% negativ
+  type Tone = "default" | "positive" | "negative";
+  const cashflowTone: Tone =
+    totalAfterTax < 0 ? "negative" : totalAfterTax > 0 ? "positive" : "default";
+  const yieldTone: Tone =
+    grossYieldPct == null
+      ? "default"
+      : grossYieldPct >= 4
+        ? "positive"
+        : grossYieldPct < 3
+          ? "negative"
+          : "default";
+  const ltvTone: Tone =
+    ltvPct == null
+      ? "default"
+      : ltvPct <= 60
+        ? "positive"
+        : ltvPct >= 80
+          ? "negative"
+          : "default";
+
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("nav.dashboard")}
-        </h1>
-        <div className="flex items-center gap-3">
-          <a
-            href="/api/pdf/factbook/portfolio"
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-          >
-            {t("factsheet.download_factbook")}
-          </a>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
-            {active.name}
-          </p>
-        </div>
+      {/* Persönlicher Hero (Spec Task 4): heller Akzent-Verlauf, Greeting +
+          Next-Step-CTA. Factbook-Download wandert in den Hero, weil "lade
+          dein Factbook" oft genau der nächste Schritt ist. */}
+      <DashboardHero
+        workspaceName={active.name}
+        greetingLine={t("dashboard.welcome", { name: firstName })}
+        nextStep={
+          nextStep
+            ? {
+                title: t(`dashboard.next_${nextStep.key}_title`),
+                body: t(`dashboard.next_${nextStep.key}_body`),
+                cta: t(`dashboard.next_${nextStep.key}_cta`),
+                href: nextStep.href,
+                external: nextStep.key === "download_factbook",
+              }
+            : null
+        }
+        factbookFallbackLabel={
+          nextStep?.key !== "download_factbook"
+            ? t("factsheet.download_factbook")
+            : null
+        }
+      />
+
+      {/* Primär-KPIs (Spec Task 6): Eigenkapital + Cashflow n. Steuer prominent. */}
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <KpiHero
+          icon="wallet"
+          label={t("portfolio.kpi_equity")}
+          value={eur(totalValue - totalLoans)}
+          tone="default"
+        />
+        <KpiHero
+          icon="cash"
+          label={t("portfolio.kpi_cashflow_after_tax")}
+          value={eur(totalAfterTax)}
+          tone={cashflowTone}
+        />
       </div>
 
-      {/* Portfolio KPI grid — kept tight so it still reads cleanly with many objects. */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* Sekundär-KPIs kompakter. Bruttomietrendite + LTV mit Ampel. */}
+      <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
         <Kpi
           icon="building"
           label={t("portfolio.kpi_objects")}
@@ -294,29 +380,16 @@ export default async function DashboardPage() {
           value={eur(totalLoans)}
         />
         <Kpi
-          icon="wallet"
-          label={t("portfolio.kpi_equity")}
-          value={eur(totalValue - totalLoans)}
-          strong
-        />
-        <Kpi
           icon="percent"
           label={t("portfolio.kpi_gross_yield")}
           value={grossYieldPct != null ? `${grossYieldPct.toFixed(2)} %` : "—"}
+          tone={yieldTone}
         />
         <Kpi
           icon="ltv"
           label={t("portfolio.kpi_ltv")}
           value={ltvPct != null ? `${ltvPct.toFixed(1)} %` : "—"}
-        />
-      </div>
-
-      <div className="mt-3">
-        <Kpi
-          icon="cash"
-          label={t("portfolio.kpi_cashflow_after_tax")}
-          value={eur(totalAfterTax)}
-          strong
+          tone={ltvTone}
         />
       </div>
 
@@ -401,31 +474,41 @@ type KpiIcon =
   | "percent"
   | "ltv";
 
+type Tone = "default" | "positive" | "negative";
+
+const toneValueClass: Record<Tone, string> = {
+  default: "",
+  positive: "text-emerald-600 dark:text-emerald-400",
+  negative: "text-red-600 dark:text-red-400",
+};
+
 function Kpi({
   label,
   value,
   icon,
   strong,
+  tone = "default",
 }: {
   label: string;
   value: string;
   icon?: KpiIcon;
   strong?: boolean;
+  tone?: Tone;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
-      <div className="flex items-center gap-2.5">
+    <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-3">
+      <div className="flex items-center gap-2">
         {icon && (
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-accent-soft text-accent border border-accent/30 shrink-0">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent border border-accent/30 shrink-0">
             <KpiIconGlyph name={icon} />
           </span>
         )}
-        <div className="text-[11px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400 truncate">
+        <div className="text-[10px] uppercase tracking-wider text-neutral-500 dark:text-neutral-400 truncate">
           {label}
         </div>
       </div>
       <div
-        className={`mt-2 tabular-nums ${strong ? "text-lg font-semibold" : "text-sm"}`}
+        className={`mt-1.5 tabular-nums ${strong ? "text-lg font-semibold" : "text-sm font-medium"} ${toneValueClass[tone]}`}
       >
         {value}
       </div>
@@ -433,10 +516,155 @@ function Kpi({
   );
 }
 
-function KpiIconGlyph({ name }: { name: KpiIcon }) {
+function KpiHero({
+  label,
+  value,
+  icon,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  icon?: KpiIcon;
+  tone?: Tone;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
+      <div className="flex items-center gap-3">
+        {icon && (
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-accent-soft text-accent border border-accent/30 shrink-0">
+            <KpiIconGlyph name={icon} large />
+          </span>
+        )}
+        <div className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          {label}
+        </div>
+      </div>
+      <div
+        className={`mt-3 text-3xl font-semibold tabular-nums ${toneValueClass[tone]}`}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function deriveFirstName(
+  metaName: unknown,
+  email: string | null | undefined
+): string {
+  if (typeof metaName === "string" && metaName.trim().length > 0) {
+    return metaName.trim().split(/\s+/)[0];
+  }
+  if (!email) return "";
+  const prefix = email.split("@")[0] ?? "";
+  // patrick.huemmer → Patrick · max_mustermann → Max
+  const first = prefix.split(/[._-]/)[0] ?? prefix;
+  if (!first) return "";
+  return first.charAt(0).toUpperCase() + first.slice(1);
+}
+
+function DashboardHero({
+  workspaceName,
+  greetingLine,
+  nextStep,
+  factbookFallbackLabel,
+}: {
+  workspaceName: string;
+  greetingLine: string;
+  nextStep:
+    | {
+        title: string;
+        body: string;
+        cta: string;
+        href: string;
+        external?: boolean;
+      }
+    | null;
+  /** Wenn der Next-Step nicht der Factbook-Download ist, zeigen wir den
+   *  Download trotzdem als sekundären Link, damit er nicht verloren geht. */
+  factbookFallbackLabel: string | null;
+}) {
+  return (
+    <section
+      className="rounded-2xl border border-accent/30 bg-gradient-to-br from-accent-soft to-transparent p-5 md:p-6"
+      aria-label="dashboard-hero"
+    >
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            {greetingLine}
+          </h1>
+          <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300 truncate">
+            {workspaceName}
+          </p>
+        </div>
+        {nextStep && (
+          <div className="rounded-xl border border-accent/30 bg-white/70 dark:bg-neutral-900/70 backdrop-blur-sm p-4 max-w-md w-full md:w-auto">
+            <div className="text-xs uppercase tracking-wider text-accent-foreground/80 font-medium">
+              {nextStep.title}
+            </div>
+            <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200">
+              {nextStep.body}
+            </p>
+            <Link
+              href={nextStep.href}
+              target={nextStep.external ? "_blank" : undefined}
+              rel={nextStep.external ? "noreferrer" : undefined}
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-1.5 text-sm font-medium hover:opacity-90"
+            >
+              {nextStep.cta}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M5 12h14" /><path d="M13 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        )}
+      </div>
+      {factbookFallbackLabel && (
+        <div className="mt-4 flex justify-end">
+          <a
+            href="/api/pdf/factbook/portfolio"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-300 hover:underline"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <path d="M7 10l5 5 5-5" /><path d="M12 15V3" />
+            </svg>
+            {factbookFallbackLabel}
+          </a>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function KpiIconGlyph({ name, large }: { name: KpiIcon; large?: boolean }) {
+  const size = large ? 18 : 14;
   const common = {
-    width: 14,
-    height: 14,
+    width: size,
+    height: size,
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
