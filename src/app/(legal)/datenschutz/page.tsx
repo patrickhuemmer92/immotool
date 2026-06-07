@@ -33,9 +33,9 @@ export default function DatenschutzPage() {
       <div className="mt-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-4 text-sm leading-relaxed">
         <strong>Patrick Hümmer Max Strobel GbR</strong>
         <br />
-        [Straße, Hausnummer]
+        Landsberger Straße 440a
         <br />
-        [PLZ Ort], Deutschland
+        81241 München, Deutschland
         <br />
         E-Mail:{" "}
         <a href="mailto:info@estateably.de" className="text-accent hover:underline">

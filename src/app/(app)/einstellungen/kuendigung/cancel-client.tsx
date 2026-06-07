@@ -22,7 +22,10 @@ export function CancelClient({
   const [confirmed, setConfirmed] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<{
+    kind: "ordentlich" | "fristlos";
+    effectiveAt: string | null;
+  } | null>(null);
 
   function onSubmit() {
     setError(null);
@@ -42,27 +45,85 @@ export function CancelClient({
           reason: reason || null,
         }),
       });
-      const json = (await res.json()) as { ok?: boolean; error?: string };
+      const json = (await res.json()) as {
+        ok?: boolean;
+        error?: string;
+        details?: string;
+        kind?: "ordentlich" | "fristlos";
+        effective_at?: string | null;
+      };
       if (!res.ok || !json.ok) {
-        setError(json.error ?? "Unbekannter Fehler.");
+        setError(
+          json.details
+            ? `${json.error ?? "error"}: ${json.details}`
+            : json.error ?? "Unbekannter Fehler."
+        );
         return;
       }
-      setSuccess(
-        "Ihre Kündigung wurde übermittelt. Sie erhalten eine Bestätigung " +
-          "per E-Mail. Bis zum Ende der laufenden Abrechnungsperiode haben Sie " +
-          "weiterhin vollen Zugriff."
-      );
+      setSuccess({
+        kind: json.kind ?? kind,
+        effectiveAt: json.effective_at ?? null,
+      });
     });
   }
 
+  async function openPortal() {
+    const res = await fetch("/api/billing/portal", { method: "POST" });
+    const json = (await res.json()) as { url?: string };
+    if (json.url) window.location.href = json.url;
+  }
+
   if (success) {
+    const effectiveDate = success.effectiveAt
+      ? new Date(success.effectiveAt).toLocaleDateString("de-DE", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })
+      : null;
     return (
       <div className="mt-6 rounded-2xl border border-emerald-300 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 p-5">
         <h2 className="text-base font-semibold text-emerald-900 dark:text-emerald-100">
-          Kündigung übermittelt
+          Kündigung übermittelt und bei Stripe vorgemerkt
         </h2>
-        <p className="mt-2 text-sm text-neutral-800 dark:text-neutral-200">
-          {success}
+        <p className="mt-3 text-sm text-neutral-800 dark:text-neutral-200">
+          {success.kind === "fristlos" ? (
+            <>
+              Ihr Vertrag wurde mit sofortiger Wirkung beendet
+              {effectiveDate && (
+                <>
+                  {" "}
+                  (Stichtag: <strong>{effectiveDate}</strong>)
+                </>
+              )}
+              . Premium-Features stehen Ihnen nicht mehr zur Verfügung.
+            </>
+          ) : (
+            <>
+              Ihr Vertrag endet zum nächstmöglichen Termin
+              {effectiveDate && (
+                <>
+                  {" "}
+                  am <strong>{effectiveDate}</strong>
+                </>
+              )}
+              . Bis dahin haben Sie weiterhin vollen Zugriff. Sie können die
+              Kündigung jederzeit im Stripe-Kundenportal einsehen oder bis
+              zum Ende der Periode rückgängig machen.
+            </>
+          )}
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={openPortal}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-neutral-900 px-3 py-1.5 text-xs font-medium text-emerald-900 dark:text-emerald-100 hover:bg-emerald-50 dark:hover:bg-emerald-900/40"
+          >
+            Stripe-Kundenportal öffnen →
+          </button>
+        </div>
+        <p className="mt-3 text-[11px] text-neutral-600 dark:text-neutral-400">
+          Eine Eingangsbestätigung in Textform geht Ihnen per E-Mail zu.
         </p>
       </div>
     );

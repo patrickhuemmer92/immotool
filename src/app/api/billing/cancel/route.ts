@@ -65,29 +65,67 @@ export async function POST(req: Request) {
     .eq("workspace_id", active.id)
     .maybeSingle();
 
-  // Stripe kündigen (cancel_at_period_end bei ordentlich, sofort bei fristlos).
+  if (!sub?.stripe_subscription_id) {
+    return NextResponse.json(
+      { error: "no_active_subscription" },
+      { status: 404 }
+    );
+  }
+
+  // Stripe kündigen — primärer Schritt. Wenn der scheitert, brechen wir
+  // ab. Audit-Eintrag schreiben wir trotzdem (mit stripe_cancel_result =
+  // "stripe_error"), damit die Erklärung dokumentiert ist.
   let stripeResult: string | null = null;
-  if (sub?.stripe_subscription_id) {
-    const stripe = getStripe();
-    try {
-      if (parsed.data.kind === "fristlos") {
-        const result = await stripe.subscriptions.cancel(
-          sub.stripe_subscription_id
-        );
-        stripeResult = result.status;
-      } else {
-        const result = await stripe.subscriptions.update(
-          sub.stripe_subscription_id,
-          { cancel_at_period_end: true }
-        );
-        stripeResult = `${result.status}+cancel_at_period_end`;
-      }
-    } catch (err) {
-      console.error("[billing:cancel] stripe error:", err);
-      // Wir loggen die Kündigungserklärung trotzdem — der Verbraucher
-      // hat seine Erklärung abgegeben, der Anbieter muss sie verarbeiten.
-      stripeResult = "stripe_error";
+  let stripeCancelAt: number | null = null;
+  let stripeStatus: string | null = null;
+  let stripeError: string | null = null;
+
+  const stripe = getStripe();
+  try {
+    if (parsed.data.kind === "fristlos") {
+      // Sofortige Kündigung → Subscription wird auf "canceled" gesetzt,
+      // current_period_end ist der Stichtag des Wegfalls aller Leistungen.
+      const result = await stripe.subscriptions.cancel(
+        sub.stripe_subscription_id
+      );
+      stripeResult = result.status;
+      stripeStatus = result.status;
+      stripeCancelAt = result.canceled_at ?? Math.floor(Date.now() / 1000);
+    } else {
+      // Ordentliche Kündigung → cancel_at_period_end=true. Subscription
+      // läuft bis zum Periodenende weiter, dann automatisch gecancelt.
+      const result = await stripe.subscriptions.update(
+        sub.stripe_subscription_id,
+        { cancel_at_period_end: true }
+      );
+      stripeResult = `${result.status}+cancel_at_period_end`;
+      stripeStatus = result.status;
+      // cancel_at sollte nach update({cancel_at_period_end: true})
+      // gesetzt sein; falls nicht, fallback auf items[0].current_period_end
+      // (Stripe-API-Migration: top-level current_period_end ist deprecated).
+      const itemEnd = result.items?.data?.[0]?.current_period_end ?? null;
+      stripeCancelAt = result.cancel_at ?? itemEnd;
     }
+  } catch (err) {
+    console.error("[billing:cancel] stripe error:", err);
+    stripeResult = "stripe_error";
+    stripeError = err instanceof Error ? err.message : "unknown_stripe_error";
+  }
+
+  // Subscriptions-Tabelle synchron updaten — der Webhook würde es auch
+  // tun, aber für sofortiges UI-Feedback (z. B. Premium-Gate auf
+  // existierenden Sessions) ist das wichtig.
+  if (!stripeError && stripeStatus) {
+    await supabase
+      .from("subscriptions")
+      .update({
+        status: stripeStatus,
+        cancel_at_period_end: parsed.data.kind !== "fristlos",
+        canceled_at: stripeCancelAt
+          ? new Date(stripeCancelAt * 1000).toISOString()
+          : null,
+      })
+      .eq("workspace_id", active.id);
   }
 
   const ipAddress =
@@ -116,9 +154,26 @@ export async function POST(req: Request) {
     );
   }
 
-  // TODO: Bestätigungs-Mail über Custom-SMTP versenden, sobald
-  // eingerichtet (Resend etc.). Aktuell muss das manuell + via
-  // Stripe-Standard-Mails abgewickelt werden.
+  // Wenn Stripe ablehnt, gib das an den Client weiter — UI zeigt dann
+  // den konkreten Fehler statt einer falschen Erfolgsmeldung.
+  if (stripeError) {
+    return NextResponse.json(
+      { error: "stripe_failed", details: stripeError },
+      { status: 502 }
+    );
+  }
 
-  return NextResponse.json({ ok: true });
+  // TODO: Bestätigungs-Mail über Custom-SMTP versenden, sobald
+  // eingerichtet (Resend etc.). Stripe sendet bereits seine Standard-
+  // Mail zur Kündigungsbestätigung — die ist aber § 312k Abs. 3 BGB
+  // nicht 1:1 entsprechend (Eingangszeit + Wortlaut der Erklärung).
+
+  return NextResponse.json({
+    ok: true,
+    kind: parsed.data.kind,
+    effective_at: stripeCancelAt
+      ? new Date(stripeCancelAt * 1000).toISOString()
+      : null,
+    stripe_status: stripeStatus,
+  });
 }

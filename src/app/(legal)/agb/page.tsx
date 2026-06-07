@@ -80,7 +80,7 @@ export default function AgbPage() {
       <H3>Widerrufsbelehrung</H3>
       <P><strong>Widerrufsrecht.</strong> Sie haben das Recht, binnen 14 Tagen ohne Angabe von Gründen diesen Vertrag zu widerrufen. Die Frist beträgt 14 Tage ab dem Tag des Vertragsabschlusses.</P>
       <P>
-        Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (<strong>Patrick Hümmer Max Strobel GbR, [Anschrift bitte ergänzen], info@estateably.de</strong>) mittels einer eindeutigen Erklärung (z. B. Brief oder E-Mail) über Ihren Entschluss informieren. Sie können das <a href="/legal/muster-widerruf.pdf" className="text-accent hover:underline">beigefügte Muster-Widerrufsformular</a> verwenden. Zur Wahrung der Frist reicht die rechtzeitige Absendung.
+        Um Ihr Widerrufsrecht auszuüben, müssen Sie uns (<strong>Patrick Hümmer Max Strobel GbR, Landsberger Straße 440a, 81241 München, info@estateably.de</strong>) mittels einer eindeutigen Erklärung (z. B. Brief oder E-Mail) über Ihren Entschluss informieren. Sie können das <a href="/legal/muster-widerruf.pdf" className="text-accent hover:underline">beigefügte Muster-Widerrufsformular</a> verwenden. Zur Wahrung der Frist reicht die rechtzeitige Absendung.
       </P>
       <P><strong>Folgen des Widerrufs.</strong> Wir erstatten alle erhaltenen Zahlungen unverzüglich, spätestens binnen 14 Tagen ab Zugang Ihrer Widerrufserklärung, mit demselben Zahlungsmittel; Entgelte werden nicht berechnet.</P>
       <P><strong>Wertersatz bei Dienstleistungen.</strong> Haben Sie verlangt, dass die Dienstleistung während der Widerrufsfrist beginnt, zahlen Sie einen angemessenen Betrag entsprechend dem Anteil der bereits erbrachten Leistung.</P>
