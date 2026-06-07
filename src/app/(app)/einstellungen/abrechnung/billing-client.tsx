@@ -40,6 +40,10 @@ export function BillingClient({
   const [error, setError] = useState<string | null>(null);
   /** Erfolgs-Banner nach Quantity-Upgrade/Downgrade. */
   const [upgradeResult, setUpgradeResult] = useState<UpgradeResult | null>(null);
+  /** Widerrufsverzichts-Checkboxen (§ 356 Abs. 4/5 BGB). Beide müssen
+   *  separat angekreuzt sein, sonst bleibt der Bestell-Button gesperrt. */
+  const [consentImmediateStart, setConsentImmediateStart] = useState(false);
+  const [consentAcknowledgeLoss, setConsentAcknowledgeLoss] = useState(false);
 
   // Wenn /einstellungen/abrechnung?focus_subscribe=true (aus Property-
   // Dialog), springe sofort auf den Subscribe-Bereich.
@@ -53,11 +57,20 @@ export function BillingClient({
 
   async function onSubscribe() {
     setError(null);
+    // Defensive double-check — Server validiert noch einmal.
+    if (!consentImmediateStart || !consentAcknowledgeLoss) {
+      setError("consent_required");
+      return;
+    }
     start(async () => {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quantity }),
+        body: JSON.stringify({
+          quantity,
+          consent_immediate_start: true,
+          consent_acknowledge_loss: true,
+        }),
       });
       const json = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !json.url) {
@@ -318,14 +331,91 @@ export function BillingClient({
             {t("billing.subscribe_footnote")}
           </p>
 
+          {/* Pflichtangaben nach § 312j Abs. 2 BGB: wesentliche Eigenschaften,
+              Gesamtpreis, Laufzeit — direkt oberhalb des Bestell-Buttons. */}
+          <div className="mt-5 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
+            <div className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2">
+              {t("billing.checkout_summary_title")}
+            </div>
+            <dl className="text-sm space-y-1.5">
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-600 dark:text-neutral-400">
+                  {t("billing.checkout_summary_product")}
+                </dt>
+                <dd className="text-right">
+                  {tier.label} · {quantity} {t("billing.quantity_unit_short")}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-600 dark:text-neutral-400">
+                  {t("billing.checkout_summary_total")}
+                </dt>
+                <dd className="text-right font-semibold tabular-nums">
+                  {tier.yearlyEur.toLocaleString("de-DE", {
+                    style: "currency",
+                    currency: "EUR",
+                    minimumFractionDigits: 2,
+                  })}{" "}
+                  / {t("billing.per_year")}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-600 dark:text-neutral-400">
+                  {t("billing.checkout_summary_term")}
+                </dt>
+                <dd className="text-right">
+                  {t("billing.checkout_summary_term_value")}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-neutral-600 dark:text-neutral-400">
+                  {t("billing.checkout_summary_vat")}
+                </dt>
+                <dd className="text-right">
+                  {t("billing.checkout_summary_vat_value")}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* Widerrufsverzicht (§ 356 Abs. 4/5 BGB). Zwei SEPARATE
+              Checkboxen — kombinierte Klausel wäre nach BGH unwirksam. */}
+          <div className="mt-4 space-y-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-4">
+            <label className="flex items-start gap-2.5 text-xs leading-relaxed cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentImmediateStart}
+                onChange={(e) => setConsentImmediateStart(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+              />
+              <span>{t("billing.consent_immediate_start")}</span>
+            </label>
+            <label className="flex items-start gap-2.5 text-xs leading-relaxed cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consentAcknowledgeLoss}
+                onChange={(e) => setConsentAcknowledgeLoss(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
+              />
+              <span>{t("billing.consent_acknowledge_loss")}</span>
+            </label>
+          </div>
+
           <button
             type="button"
             onClick={onSubscribe}
-            disabled={pending}
-            className="mt-5 rounded-lg bg-accent text-accent-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            disabled={
+              pending || !consentImmediateStart || !consentAcknowledgeLoss
+            }
+            className="mt-5 rounded-lg bg-accent text-accent-foreground px-5 py-2.5 text-sm font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {pending ? t("common.loading") : t("billing.subscribe_action")}
+            {pending
+              ? t("common.loading")
+              : t("billing.subscribe_action_legal")}
           </button>
+          <p className="mt-2 text-[11px] text-neutral-500 dark:text-neutral-400">
+            {t("billing.subscribe_action_hint")}
+          </p>
         </>
       )}
 
