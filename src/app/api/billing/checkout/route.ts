@@ -18,8 +18,22 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, isOwner } from "@/lib/workspace";
 import { getStripe } from "@/lib/billing/stripe";
 
+/**
+ * Beide Consent-Flags sind nach § 356 Abs. 4/5 BGB Pflicht, wenn der
+ * Service vor Ablauf der 14-Tage-Widerrufsfrist beginnt. Sie müssen als
+ * SEPARATE Erklärungen vorliegen — daher zwei einzelne Felder. Beide
+ * werden serverseitig auf `true` validiert; ein Checkout ohne beide
+ * Zustimmungen wird mit 400 abgelehnt.
+ */
 const bodySchema = z.object({
   quantity: z.number().int().min(2).max(999),
+  consent_immediate_start: z.literal(true, {
+    message: "consent_immediate_start_required",
+  }),
+  consent_acknowledge_loss: z.literal(true, {
+    message: "consent_acknowledge_loss_required",
+  }),
+  terms_version: z.string().optional(),
 });
 
 function getBaseUrl(req: Request): string {
@@ -52,9 +66,10 @@ export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: "bad_body" }, { status: 400 });
+    const code = parsed.error.issues[0]?.message ?? "bad_body";
+    return NextResponse.json({ error: code }, { status: 400 });
   }
-  const quantity = parsed.data.quantity;
+  const { quantity, terms_version } = parsed.data;
 
   let priceId: string;
   try {
@@ -68,6 +83,48 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: userData } = await supabase.auth.getUser();
   const userEmail = userData.user?.email;
+  const userId = userData.user?.id;
+
+  if (!userId) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+
+  // Tier-Info zum Zeitpunkt der Erklärung mitschreiben, damit später
+  // nachvollziehbar ist, WAS der User akzeptiert hat.
+  const { tierForQuantity } = await import("@/lib/billing/pricing");
+  const tier = tierForQuantity(quantity);
+
+  // Widerrufsverzichts-Erklärung VOR der Stripe-Session anlegen — wenn
+  // der Stripe-Call dann scheitert, haben wir trotzdem den Audit-Trail.
+  // Die stripe_session_id schreiben wir gleich nach Erstellung nach.
+  const ipAddress =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const userAgent = req.headers.get("user-agent") ?? null;
+
+  const { data: consent, error: consentError } = await supabase
+    .from("checkout_consents")
+    .insert({
+      workspace_id: active.id,
+      user_id: userId,
+      consent_immediate_start: true,
+      consent_acknowledge_loss: true,
+      terms_version: terms_version ?? null,
+      ip_address: ipAddress,
+      user_agent: userAgent,
+      quantity,
+      tier_label: tier.label,
+      yearly_eur: tier.yearlyEur,
+    })
+    .select("id")
+    .single();
+
+  if (consentError || !consent) {
+    console.error("[checkout] consent insert failed:", consentError);
+    return NextResponse.json(
+      { error: "consent_store_failed" },
+      { status: 500 }
+    );
+  }
 
   // Bestehender Customer? Wenn ja, wiederverwenden, damit Karte/Tax-IDs
   // erhalten bleiben.
@@ -97,6 +154,7 @@ export async function POST(req: Request) {
     metadata: {
       workspace_id: active.id,
       subscribed_quantity: String(quantity),
+      consent_id: consent.id,
     },
     success_url: `${base}/einstellungen/abrechnung?status=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${base}/einstellungen/abrechnung?status=cancelled`,
@@ -111,5 +169,13 @@ export async function POST(req: Request) {
   if (!session.url) {
     return NextResponse.json({ error: "no_session_url" }, { status: 500 });
   }
+
+  // Stripe-Session-ID zurück auf den Consent — verbindet Audit-Trail mit
+  // dem späteren Subscription-Webhook.
+  await supabase
+    .from("checkout_consents")
+    .update({ stripe_session_id: session.id })
+    .eq("id", consent.id);
+
   return NextResponse.json({ url: session.url });
 }
