@@ -200,6 +200,10 @@ export function TopbarAccount({
               <IconGift />
               <span className="flex-1">{t("menu_referral")}</span>
             </MenuLink>
+            <MenuLink href="/einstellungen/kuendigung" onClick={() => setOpen(false)}>
+              <IconCancel />
+              <span className="flex-1">{t("menu_cancel_contract")}</span>
+            </MenuLink>
           </nav>
           <div className="border-t border-neutral-200 dark:border-neutral-800">
             <form action={logout}>
@@ -273,6 +277,16 @@ function IconGift() {
       <path d="M4 12v9h16v-9" />
       <path d="M7.5 8a2.5 2.5 0 1 1 0-5C9 3 12 8 12 8" />
       <path d="M16.5 8a2.5 2.5 0 1 0 0-5C15 3 12 8 12 8" />
+    </svg>
+  );
+}
+function IconCancel() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <line x1="9.5" y1="14" x2="14.5" y2="19" />
+      <line x1="14.5" y1="14" x2="9.5" y2="19" />
     </svg>
   );
 }
