@@ -36,6 +36,12 @@ export async function AppFooter() {
           >
             {t("legal.footer_terms")}
           </Link>
+          <Link
+            href="/avv"
+            className="hover:text-neutral-700 dark:hover:text-neutral-200 hover:underline"
+          >
+            {t("legal.footer_avv")}
+          </Link>
         </nav>
       </div>
     </footer>

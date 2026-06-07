@@ -50,7 +50,8 @@ export async function updateSession(request: NextRequest) {
     // Zugang ohne Login.
     pathname === "/impressum" ||
     pathname === "/datenschutz" ||
-    pathname === "/agb";
+    pathname === "/agb" ||
+    pathname === "/avv";
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
