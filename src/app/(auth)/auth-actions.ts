@@ -22,7 +22,7 @@ export async function login(
 ): Promise<AuthState> {
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
-  const redirectTo = String(formData.get("redirect_to") ?? "/");
+  const redirectTo = String(formData.get("redirect_to") ?? "/dashboard");
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -46,7 +46,7 @@ export async function signup(
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const consent = formData.get("consent") === "on" || formData.get("consent") === "true";
-  const redirectTo = String(formData.get("redirect_to") ?? "/");
+  const redirectTo = String(formData.get("redirect_to") ?? "/dashboard");
   const origin = await originUrl();
 
   // DSGVO: Akzeptanz von AGB + Datenschutz vor Account-Anlage ist Pflicht.

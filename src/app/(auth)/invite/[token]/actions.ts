@@ -30,5 +30,5 @@ export async function acceptInvite(token: string) {
 
   await setActiveWorkspaceCookie(invite.workspace_id);
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect("/dashboard");
 }

@@ -18,7 +18,7 @@ export function ResetUpdateForm() {
     if (state?.success) {
       // Recovery session is now a regular session — drop the user on the
       // dashboard. Small delay so they see the success message.
-      const id = setTimeout(() => router.push("/"), 800);
+      const id = setTimeout(() => router.push("/dashboard"), 800);
       return () => clearTimeout(id);
     }
   }, [state?.success, router]);

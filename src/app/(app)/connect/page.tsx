@@ -26,7 +26,7 @@ export default async function ConnectPage({
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
-  if (!isOwner(active.role)) redirect("/");
+  if (!isOwner(active.role)) redirect("/dashboard");
 
   const params = await searchParams;
   const queryStatus = typeof params.status === "string" ? params.status : null;

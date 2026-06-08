@@ -4,13 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Supabase auth callback — handles email confirmation, magic links and the
  * recovery-token flow used by /passwort-vergessen. After exchanging the code
- * we redirect to `?next=…` (defaults to `/`), so the request page can pin
+ * we redirect to `?next=…` (defaults to `/dashboard`), so the request page can pin
  * the user on `/passwort-zuruecksetzen` after a recovery click.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
     const supabase = await createClient();

@@ -118,3 +118,78 @@ main h1::after {
   margin-top: 8px;
   border-radius: 2px;
 }
+
+/* ----------------------------------------------------------------------
+   Marketing shell — dunkles Navy + Teal aus der property-bliss-deck-
+   Landing, isoliert auf den Wrapper `.marketing-shell`, damit App-Seiten
+   ihre helle Optik behalten. Die Tokens spiegeln die Landing 1:1 wider,
+   sodass das Design identisch bleibt.
+---------------------------------------------------------------------- */
+.marketing-shell {
+  --mk-background: oklch(0.17 0.035 255);
+  --mk-foreground: oklch(0.97 0.005 250);
+  --mk-surface: oklch(0.24 0.04 255);
+  --mk-surface-elevated: oklch(0.31 0.055 255);
+  --mk-primary: oklch(0.83 0.16 178);
+  --mk-primary-foreground: oklch(0.17 0.035 255);
+  --mk-muted-foreground: oklch(0.62 0.025 250);
+  --mk-border: oklch(1 0 0 / 9%);
+  --mk-grid-line: oklch(1 0 0 / 4%);
+
+  background-color: var(--mk-background);
+  color: var(--mk-foreground);
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Util-Aliase — kürzen Inline-Style im Markup ab, ohne neue Tailwind-
+   Tokens registrieren zu müssen. Tailwind-v4-Utilities würden hier auch
+   gehen, das hier ist aber transparenter und greift sofort. */
+.marketing-shell .bg-mk-background { background-color: var(--mk-background); }
+.marketing-shell .bg-mk-surface { background-color: var(--mk-surface); }
+.marketing-shell .bg-mk-surface-elevated { background-color: var(--mk-surface-elevated); }
+.marketing-shell .text-mk-foreground { color: var(--mk-foreground); }
+.marketing-shell .text-mk-muted { color: var(--mk-muted-foreground); }
+.marketing-shell .text-mk-primary { color: var(--mk-primary); }
+.marketing-shell .border-mk { border-color: var(--mk-border); }
+.marketing-shell .ring-mk-primary { --tw-ring-color: var(--mk-primary); }
+
+.marketing-shell .bg-grid {
+  background-image:
+    linear-gradient(to right, var(--mk-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--mk-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+
+.marketing-shell .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mk-primary);
+}
+.marketing-shell .eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--mk-primary);
+}
+
+.marketing-shell .accent-bar {
+  width: 32px;
+  height: 2px;
+  background: var(--mk-primary);
+  display: block;
+}
+
+.marketing-shell .text-balance { text-wrap: balance; }
+.marketing-shell .text-pretty { text-wrap: pretty; }
+
+/* h1 im Marketing soll KEINE App-Linie unter sich haben. */
+.marketing-shell main h1::after,
+.marketing-shell h1::after {
+  content: none;
+}
