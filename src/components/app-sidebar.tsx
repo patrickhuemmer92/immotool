@@ -77,7 +77,7 @@ export function AppSidebar({
     >
       <div className="px-3 py-5 border-b border-neutral-200 dark:border-neutral-800">
         <Link
-          href="/"
+          href="/dashboard"
           aria-label={brandLabel}
           className="flex items-center gap-2 px-2 hover:opacity-80"
         >

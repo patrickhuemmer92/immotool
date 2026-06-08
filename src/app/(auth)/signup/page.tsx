@@ -16,7 +16,7 @@ export default async function SignupPage({
         <Wordmark size="lg" tagline />
         <p className="mt-4 text-sm text-neutral-500">{t("auth.signup")}</p>
       </div>
-      <SignupForm redirectTo={next ?? "/"} />
+      <SignupForm redirectTo={next ?? "/dashboard"} />
       <p className="mt-6 text-sm text-neutral-500 text-center">
         {t("auth.have_account")}{" "}
         <Link
