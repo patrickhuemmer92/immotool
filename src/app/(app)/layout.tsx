@@ -84,7 +84,7 @@ export default async function AppLayout({
     {
       heading: t("nav.overview_group"),
       items: [
-        { href: "/", label: t("nav.dashboard"), icon: "dashboard" },
+        { href: "/dashboard", label: t("nav.dashboard"), icon: "dashboard" },
         { href: "/objekte", label: t("nav.properties"), icon: "building" },
         { href: "/portfolios", label: t("nav.portfolios"), icon: "briefcase" },
         { href: "/eigentuemer", label: t("nav.owners"), icon: "user" },
