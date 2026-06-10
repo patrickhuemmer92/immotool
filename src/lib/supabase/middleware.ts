@@ -51,20 +51,7 @@ export async function updateSession(request: NextRequest) {
     pathname === "/impressum" ||
     pathname === "/datenschutz" ||
     pathname === "/agb" ||
-    pathname === "/avv" ||
-    // Marketing-Landing + Pricing — öffentlich, das ist der eigentliche
-    // Außenauftritt für Erstbesucher.
-    pathname === "/" ||
-    pathname === "/preise";
-
-  // Eingeloggte User auf der Marketing-Landing → direkt ins Dashboard.
-  // Wer schon ein Konto hat, will keine Hero-Section sehen.
-  if (user && (pathname === "/" || pathname === "/preise")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
+    pathname === "/avv";
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
