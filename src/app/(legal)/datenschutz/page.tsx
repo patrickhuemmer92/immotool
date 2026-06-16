@@ -58,7 +58,7 @@ export default function DatenschutzPage() {
           <strong>Als Verantwortlicher</strong> verarbeiten wir Ihre Daten (z. B. Kontakt-, Konto- und Zahlungsdaten), um Ihnen den Dienst bereitzustellen und den Vertrag zu erfüllen. Diese Verarbeitung beschreibt die vorliegende Datenschutzerklärung.
         </li>
         <li>
-          <strong>Als Auftragsverarbeiter</strong> verarbeiten wir personenbezogene Daten Dritter (insbesondere Mieterdaten), die Sie als Nutzer in die Software eingeben. In diesem Verhältnis sind Sie der Verantwortliche und wir handeln ausschließlich nach Ihrer Weisung. Die Bedingungen dieser Auftragsverarbeitung regelt der separate <Link href="/legal/avv" className="text-accent hover:underline">Auftragsverarbeitungsvertrag (AVV)</Link>, der mit Abschluss des Hauptvertrages Bestandteil des Vertragsverhältnisses wird.
+          <strong>Als Auftragsverarbeiter</strong> verarbeiten wir personenbezogene Daten Dritter (insbesondere Mieterdaten), die Sie als Nutzer in die Software eingeben. In diesem Verhältnis sind Sie der Verantwortliche und wir handeln ausschließlich nach Ihrer Weisung. Die Bedingungen dieser Auftragsverarbeitung regelt der separate <Link href="/avv" className="text-accent hover:underline">Auftragsverarbeitungsvertrag (AVV)</Link>, der mit Abschluss des Hauptvertrages Bestandteil des Vertragsverhältnisses wird.
         </li>
       </Ul>
 
