@@ -51,7 +51,21 @@ export async function updateSession(request: NextRequest) {
     pathname === "/impressum" ||
     pathname === "/datenschutz" ||
     pathname === "/agb" ||
-    pathname === "/avv";
+    pathname === "/avv" ||
+    // Marketing-Landing + Pricing — öffentlicher Außenauftritt für
+    // Erstbesucher. Ohne diese Allowlist redirected die Middleware
+    // anonyme User direkt zu /login und die Landing ist faktisch tot.
+    pathname === "/" ||
+    pathname === "/preise";
+
+  // Eingeloggte User auf der Marketing-Landing → direkt ins Dashboard.
+  // Wer schon ein Konto hat, will keine Hero-Section sehen.
+  if (user && (pathname === "/" || pathname === "/preise")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
