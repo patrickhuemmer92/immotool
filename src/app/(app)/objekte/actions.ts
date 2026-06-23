@@ -279,6 +279,79 @@ export async function updateProperty(
   return undefined;
 }
 
+/**
+ * Inline-Variante von createProperty für Modal-/Quick-Add-Flows.
+ *
+ * Unterschiede zu createProperty:
+ *   - Liefert die neue propertyId zurück (statt redirect), damit der
+ *     aufrufende Client direkt weitere Aktionen ausführen kann
+ *     (z. B. addPropertyToPortfolio).
+ *   - Minimal-Felder Pflicht: kind, street, postal_code, city. Alles
+ *     andere kommt später über die normale Bearbeiten-Seite.
+ *   - Premium-Check identisch — wir nehmen nichts weg.
+ */
+export type PropertyInlineState =
+  | { error: string }
+  | { propertyId: string }
+  | undefined;
+
+export async function createPropertyInline(
+  _prev: PropertyInlineState,
+  formData: FormData
+): Promise<PropertyInlineState> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const premium = await getPremiumStatus(active.id);
+  const newCount = premium.propertyCount + 1;
+  const acknowledgeNoPremium =
+    formData.get("acknowledge_no_premium") === "true";
+
+  if (newCount > FREE_TIER_LIMIT) {
+    if (premium.hasPaidSubscription) {
+      if (premium.subscribedQuantity < newCount) {
+        return {
+          error: `quantity_upgrade_needed:${premium.subscribedQuantity}:${newCount}`,
+        };
+      }
+    } else if (!acknowledgeNoPremium) {
+      return { error: `premium_choice_needed:${newCount}` };
+    }
+  }
+
+  // Schlankes Schema — nur die Felder, die wir im Inline-Dialog abfragen.
+  const minimal = z.object({
+    kind: z.enum(["apartment", "house", "parking", "commercial", "other"]),
+    street: z.string().min(1, "street_required"),
+    postal_code: z.string().min(1, "postal_code_required"),
+    city: z.string().min(1, "city_required"),
+    location_detail: optString,
+    unit_number: optString,
+  });
+
+  const parsed = minimal.safeParse({
+    kind: getStr(formData, "kind"),
+    street: getStr(formData, "street"),
+    postal_code: getStr(formData, "postal_code"),
+    city: getStr(formData, "city"),
+    location_detail: getStr(formData, "location_detail"),
+    unit_number: getStr(formData, "unit_number"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("properties")
+    .insert({ ...parsed.data, workspace_id: active.id })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/objekte");
+  return { propertyId: data.id };
+}
+
 export async function deleteProperty(id: string) {
   const supabase = await createClient();
   await supabase.from("properties").delete().eq("id", id);
