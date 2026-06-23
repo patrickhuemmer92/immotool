@@ -13,6 +13,7 @@ import {
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { DeletePropertyButton } from "./delete-property-button";
+import { InlineLoanButton } from "./inline-loan-button";
 import { deleteProperty } from "../actions";
 
 const SIGNED_URL_TTL = 60 * 60;
@@ -464,7 +465,17 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
-        <Card title={t("factsheet.loans_summary")}>
+        <Card
+          title={t("factsheet.loans_summary")}
+          action={
+            isOwner(active.role) ? (
+              <InlineLoanButton
+                propertyId={property.id}
+                defaultDate={property.transfer_date ?? null}
+              />
+            ) : null
+          }
+        >
           {loanRefs.length === 0 ? (
             <Empty />
           ) : (
@@ -693,15 +704,20 @@ function Kpi({
 function Card({
   title,
   children,
+  action,
 }: {
   title: string;
   children: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
-      <h3 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-        {title}
-      </h3>
+      <div className="flex items-center justify-between mb-3 gap-2">
+        <h3 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          {title}
+        </h3>
+        {action}
+      </div>
       {children}
     </div>
   );

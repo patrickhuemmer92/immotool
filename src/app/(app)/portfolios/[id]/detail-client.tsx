@@ -9,6 +9,7 @@ import {
   deletePortfolio,
   removePropertyFromPortfolio,
 } from "../actions";
+import { InlinePropertyDialog } from "./inline-property-dialog";
 
 type Member = {
   id: string;
@@ -52,6 +53,7 @@ export function PortfolioDetailClient({
   const [pendingRemove, startRemove] = useTransition();
   const [pendingDelete, startDelete] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [inlineOpen, setInlineOpen] = useState(false);
 
   async function onAdd() {
     if (!adding) return;
@@ -163,12 +165,21 @@ export function PortfolioDetailClient({
 
       {editable && (
         <div className="mt-8 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 max-w-2xl">
-          <h2 className="text-sm font-semibold mb-3">
-            {t("portfolios.add_property")}
-          </h2>
+          <div className="flex items-center justify-between mb-3 gap-2">
+            <h2 className="text-sm font-semibold">
+              {t("portfolios.add_property")}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setInlineOpen(true)}
+              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            >
+              {t("portfolios.add_property_new")}
+            </button>
+          </div>
           {candidates.length === 0 ? (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">
-              {t("portfolios.no_candidates")}
+              {t("portfolios.no_candidates_inline")}
             </p>
           ) : (
             <div className="flex items-center gap-2">
@@ -191,7 +202,7 @@ export function PortfolioDetailClient({
                 disabled={!adding || pendingAdd}
                 className="rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
               >
-                {pendingAdd ? t("common.loading") : t("common.create")}
+                {pendingAdd ? t("common.loading") : t("portfolios.add_existing")}
               </button>
             </div>
           )}
@@ -199,6 +210,14 @@ export function PortfolioDetailClient({
             <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>
           )}
         </div>
+      )}
+
+      {editable && (
+        <InlinePropertyDialog
+          portfolioId={portfolioId}
+          open={inlineOpen}
+          onClose={() => setInlineOpen(false)}
+        />
       )}
 
       <div className="mt-8">
