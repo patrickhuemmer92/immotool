@@ -543,7 +543,10 @@
     "empty_property": "Noch kein Mietvertrag für dieses Objekt angelegt.",
     "status_expired": "Abgelaufen",
     "term_since": "seit {date}",
-    "term_fixed_until": "Befristet bis {date}"
+    "term_fixed_until": "Befristet bis {date}",
+    "inline_create_title": "Neuer Mietvertrag",
+    "inline_create_subtitle": "Pflicht: Name, Kalt- und Nebenkostenmiete. Notizen und weitere Faktoren kannst du danach im Mieter-Reiter ergänzen.",
+    "inline_create_hint": "Bei befristetem Vertrag wird das Ende-Datum zur Pflicht."
   },
   "valuation": {
     "title": "Bewertung",
@@ -574,9 +577,19 @@
     "land_value_override_active": "Abweichung vom Stammdaten-Bodenwert wird für diese Bewertung gespeichert.",
     "land_value_edit_link": "im Objekt bearbeiten",
     "substanzwert_total": "Substanzwert gesamt (Boden + Gebäude)",
-    "source_footnote": "Diese App liefert eine Marktwert-Indikation aus Bruttofaktor- und Reproduktionsneuwert. Keine ImmoWertV-konforme Wertermittlung, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen."
+    "source_footnote": "Diese App liefert eine Marktwert-Indikation aus Bruttofaktor- und Reproduktionsneuwert. Keine ImmoWertV-konforme Wertermittlung, kein Verkehrswertgutachten — für Bank/Steuer ggf. zertifiziertes Gutachten ergänzen.",
+    "income_weight_short": "Gewichtung",
+    "weight_only_income": "Nur Ertragswert (100/0)",
+    "weight_more_income": "Eher Ertragswert (60/40)",
+    "weight_equal": "Gleich gewichtet (50/50)",
+    "weight_more_sachwert": "Eher Sachwert (40/60)",
+    "weight_only_sachwert": "Nur Sachwert (0/100)",
+    "inline_create_title": "Neue Bewertung",
+    "inline_create_subtitle": "Lege eine Marktwert-Indikation zum heutigen Stichtag an. Details, Bodenwert-Override etc. pflegst du danach in der Bewertung-Detailseite.",
+    "inline_create_hint": "Felder lassen sich leer lassen — was du nicht ausfüllst, fließt nicht in die Indikation ein."
   },
   "pnl": {
+    "snapshot": "Snapshot",
     "section_rent": "Mieteinnahmen",
     "section_hausgeld": "Hausgeld & Rücklage",
     "section_other_costs": "Sonstige Betriebskosten",
@@ -771,7 +784,12 @@
     "no_investments": "Noch keine Investitionen.",
     "delete": "Löschen",
     "heatmap_title": "Investitionen Objekt × Jahr",
-    "heatmap_long_term_label": "langfr."
+    "heatmap_long_term_label": "langfr.",
+    "inline_create_title": "Neue Investition",
+    "inline_create_subtitle": "Pflicht: Betrag, Maßnahme-Typ, Steuerbehandlung, Jahr (oder als „langfristig\").",
+    "when": "Zeitpunkt",
+    "when_year": "Konkretes Jahr",
+    "when_long_term": "Langfristig (ohne Jahr)"
   },
   "portfolio": {
     "title": "Portfolio",
