@@ -543,7 +543,10 @@
     "empty_property": "No lease contract for this property yet.",
     "status_expired": "Expired",
     "term_since": "since {date}",
-    "term_fixed_until": "Fixed-term until {date}"
+    "term_fixed_until": "Fixed-term until {date}",
+    "inline_create_title": "New tenancy",
+    "inline_create_subtitle": "Required: name, cold rent, ancillary costs. Add notes and tenant factors afterwards in the tenant tab.",
+    "inline_create_hint": "For fixed-term contracts the end date becomes mandatory."
   },
   "valuation": {
     "title": "Valuation",
@@ -574,9 +577,19 @@
     "land_value_override_active": "Override saved for this valuation.",
     "land_value_edit_link": "edit in property",
     "substanzwert_total": "Replacement cost total (land + building)",
-    "source_footnote": "This app delivers a market value indication based on GRM and reproduction cost new. Not an ImmoWertV-conformant appraisal, not an official valuation report — for bank/tax purposes consider adding a certified expert appraisal."
+    "source_footnote": "This app delivers a market value indication based on GRM and reproduction cost new. Not an ImmoWertV-conformant appraisal, not an official valuation report — for bank/tax purposes consider adding a certified expert appraisal.",
+    "income_weight_short": "Weighting",
+    "weight_only_income": "Only income approach (100/0)",
+    "weight_more_income": "More income (60/40)",
+    "weight_equal": "Equal (50/50)",
+    "weight_more_sachwert": "More substance (40/60)",
+    "weight_only_sachwert": "Only substance (0/100)",
+    "inline_create_title": "New valuation",
+    "inline_create_subtitle": "Create a market value indication for today. Edit details, land-value override etc. afterwards on the valuation detail page.",
+    "inline_create_hint": "You can leave fields empty — only what you fill in flows into the indication."
   },
   "pnl": {
+    "snapshot": "Snapshot",
     "section_rent": "Rental income",
     "section_hausgeld": "Hausgeld & reserve",
     "section_other_costs": "Other operating costs",
@@ -771,7 +784,12 @@
     "no_investments": "No investments yet.",
     "delete": "Delete",
     "heatmap_title": "Investments property × year",
-    "heatmap_long_term_label": "long-term"
+    "heatmap_long_term_label": "long-term",
+    "inline_create_title": "New investment",
+    "inline_create_subtitle": "Required: amount, measure type, tax treatment, year (or mark as „long-term“).",
+    "when": "When",
+    "when_year": "Specific year",
+    "when_long_term": "Long-term (no specific year)"
   },
   "portfolio": {
     "title": "Portfolio",

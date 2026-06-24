@@ -14,6 +14,9 @@ import {
 } from "@/lib/pnl-context";
 import { DeletePropertyButton } from "./delete-property-button";
 import { InlineLoanButton } from "./inline-loan-button";
+import { InlineTenantButton } from "./inline-tenant-button";
+import { InlineValuationButton } from "./inline-valuation-button";
+import { InlineInvestmentButton } from "./inline-investment-button";
 import { deleteProperty } from "../actions";
 
 const SIGNED_URL_TTL = 60 * 60;
@@ -435,7 +438,14 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
-        <Card title={t("factsheet.tenant_summary")}>
+        <Card
+          title={t("factsheet.tenant_summary")}
+          action={
+            isOwner(active.role) && !tenant ? (
+              <InlineTenantButton propertyId={property.id} />
+            ) : null
+          }
+        >
           {tenant ? (
             <div className="space-y-1 text-sm">
               <div className="font-medium">{tenant.name}</div>
@@ -496,7 +506,19 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
-        <Card title={t("factsheet.latest_pnl")}>
+        <Card
+          title={t("factsheet.latest_pnl")}
+          action={
+            isOwner(active.role) ? (
+              <Link
+                href={`/objekte/${property.id}/guv`}
+                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              >
+                + {t("pnl.snapshot")}
+              </Link>
+            ) : null
+          }
+        >
           {snapshotResult && latestSnapshot ? (
             <div className="text-sm space-y-1">
               <div className="text-xs text-neutral-500">
@@ -518,7 +540,14 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
-        <Card title={t("factsheet.latest_valuation")}>
+        <Card
+          title={t("factsheet.latest_valuation")}
+          action={
+            isOwner(active.role) ? (
+              <InlineValuationButton propertyId={property.id} />
+            ) : null
+          }
+        >
           {valuationResult && latestValuation ? (
             <div className="text-sm space-y-1">
               <div className="text-xs text-neutral-500">
@@ -579,7 +608,14 @@ export default async function PropertyFactsheetPage({
           )}
         </Card>
 
-        <Card title={t("factsheet.investment_summary")}>
+        <Card
+          title={t("factsheet.investment_summary")}
+          action={
+            isOwner(active.role) ? (
+              <InlineInvestmentButton propertyId={property.id} />
+            ) : null
+          }
+        >
           {(investments ?? []).length === 0 ? (
             <Empty />
           ) : (
