@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { computeValuation } from "@/lib/calculations/valuation";
-import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
+import {
+  generateSchedule,
+  loanBalance,
+  monthlyAnnuity,
+} from "@/lib/calculations/loan";
 import {
   computeSnapshotBankView,
   computeSnapshotResult,
@@ -26,6 +30,10 @@ export type PdfPropertyData = {
     sqm: number | null;
     purchase_price: number | null;
     transfer_date: string | null;
+    /** Summe Grunderwerbsteuer + Makler + Notar + Grundbuch. Wird für die
+     *  Executive-Summary-Bar als „Anschaffungs-Tick" gebraucht — der
+     *  Kaufpreis alleine unterschätzt das eingesetzte Kapital. */
+    ancillaryCostsTotal: number;
   };
   owners: { id: string; name: string; share: number }[];
   loans: {
@@ -37,6 +45,11 @@ export type PdfPropertyData = {
     amortization_pa: number;
     monthly_annuity: number;
     remaining_balance: number;
+    /** Zinsbindungs-Ende (ISO-Date). NULL falls kein Rate-Lock hinterlegt. */
+    rate_lock_until: string | null;
+    /** Restschuld zum Zinsbindungs-Ende — was zur Refi ansteht. NULL falls
+     *  kein rate_lock_until gesetzt ist. */
+    remaining_at_rate_lock: number | null;
   }[];
   totalRemaining: number;
   totalAnnuity: number;
@@ -119,7 +132,7 @@ export async function fetchPropertyForPdf(
     supabase
       .from("loans")
       .select(
-        "id, designation, bank, loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate, special_repayments(payment_date, amount)"
+        "id, designation, bank, loan_amount, interest_rate_pa, amortization_pa, first_payment_date, interest_share_first_rate, rate_lock_until, special_repayments(payment_date, amount)"
       )
       .eq("property_id", propertyId),
     supabase
@@ -179,6 +192,7 @@ export async function fetchPropertyForPdf(
     id: string;
     designation: string;
     bank: string | null;
+    rate_lock_until: string | null;
   })[]) {
     const input = {
       loanAmount: Number(l.loan_amount),
@@ -190,17 +204,35 @@ export async function fetchPropertyForPdf(
           ? null
           : Number(l.interest_share_first_rate),
     };
-    const remaining = loanBalance(
-      input,
-      today,
-      (l.special_repayments ?? []).map((s) => ({
-        date: new Date(s.payment_date),
-        amount: Number(s.amount),
-      }))
-    );
+    const specials = (l.special_repayments ?? []).map((s) => ({
+      date: new Date(s.payment_date),
+      amount: Number(s.amount),
+    }));
+    const remaining = loanBalance(input, today, specials);
     const annuity = monthlyAnnuity(input);
     totalRemaining += remaining;
     totalAnnuity += annuity;
+
+    // Restschuld zum Zinsbindungs-Ende: der Zeitpunkt kann in der Zukunft
+    // liegen — loanBalance rechnet den Plan bis dort durch. Wenn kein
+    // rate_lock_until gesetzt ist, gibt es hier auch keinen Wert.
+    let remainingAtLock: number | null = null;
+    if (l.rate_lock_until) {
+      const lockDate = new Date(l.rate_lock_until);
+      if (lockDate.getTime() >= input.firstPaymentDate.getTime()) {
+        const schedule = generateSchedule(input, {
+          untilDate: lockDate,
+          specialRepayments: specials,
+        });
+        remainingAtLock =
+          schedule.length > 0
+            ? schedule[schedule.length - 1].balance
+            : input.loanAmount;
+      } else {
+        remainingAtLock = input.loanAmount;
+      }
+    }
+
     loansResolved.push({
       id: l.id,
       designation: l.designation,
@@ -210,6 +242,8 @@ export async function fetchPropertyForPdf(
       amortization_pa: Number(l.amortization_pa),
       monthly_annuity: annuity,
       remaining_balance: remaining,
+      rate_lock_until: l.rate_lock_until ?? null,
+      remaining_at_rate_lock: remainingAtLock,
     });
   }
 
@@ -353,6 +387,14 @@ export async function fetchPropertyForPdf(
     }));
   }
 
+  const ancillaryCostsTotal =
+    (property.transfer_tax == null ? 0 : Number(property.transfer_tax)) +
+    (property.broker_fee == null ? 0 : Number(property.broker_fee)) +
+    (property.notary_fee == null ? 0 : Number(property.notary_fee)) +
+    (property.registration_cost == null
+      ? 0
+      : Number(property.registration_cost));
+
   return {
     property: {
       id: property.id,
@@ -362,6 +404,7 @@ export async function fetchPropertyForPdf(
       purchase_price:
         property.purchase_price == null ? null : Number(property.purchase_price),
       transfer_date: property.transfer_date,
+      ancillaryCostsTotal,
     },
     owners: ((owners as unknown) as {
       ownership_share: string | number;

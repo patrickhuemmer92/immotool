@@ -4,6 +4,7 @@ import type { PdfPropertyData } from "@/lib/pdf/data";
 import type { PdfLocale } from "@/lib/pdf/translate";
 import { loadDict } from "@/lib/pdf/translate";
 import { FactsheetPage } from "./FactsheetPage";
+import { ExecutiveSummaryPage } from "./ExecutiveSummaryPage";
 
 // ============================================================
 // STYLES
@@ -538,7 +539,15 @@ export function PortfolioFactbookDocument({
         </View>
       </Page>
 
-      {/* === 2. Portfolio KPIs + Balance Chart === */}
+      {/* === 2. Executive Summary — verdichtete Chart-Sicht === */}
+      <ExecutiveSummaryPage
+        workspaceName={workspaceName}
+        properties={properties}
+        locale={locale}
+        today={today}
+      />
+
+      {/* === 3. Portfolio KPIs + Balance Chart === */}
       <Page size="A4" style={styles.page}>
         <View style={styles.pageHeader}>
           <Text>{t("factsheet.key_facts")}</Text>
