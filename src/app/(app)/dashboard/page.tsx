@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { getPremiumStatus } from "@/lib/billing/premium";
 import { aggregateDashboard } from "@/lib/dashboard/aggregate";
 import {
   formatEuro,
@@ -43,7 +44,10 @@ export default async function DashboardPage({
   if (!active) return null;
 
   const { owner: ownerParam } = await searchParams;
-  const data = await aggregateDashboard(active.id, ownerParam ?? null);
+  const [data, premium] = await Promise.all([
+    aggregateDashboard(active.id, ownerParam ?? null),
+    getPremiumStatus(active.id),
+  ]);
 
   const supabase = await createClient();
   const {
@@ -97,6 +101,10 @@ export default async function DashboardPage({
             owners={data.owners}
             activeOwnerId={data.activeOwnerId}
             labelAll="Alle"
+          />
+          <FactbookButton
+            isPremium={premium.isPremium}
+            hasProperties={data.hasRealProperties}
           />
         </div>
       </header>
@@ -258,6 +266,90 @@ export default async function DashboardPage({
 /* ------------------------------------------------------------------ */
 /*  Hilfskomponenten                                                   */
 /* ------------------------------------------------------------------ */
+
+function FactbookButton({
+  isPremium,
+  hasProperties,
+}: {
+  isPremium: boolean;
+  hasProperties: boolean;
+}) {
+  const label = "Zum Factbook";
+
+  // Ohne echte Objekte gibt es nichts zu rendern — Button nur zeigen,
+  // wenn wenigstens ein reales Objekt da ist. Free-Tier (isPremium=true,
+  // 1 Objekt) sieht ihn also; nur der Empty-State-User nicht.
+  if (!hasProperties) return null;
+
+  if (!isPremium) {
+    // Locked: 2+ Objekte ohne aktives Abo/Trial. Wir zeigen den Button
+    // ausgegraut mit einem Link ins Abrechnungs-Menü — dort kann der
+    // User direkt upgraden.
+    return (
+      <Link
+        href="/einstellungen/abrechnung"
+        aria-disabled="true"
+        title="Factbook-Export ist Teil des kostenpflichtigen Tarifs."
+        className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-400 cursor-not-allowed hover:text-neutral-500"
+      >
+        <LockIcon />
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <a
+      href="/api/pdf/factbook/portfolio"
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex items-center gap-2 rounded-lg bg-accent text-accent-foreground px-3 py-1.5 text-sm font-semibold shadow-[0_1px_2px_rgba(15,27,46,0.06)] transition-opacity hover:opacity-90"
+    >
+      <FileDownIcon />
+      {label}
+    </a>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg
+      width={15}
+      height={15}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function FileDownIcon() {
+  return (
+    <svg
+      width={15}
+      height={15}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <path d="M12 18v-6" />
+      <path d="m9 15 3 3 3-3" />
+    </svg>
+  );
+}
 
 function Placeholder({ message }: { message: string }) {
   return (
