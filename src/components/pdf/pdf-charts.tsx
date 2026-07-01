@@ -7,14 +7,21 @@ import { pdfColors } from "./pdf-theme";
  * einfach gehalten, damit das PDF schnell rendert und die
  * Rendering-Engine keine SVG-Path-Kalkulationen braucht.
  *
+ * Wichtige Layout-Regeln (Ergebnis mehrerer Iterationen):
+ *   - Alle Charts sind wrap=false, damit React-PDF sie nicht über
+ *     Seitengrenzen bricht.
+ *   - Chart-Bereich hat immer eine feste Höhe (`CHART_AREA_H`), damit
+ *     Cards in einer Grid-Zeile gleich groß werden.
+ *   - Beschriftungen liegen NIE innerhalb der Bars — Overlap-Risiko.
+ *
  * Farb-Konvention: Restschuld = Slate (muted), Eigenkapital = Teal
- * (accent), Anschaffungs-Tick = Dark Navy (text). Sekundäre Serien
- * (z. B. „Eventuell") kommen in accentLight. Abzüge im Waterfall in
- * Rose, damit „minus" auf einen Blick klar ist.
+ * (accent), Anschaffungs-Tick = Dark Navy (text). Abzüge im Waterfall
+ * in Rose, damit „minus" auf einen Blick klar ist.
  */
 
 const CHART_TICK_COUNT = 5;
-const Y_AXIS_WIDTH = 32;
+const Y_AXIS_WIDTH = 28;
+const CHART_AREA_H = 96;
 const NEGATIVE_ROSE = "#E24B4A";
 
 const styles = StyleSheet.create({
@@ -89,18 +96,9 @@ function niceMax(rawMax: number): number {
 /*  Y-Axis-Renderer — geteilt zwischen Simple/Stacked/Waterfall        */
 /* ------------------------------------------------------------------ */
 
-function YAxis({
-  max,
-  min = 0,
-  height,
-}: {
-  max: number;
-  min?: number;
-  height: number;
-}) {
-  const range = max - min;
+function YAxis({ max, height }: { max: number; height: number }) {
   const ticks = Array.from({ length: CHART_TICK_COUNT }, (_, i) => {
-    const value = min + (range * (CHART_TICK_COUNT - 1 - i)) / (CHART_TICK_COUNT - 1);
+    const value = (max * (CHART_TICK_COUNT - 1 - i)) / (CHART_TICK_COUNT - 1);
     return value;
   });
   return (
@@ -130,11 +128,6 @@ function YAxis({
   );
 }
 
-/**
- * Horizontale Gridlines im Chart-Area — Slate-hairline, damit die
- * Bars den Wert auch ohne Text-Label auf der Bar direkt ablesbar
- * machen.
- */
 function GridLines({ height }: { height: number }) {
   return (
     <View
@@ -251,7 +244,6 @@ export function PdfStackedBarChart({
   series2Label,
   series1Color = pdfColors.muted,
   series2Color = pdfColors.accent,
-  height = 90,
 }: {
   title: string;
   data: StackedRow[];
@@ -259,37 +251,36 @@ export function PdfStackedBarChart({
   series2Label: string;
   series1Color?: string;
   series2Color?: string;
-  height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart title={title} height={height} />;
+  if (data.length === 0) return <EmptyChart title={title} />;
 
   const rawMax = Math.max(...data.map((d) => d.series1 + d.series2), 1);
   const yMax = niceMax(rawMax);
 
   return (
-    <View style={styles.chartWrap}>
+    <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
       <View style={{ flexDirection: "row" }}>
-        <YAxis max={yMax} height={height} />
+        <YAxis max={yMax} height={CHART_AREA_H} />
         <View style={{ flex: 1, position: "relative" }}>
-          <GridLines height={height} />
+          <GridLines height={CHART_AREA_H} />
           <View
             style={{
               flexDirection: "row",
               alignItems: "flex-end",
-              height,
+              height: CHART_AREA_H,
               gap: 3,
             }}
           >
             {data.map((d, i) => {
               const total = d.series1 + d.series2;
-              const totalH = (total / yMax) * height;
+              const totalH = (total / yMax) * CHART_AREA_H;
               const h1 = total > 0 ? (d.series1 / total) * totalH : 0;
               const h2 = total > 0 ? (d.series2 / total) * totalH : 0;
               return (
                 <View
                   key={i}
-                  style={{ flex: 1, height, justifyContent: "flex-end" }}
+                  style={{ flex: 1, height: CHART_AREA_H, justifyContent: "flex-end" }}
                 >
                   <View
                     style={{ height: totalH, flexDirection: "column-reverse" }}
@@ -315,7 +306,7 @@ export function PdfStackedBarChart({
             }}
             wrap={false}
           >
-            {d.label.length > 14 ? d.label.slice(0, 13) + "…" : d.label}
+            {d.label.length > 10 ? d.label.slice(0, 9) + "…" : d.label}
           </Text>
         ))}
       </View>
@@ -341,39 +332,37 @@ export function PdfSimpleBarChart({
   title,
   data,
   barColor = pdfColors.muted,
-  height = 90,
 }: {
   title: string;
   data: Array<{ label: string; value: number }>;
   barColor?: string;
-  height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart title={title} height={height} />;
+  if (data.length === 0) return <EmptyChart title={title} />;
 
   const rawMax = Math.max(...data.map((d) => d.value), 1);
   const yMax = niceMax(rawMax);
 
   return (
-    <View style={styles.chartWrap}>
+    <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
       <View style={{ flexDirection: "row" }}>
-        <YAxis max={yMax} height={height} />
+        <YAxis max={yMax} height={CHART_AREA_H} />
         <View style={{ flex: 1, position: "relative" }}>
-          <GridLines height={height} />
+          <GridLines height={CHART_AREA_H} />
           <View
             style={{
               flexDirection: "row",
               alignItems: "flex-end",
-              height,
+              height: CHART_AREA_H,
               gap: 3,
             }}
           >
             {data.map((d, i) => {
-              const h = (d.value / yMax) * height;
+              const h = (d.value / yMax) * CHART_AREA_H;
               return (
                 <View
                   key={i}
-                  style={{ flex: 1, height, position: "relative" }}
+                  style={{ flex: 1, height: CHART_AREA_H, position: "relative" }}
                 >
                   <View
                     style={{
@@ -408,6 +397,9 @@ export function PdfSimpleBarChart({
           </Text>
         ))}
       </View>
+      {/* Spacer, damit alle Cards in einer Zeile gleich hoch enden — die
+          Simple/Stacked-Charts haben unterschiedlich viele Legend-Zeilen. */}
+      <View style={{ marginTop: 6, height: 8 }} />
     </View>
   );
 }
@@ -434,7 +426,6 @@ export function PdfWaterfallChart({
 }) {
   if (data.length === 0) return <EmptyChart title={title} height={height} />;
 
-  // Running-Total pro Position rechnen → Bar-Range [von, bis]
   const bars: Array<{
     label: string;
     from: number;
@@ -475,12 +466,10 @@ export function PdfWaterfallChart({
   }
 
   const maxVal = Math.max(...bars.map((b) => b.to));
-  const minVal = Math.min(...bars.map((b) => b.from), 0);
-  const yMax = niceMax(Math.max(Math.abs(maxVal), Math.abs(minVal)));
-  const range = yMax; // wir nehmen 0..yMax als Y-Range; negative Werte fangen wir mit Absolute-Werten ab
+  const yMax = niceMax(maxVal);
 
   return (
-    <View style={styles.chartWrap}>
+    <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
       <View style={{ flexDirection: "row" }}>
         <YAxis max={yMax} height={height} />
@@ -491,12 +480,12 @@ export function PdfWaterfallChart({
               flexDirection: "row",
               alignItems: "flex-end",
               height,
-              gap: 3,
+              gap: 4,
             }}
           >
             {bars.map((b, i) => {
-              const barH = ((b.to - b.from) / range) * height;
-              const bottomOffset = (b.from / range) * height;
+              const barH = ((b.to - b.from) / yMax) * height;
+              const bottomOffset = (b.from / yMax) * height;
               const isCost = b.kind === "delta" && b.signedValue < 0;
               const color = isCost ? NEGATIVE_ROSE : pdfColors.accent;
               return (
@@ -510,7 +499,7 @@ export function PdfWaterfallChart({
                       left: 0,
                       right: 0,
                       bottom: bottomOffset,
-                      height: barH,
+                      height: Math.max(1, barH),
                       backgroundColor: color,
                       borderRadius: 1,
                     }}
@@ -521,7 +510,16 @@ export function PdfWaterfallChart({
           </View>
         </View>
       </View>
-      <View style={{ flexDirection: "row", gap: 3, marginTop: 3, marginLeft: Y_AXIS_WIDTH }}>
+      {/* Label + Wert unter jedem Balken. Gemeinsame Zeile, damit die
+          Beschriftung nicht in die Chart-Area läuft. */}
+      <View
+        style={{
+          flexDirection: "row",
+          gap: 4,
+          marginTop: 4,
+          marginLeft: Y_AXIS_WIDTH,
+        }}
+      >
         {bars.map((b, i) => (
           <View key={i} style={{ flex: 1, alignItems: "center" }}>
             <Text
@@ -536,12 +534,14 @@ export function PdfWaterfallChart({
             </Text>
             <Text
               style={{
-                fontSize: 6,
-                color: b.kind === "delta" && b.signedValue < 0
-                  ? NEGATIVE_ROSE
-                  : pdfColors.text,
+                fontSize: 7,
+                color:
+                  b.kind === "delta" && b.signedValue < 0
+                    ? NEGATIVE_ROSE
+                    : pdfColors.text,
                 textAlign: "center",
                 fontFamily: "Inter-SemiBold",
+                marginTop: 1,
               }}
               wrap={false}
             >
@@ -578,40 +578,37 @@ export type TenancyRow = {
   isActive: boolean;
 };
 
+const TIMELINE_LEFT_LABEL_WIDTH = 68;
+
 export function PdfTenancyTimeline({
   title,
   data,
   todayIso,
-  height = 130,
 }: {
   title: string;
   data: TenancyRow[];
   todayIso: string;
-  height?: number;
 }) {
-  if (data.length === 0) return <EmptyChart title={title} height={height} />;
+  if (data.length === 0) return <EmptyChart title={title} />;
 
   const today = new Date(todayIso).getTime();
   const startEpoch = Math.min(
     ...data.map((d) => new Date(d.contractStart).getTime())
   );
-  // X-Achse: von frühestem Vertragsstart bis heute. Etwas Puffer nach
-  // vorne, damit die Balken nicht am linken Rand kleben.
-  const rangeMs = today - startEpoch;
+  const rangeMs = Math.max(today - startEpoch, 365 * 24 * 3600 * 1000);
   const paddedStart = startEpoch - rangeMs * 0.05;
   const paddedEnd = today + rangeMs * 0.02;
   const totalRange = paddedEnd - paddedStart;
 
-  // Jahres-Ticks für die X-Achse
   const startYear = new Date(paddedStart).getUTCFullYear();
   const endYear = new Date(paddedEnd).getUTCFullYear();
   const years: number[] = [];
   for (let y = startYear; y <= endYear; y++) years.push(y);
-  // Max 6 Jahres-Labels — sonst wird's zu eng
-  const step = Math.max(1, Math.ceil(years.length / 6));
+  const step = Math.max(1, Math.ceil(years.length / 5));
   const shownYears = years.filter((_, i) => i % step === 0);
 
-  const rowHeight = Math.max(10, Math.floor(height / data.length));
+  // Feste Chart-Höhe unabhängig von Zeilenanzahl — Cards werden gleich groß.
+  const rowHeight = Math.max(10, Math.floor(CHART_AREA_H / Math.max(1, data.length)));
   const chartHeight = rowHeight * data.length;
 
   const pctFor = (iso: string): number => {
@@ -620,90 +617,119 @@ export function PdfTenancyTimeline({
   };
 
   return (
-    <View style={styles.chartWrap}>
+    <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
-      <View style={{ position: "relative" }}>
-        {/* Vertikale Jahres-Gitter */}
-        {shownYears.map((y) => {
-          const yearIso = `${y}-01-01`;
-          const left = pctFor(yearIso);
-          if (left < 0 || left > 100) return null;
-          return (
-            <View
-              key={y}
-              style={{
-                position: "absolute",
-                top: 0,
-                left: `${left}%`,
-                width: 0.5,
-                height: chartHeight,
-                backgroundColor: pdfColors.border,
-              }}
-            />
-          );
-        })}
-
-        {/* Bars — eine pro Objekt */}
-        {data.map((row, i) => {
-          const left = pctFor(row.contractStart);
-          const endIso = row.contractEnd && !row.isActive
-            ? row.contractEnd
-            : todayIso;
-          const right = pctFor(endIso);
-          const width = Math.max(1, right - left);
-          const barColor = row.isActive ? pdfColors.accent : pdfColors.muted;
-          return (
+      <View style={{ flexDirection: "row", height: CHART_AREA_H }}>
+        {/* Linke Spalte: Objekt-Labels */}
+        <View
+          style={{
+            width: TIMELINE_LEFT_LABEL_WIDTH,
+            flexDirection: "column",
+            height: chartHeight,
+          }}
+        >
+          {data.map((row, i) => (
             <View
               key={i}
               style={{
                 height: rowHeight,
-                position: "relative",
                 justifyContent: "center",
+                paddingRight: 4,
               }}
             >
+              <Text
+                style={{
+                  fontSize: 6.5,
+                  color: pdfColors.text,
+                  textAlign: "right",
+                }}
+                wrap={false}
+              >
+                {row.label.length > 14 ? row.label.slice(0, 13) + "…" : row.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Rechte Spalte: Bars + Jahres-Grid */}
+        <View style={{ flex: 1, position: "relative", height: chartHeight }}>
+          {/* Vertikale Jahres-Gitter */}
+          {shownYears.map((y) => {
+            const left = pctFor(`${y}-01-01`);
+            if (left < 0 || left > 100) return null;
+            return (
               <View
+                key={y}
                 style={{
                   position: "absolute",
+                  top: 0,
+                  left: `${left}%`,
+                  width: 0.5,
+                  height: chartHeight,
+                  backgroundColor: pdfColors.border,
+                }}
+              />
+            );
+          })}
+
+          {/* Bars */}
+          {data.map((row, i) => {
+            const left = pctFor(row.contractStart);
+            const endIso = row.contractEnd && !row.isActive
+              ? row.contractEnd
+              : todayIso;
+            const right = pctFor(endIso);
+            const width = Math.max(1, right - left);
+            const barColor = row.isActive ? pdfColors.accent : pdfColors.muted;
+            return (
+              <View
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: i * rowHeight + 2,
+                  height: rowHeight - 4,
                   left: `${left}%`,
                   width: `${width}%`,
-                  height: rowHeight - 4,
-                  top: 2,
                   backgroundColor: barColor,
                   borderRadius: 1,
                 }}
               />
+            );
+          })}
+
+          {/* Jahres-Label rechts vom Balken — nur sichtbar wenn genug Platz */}
+          {data.map((row, i) => {
+            const year = new Date(row.contractStart).getUTCFullYear();
+            const left = pctFor(row.contractStart);
+            return (
               <Text
+                key={`year-${i}`}
                 style={{
                   position: "absolute",
-                  left: 3,
-                  top: (rowHeight - 6) / 2,
-                  fontSize: 6,
-                  color: "#FFFFFF",
-                  fontFamily: "Inter-SemiBold",
-                }}
-                wrap={false}
-              >
-                {row.label.length > 18 ? row.label.slice(0, 17) + "…" : row.label}
-              </Text>
-              <Text
-                style={{
-                  position: "absolute",
-                  right: 3,
-                  top: (rowHeight - 6) / 2,
+                  top: i * rowHeight + (rowHeight - 6) / 2,
+                  left: `${left}%`,
+                  marginLeft: 3,
                   fontSize: 6,
                   color: pdfColors.text,
                 }}
                 wrap={false}
               >
-                seit {new Date(row.contractStart).getUTCFullYear()}
+                seit {year}
               </Text>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
       </View>
 
       {/* X-Achse: Jahres-Labels */}
-      <View style={{ position: "relative", height: 8, marginTop: 2 }}>
+      <View
+        style={{
+          position: "relative",
+          height: 8,
+          marginTop: 2,
+          marginLeft: TIMELINE_LEFT_LABEL_WIDTH,
+        }}
+      >
         {shownYears.map((y) => {
           const left = pctFor(`${y}-01-01`);
           if (left < 0 || left > 100) return null;
@@ -742,9 +768,15 @@ export function PdfTenancyTimeline({
 /*  Empty-State                                                        */
 /* ------------------------------------------------------------------ */
 
-function EmptyChart({ title, height }: { title: string; height: number }) {
+function EmptyChart({
+  title,
+  height = CHART_AREA_H,
+}: {
+  title: string;
+  height?: number;
+}) {
   return (
-    <View style={styles.chartWrap}>
+    <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
       <View
         style={{
@@ -757,6 +789,8 @@ function EmptyChart({ title, height }: { title: string; height: number }) {
           keine Daten
         </Text>
       </View>
+      {/* Damit Cards mit "keine Daten" gleich groß bleiben wie die anderen. */}
+      <View style={{ marginTop: 6, height: 20 }} />
     </View>
   );
 }

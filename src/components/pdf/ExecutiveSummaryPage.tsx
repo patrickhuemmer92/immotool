@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 8,
     backgroundColor: "#FFFFFF",
-    marginBottom: 10,
+    marginBottom: 8,
   },
   heroLabel: {
     fontSize: 8,
@@ -119,12 +119,10 @@ const styles = StyleSheet.create({
   chartGrid: {
     flexDirection: "row",
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
+    alignItems: "stretch",
   },
-  chartCell: { flex: 1 },
-  fullWidthChart: {
-    // volle Chart-Zeile für den Waterfall
-  },
+  chartCell: { flex: 1, minWidth: 0 },
   footer: {
     position: "absolute",
     bottom: 14,
@@ -364,7 +362,7 @@ export function ExecutiveSummaryPage({
         })} %`;
 
   return (
-    <Page size="A4" orientation="landscape" style={styles.page}>
+    <Page size="A4" orientation="landscape" style={styles.page} wrap={false}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -455,12 +453,11 @@ export function ExecutiveSummaryPage({
       </View>
 
       {/* Waterfall — volle Breite */}
-      <View style={styles.fullWidthChart}>
-        <PdfWaterfallChart
-          title="Cashflow-Waterfall (Portfolio, p. a.)"
-          data={agg.waterfall}
-        />
-      </View>
+      <PdfWaterfallChart
+        title="Cashflow-Waterfall (Portfolio, p. a.)"
+        data={agg.waterfall}
+        height={110}
+      />
 
       <View style={styles.footer}>
         <Text>{t("app.name")}</Text>
