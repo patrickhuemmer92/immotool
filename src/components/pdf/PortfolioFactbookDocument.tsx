@@ -241,97 +241,6 @@ const pct = (n: number | null | undefined, fractionDigits = 2) =>
       })} %`;
 
 // Vertical bar chart drawn with primitives. data: { label, value }.
-function PdfBarChart({
-  data,
-  title,
-  formatter,
-  height = 110,
-  barColor = pdfColors.accent,
-}: {
-  data: { label: string; value: number }[];
-  title: string;
-  formatter?: (v: number) => string;
-  height?: number;
-  barColor?: string;
-}) {
-  if (data.length === 0) return null;
-  const maxAbs = Math.max(...data.map((d) => Math.abs(d.value)), 1);
-  const hasNegative = data.some((d) => d.value < 0);
-  const zeroY = hasNegative ? height / 2 : height;
-  const barAreaHeight = hasNegative ? height / 2 : height;
-  const fmt = formatter ?? ((v: number) => Math.round(v).toLocaleString("de-DE"));
-
-  return (
-    <View style={styles.chartWrap}>
-      <Text style={styles.chartTitle}>{title}</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
-          height,
-          gap: 4,
-        }}
-      >
-        {data.map((d, i) => {
-          const h = (Math.abs(d.value) / maxAbs) * barAreaHeight;
-          const isNeg = d.value < 0;
-          return (
-            <View
-              key={i}
-              style={{
-                flex: 1,
-                height,
-                position: "relative",
-              }}
-            >
-              <View
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: isNeg ? zeroY - h : height - zeroY,
-                  height: h,
-                  backgroundColor: isNeg ? pdfColors.negative : barColor,
-                  borderRadius: 1,
-                }}
-              />
-              <Text
-                style={{
-                  position: "absolute",
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  fontSize: 6,
-                  textAlign: "center",
-                  color: pdfColors.text,
-                }}
-              >
-                {fmt(d.value)}
-              </Text>
-            </View>
-          );
-        })}
-      </View>
-      <View style={{ flexDirection: "row", gap: 4, marginTop: 2 }}>
-        {data.map((d, i) => (
-          <Text
-            key={i}
-            style={{
-              flex: 1,
-              fontSize: 6,
-              color: pdfColors.muted,
-              textAlign: "center",
-            }}
-            wrap={false}
-          >
-            {d.label.length > 18 ? d.label.slice(0, 17) + "…" : d.label}
-          </Text>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 // ============================================================
 // OWNER GROUPING
 // ============================================================
@@ -421,9 +330,11 @@ export function PortfolioFactbookDocument({
   locale: PdfLocale;
 }) {
   const t = loadDict(locale);
-  const today = new Date().toLocaleDateString(
+  const todayDate = new Date();
+  const today = todayDate.toLocaleDateString(
     locale === "de" ? "de-DE" : "en-US"
   );
+  const todayIso = todayDate.toISOString().slice(0, 10);
 
   // Totals + per-property balance for KPI chart
   const totals = properties.reduce(
@@ -456,10 +367,6 @@ export function PortfolioFactbookDocument({
       : null;
   const ltvPct =
     totals.value > 0 ? (totals.remaining / totals.value) * 100 : null;
-  const equityRatioPct =
-    totals.purchase > 0
-      ? ((totals.purchase - totals.remaining) / totals.purchase) * 100
-      : null;
 
   return (
     <Document title={`Factbook ${workspaceName}`}>
@@ -545,113 +452,8 @@ export function PortfolioFactbookDocument({
         properties={properties}
         locale={locale}
         today={today}
+        todayIso={todayIso}
       />
-
-      {/* === 3. Portfolio KPIs + Balance Chart === */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.pageHeader}>
-          <Text>{t("factsheet.key_facts")}</Text>
-          <Text>{workspaceName}</Text>
-        </View>
-        <Text style={styles.pageTitle}>{t("portfolio.title")}</Text>
-
-        <View style={styles.kpiRow}>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>{t("portfolio.kpi_objects")}</Text>
-            <Text style={styles.kpiValue}>{properties.length}</Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>{t("portfolio.kpi_sqm")}</Text>
-            <Text style={styles.kpiValue}>
-              {totals.sqm.toLocaleString("de-DE", { maximumFractionDigits: 0 })}
-            </Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_purchase_total")}
-            </Text>
-            <Text style={styles.kpiValue}>{eur(totals.purchase)}</Text>
-          </View>
-        </View>
-        <View style={styles.kpiRow}>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_value_combined")}
-            </Text>
-            <Text style={styles.kpiValue}>{eur(totals.value)}</Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_remaining_loans")}
-            </Text>
-            <Text style={styles.kpiValue}>{eur(totals.remaining)}</Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>{t("portfolio.kpi_equity")}</Text>
-            <Text style={styles.kpiValue}>
-              {eur(totals.value - totals.remaining)}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.kpiRow}>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_cashflow_after_tax")}
-            </Text>
-            <Text style={styles.kpiValue}>{eur(totals.afterTax)}</Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_gross_yield")}
-            </Text>
-            <Text style={styles.kpiValue}>
-              {grossYieldPct != null
-                ? `${grossYieldPct.toLocaleString("de-DE", {
-                    maximumFractionDigits: 2,
-                  })} %`
-                : "—"}
-            </Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>{t("portfolio.kpi_ltv")}</Text>
-            <Text style={styles.kpiValue}>
-              {ltvPct != null
-                ? `${ltvPct.toLocaleString("de-DE", {
-                    maximumFractionDigits: 1,
-                  })} %`
-                : "—"}
-            </Text>
-          </View>
-          <View style={styles.kpi}>
-            <Text style={styles.kpiLabel}>
-              {t("portfolio.kpi_equity_ratio")}
-            </Text>
-            <Text style={styles.kpiValue}>
-              {equityRatioPct != null
-                ? `${equityRatioPct.toLocaleString("de-DE", {
-                    maximumFractionDigits: 1,
-                  })} %`
-                : "—"}
-            </Text>
-          </View>
-        </View>
-
-        <PdfBarChart
-          title={t("portfolio.balance_chart_title")}
-          height={130}
-          data={properties.slice(0, 10).map((p) => ({
-            label: shortAddress(p.property.address),
-            value: (p.property.purchase_price ?? 0) - p.totalRemaining,
-          }))}
-          formatter={(v) =>
-            (v / 1000).toLocaleString("de-DE", { maximumFractionDigits: 0 }) +
-            "k"
-          }
-          barColor={pdfColors.accent}
-        />
-
-        <PageNumber />
-      </Page>
 
       {/* === 3. Objekte (landscape) === */}
       <PropertiesByOwnerPage
@@ -692,11 +494,6 @@ export function PortfolioFactbookDocument({
       {properties.flatMap((p) => renderPropertyPages(p, t, locale))}
     </Document>
   );
-}
-
-function shortAddress(addr: string): string {
-  const firstComma = addr.indexOf(",");
-  return firstComma > 0 ? addr.slice(0, firstComma) : addr;
 }
 
 function PageNumber() {

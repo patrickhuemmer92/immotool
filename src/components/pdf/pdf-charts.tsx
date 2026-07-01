@@ -9,8 +9,13 @@ import { pdfColors } from "./pdf-theme";
  *
  * Farb-Konvention: Restschuld = Slate (muted), Eigenkapital = Teal
  * (accent), Anschaffungs-Tick = Dark Navy (text). Sekundäre Serien
- * (z. B. „Eventuell") kommen in accentLight.
+ * (z. B. „Eventuell") kommen in accentLight. Abzüge im Waterfall in
+ * Rose, damit „minus" auf einen Blick klar ist.
  */
+
+const CHART_TICK_COUNT = 5;
+const Y_AXIS_WIDTH = 32;
+const NEGATIVE_ROSE = "#E24B4A";
 
 const styles = StyleSheet.create({
   chartWrap: {
@@ -64,6 +69,103 @@ const eurCompact = (v: number): string => {
   return `${Math.round(v).toLocaleString("de-DE")} €`;
 };
 
+/**
+ * Rundet auf ein „schönes" Achsen-Maximum (10 / 25 / 50 / 100 T€ Schritt),
+ * damit die Tick-Beschriftung nicht wie „37,3 T€" aussieht.
+ */
+function niceMax(rawMax: number): number {
+  if (rawMax <= 0) return 1;
+  const pow = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const norm = rawMax / pow;
+  let step: number;
+  if (norm <= 1) step = 1;
+  else if (norm <= 2) step = 2;
+  else if (norm <= 5) step = 5;
+  else step = 10;
+  return step * pow;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Y-Axis-Renderer — geteilt zwischen Simple/Stacked/Waterfall        */
+/* ------------------------------------------------------------------ */
+
+function YAxis({
+  max,
+  min = 0,
+  height,
+}: {
+  max: number;
+  min?: number;
+  height: number;
+}) {
+  const range = max - min;
+  const ticks = Array.from({ length: CHART_TICK_COUNT }, (_, i) => {
+    const value = min + (range * (CHART_TICK_COUNT - 1 - i)) / (CHART_TICK_COUNT - 1);
+    return value;
+  });
+  return (
+    <View
+      style={{
+        width: Y_AXIS_WIDTH,
+        height,
+        flexDirection: "column",
+        justifyContent: "space-between",
+        paddingRight: 4,
+      }}
+    >
+      {ticks.map((v, i) => (
+        <Text
+          key={i}
+          style={{
+            fontSize: 6,
+            color: pdfColors.textMuted,
+            textAlign: "right",
+            lineHeight: 1,
+          }}
+        >
+          {eurCompact(v)}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Horizontale Gridlines im Chart-Area — Slate-hairline, damit die
+ * Bars den Wert auch ohne Text-Label auf der Bar direkt ablesbar
+ * machen.
+ */
+function GridLines({ height }: { height: number }) {
+  return (
+    <View
+      style={{
+        position: "absolute",
+        left: 0,
+        right: 0,
+        top: 0,
+        bottom: 0,
+      }}
+    >
+      {Array.from({ length: CHART_TICK_COUNT }, (_, i) => {
+        const top = (height * i) / (CHART_TICK_COUNT - 1);
+        return (
+          <View
+            key={i}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top,
+              height: 0.5,
+              backgroundColor: pdfColors.border,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Capital-Stack-Bar (horizontal, dreiteilig mit Anschaffungs-Tick)  */
 /* ------------------------------------------------------------------ */
@@ -76,7 +178,6 @@ export function PdfCapitalStackBar({
 }: {
   debt: number;
   equity: number;
-  /** Anschaffungspreis inkl. Nebenkosten — Tick auf der Bar. */
   acquisition: number;
   height?: number;
 }) {
@@ -98,19 +199,8 @@ export function PdfCapitalStackBar({
           position: "relative",
         }}
       >
-        <View
-          style={{
-            width: `${debtPct}%`,
-            backgroundColor: pdfColors.muted,
-          }}
-        />
-        <View
-          style={{
-            width: `${equityPct}%`,
-            backgroundColor: pdfColors.accent,
-          }}
-        />
-        {/* Anschaffungs-Tick — 2px vertikaler Strich in Text-Farbe. */}
+        <View style={{ width: `${debtPct}%`, backgroundColor: pdfColors.muted }} />
+        <View style={{ width: `${equityPct}%`, backgroundColor: pdfColors.accent }} />
         {acqPct > 0 && acqPct <= 100 ? (
           <View
             style={{
@@ -128,32 +218,16 @@ export function PdfCapitalStackBar({
 
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
-          <View
-            style={[styles.legendSwatch, { backgroundColor: pdfColors.muted }]}
-          />
-          <Text style={styles.legendText}>
-            Restschuld · {eurCompact(debt)}
-          </Text>
+          <View style={[styles.legendSwatch, { backgroundColor: pdfColors.muted }]} />
+          <Text style={styles.legendText}>Restschuld · {eurCompact(debt)}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View
-            style={[styles.legendSwatch, { backgroundColor: pdfColors.accent }]}
-          />
-          <Text style={styles.legendText}>
-            Eigenkapital · {eurCompact(equity)}
-          </Text>
+          <View style={[styles.legendSwatch, { backgroundColor: pdfColors.accent }]} />
+          <Text style={styles.legendText}>Eigenkapital · {eurCompact(equity)}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View
-            style={{
-              width: 2,
-              height: 8,
-              backgroundColor: pdfColors.text,
-            }}
-          />
-          <Text style={styles.legendText}>
-            Anschaffung · {eurCompact(acquisition)}
-          </Text>
+          <View style={{ width: 2, height: 8, backgroundColor: pdfColors.text }} />
+          <Text style={styles.legendText}>Anschaffung · {eurCompact(acquisition)}</Text>
         </View>
       </View>
     </View>
@@ -161,7 +235,7 @@ export function PdfCapitalStackBar({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Stacked-Bar-Chart — zwei Serien vertikal übereinander              */
+/*  Stacked-Bar-Chart mit Y-Achse                                      */
 /* ------------------------------------------------------------------ */
 
 export type StackedRow = {
@@ -187,66 +261,49 @@ export function PdfStackedBarChart({
   series2Color?: string;
   height?: number;
 }) {
-  if (data.length === 0) {
-    return (
-      <View style={styles.chartWrap}>
-        <Text style={styles.chartTitle}>{title}</Text>
-        <View
-          style={{
-            height,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 7, color: pdfColors.textMuted }}>
-            keine Daten
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  if (data.length === 0) return <EmptyChart title={title} height={height} />;
 
-  const maxTotal = Math.max(...data.map((d) => d.series1 + d.series2), 1);
+  const rawMax = Math.max(...data.map((d) => d.series1 + d.series2), 1);
+  const yMax = niceMax(rawMax);
 
   return (
     <View style={styles.chartWrap}>
       <Text style={styles.chartTitle}>{title}</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
-          height,
-          gap: 3,
-        }}
-      >
-        {data.map((d, i) => {
-          const total = d.series1 + d.series2;
-          const totalH = (total / maxTotal) * height;
-          const h1 = total > 0 ? (d.series1 / total) * totalH : 0;
-          const h2 = total > 0 ? (d.series2 / total) * totalH : 0;
-          return (
-            <View
-              key={i}
-              style={{ flex: 1, height, justifyContent: "flex-end" }}
-            >
-              <View
-                style={{
-                  height: totalH,
-                  flexDirection: "column-reverse",
-                }}
-              >
+      <View style={{ flexDirection: "row" }}>
+        <YAxis max={yMax} height={height} />
+        <View style={{ flex: 1, position: "relative" }}>
+          <GridLines height={height} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              height,
+              gap: 3,
+            }}
+          >
+            {data.map((d, i) => {
+              const total = d.series1 + d.series2;
+              const totalH = (total / yMax) * height;
+              const h1 = total > 0 ? (d.series1 / total) * totalH : 0;
+              const h2 = total > 0 ? (d.series2 / total) * totalH : 0;
+              return (
                 <View
-                  style={{ height: h1, backgroundColor: series1Color }}
-                />
-                <View
-                  style={{ height: h2, backgroundColor: series2Color }}
-                />
-              </View>
-            </View>
-          );
-        })}
+                  key={i}
+                  style={{ flex: 1, height, justifyContent: "flex-end" }}
+                >
+                  <View
+                    style={{ height: totalH, flexDirection: "column-reverse" }}
+                  >
+                    <View style={{ height: h1, backgroundColor: series1Color }} />
+                    <View style={{ height: h2, backgroundColor: series2Color }} />
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </View>
       </View>
-      <View style={{ flexDirection: "row", gap: 3, marginTop: 3 }}>
+      <View style={{ flexDirection: "row", gap: 3, marginTop: 3, marginLeft: Y_AXIS_WIDTH }}>
         {data.map((d, i) => (
           <Text
             key={i}
@@ -264,15 +321,11 @@ export function PdfStackedBarChart({
       </View>
       <View style={styles.legendRow}>
         <View style={styles.legendItem}>
-          <View
-            style={[styles.legendSwatch, { backgroundColor: series1Color }]}
-          />
+          <View style={[styles.legendSwatch, { backgroundColor: series1Color }]} />
           <Text style={styles.legendText}>{series1Label}</Text>
         </View>
         <View style={styles.legendItem}>
-          <View
-            style={[styles.legendSwatch, { backgroundColor: series2Color }]}
-          />
+          <View style={[styles.legendSwatch, { backgroundColor: series2Color }]} />
           <Text style={styles.legendText}>{series2Label}</Text>
         </View>
       </View>
@@ -281,7 +334,7 @@ export function PdfStackedBarChart({
 }
 
 /* ------------------------------------------------------------------ */
-/*  Simple-Bar-Chart — eine Serie, vertikal (Fälligkeiten)             */
+/*  Simple-Bar-Chart mit Y-Achse                                       */
 /* ------------------------------------------------------------------ */
 
 export function PdfSimpleBarChart({
@@ -295,74 +348,51 @@ export function PdfSimpleBarChart({
   barColor?: string;
   height?: number;
 }) {
-  if (data.length === 0) {
-    return (
-      <View style={styles.chartWrap}>
-        <Text style={styles.chartTitle}>{title}</Text>
-        <View
-          style={{
-            height,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text style={{ fontSize: 7, color: pdfColors.textMuted }}>
-            keine Daten
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  if (data.length === 0) return <EmptyChart title={title} height={height} />;
 
-  const maxVal = Math.max(...data.map((d) => d.value), 1);
+  const rawMax = Math.max(...data.map((d) => d.value), 1);
+  const yMax = niceMax(rawMax);
 
   return (
     <View style={styles.chartWrap}>
       <Text style={styles.chartTitle}>{title}</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "flex-end",
-          height,
-          gap: 3,
-        }}
-      >
-        {data.map((d, i) => {
-          const h = (d.value / maxVal) * height;
-          return (
-            <View
-              key={i}
-              style={{ flex: 1, height, position: "relative" }}
-            >
-              <View
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: h,
-                  backgroundColor: barColor,
-                  borderRadius: 1,
-                }}
-              />
-              <Text
-                style={{
-                  position: "absolute",
-                  top: -2,
-                  left: 0,
-                  right: 0,
-                  fontSize: 6,
-                  textAlign: "center",
-                  color: pdfColors.textMuted,
-                }}
-              >
-                {eurCompact(d.value)}
-              </Text>
-            </View>
-          );
-        })}
+      <View style={{ flexDirection: "row" }}>
+        <YAxis max={yMax} height={height} />
+        <View style={{ flex: 1, position: "relative" }}>
+          <GridLines height={height} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              height,
+              gap: 3,
+            }}
+          >
+            {data.map((d, i) => {
+              const h = (d.value / yMax) * height;
+              return (
+                <View
+                  key={i}
+                  style={{ flex: 1, height, position: "relative" }}
+                >
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: h,
+                      backgroundColor: barColor,
+                      borderRadius: 1,
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </View>
       </View>
-      <View style={{ flexDirection: "row", gap: 3, marginTop: 3 }}>
+      <View style={{ flexDirection: "row", gap: 3, marginTop: 3, marginLeft: Y_AXIS_WIDTH }}>
         {data.map((d, i) => (
           <Text
             key={i}
@@ -377,6 +407,355 @@ export function PdfSimpleBarChart({
             {d.label}
           </Text>
         ))}
+      </View>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Waterfall-Chart                                                    */
+/* ------------------------------------------------------------------ */
+
+export type WaterfallPosition = {
+  label: string;
+  /** Positiv = Zufluss, Negativ = Abfluss. Für `kind='end'` das End-Total. */
+  value: number;
+  kind: "start" | "delta" | "end";
+};
+
+export function PdfWaterfallChart({
+  title,
+  data,
+  height = 130,
+}: {
+  title: string;
+  data: WaterfallPosition[];
+  height?: number;
+}) {
+  if (data.length === 0) return <EmptyChart title={title} height={height} />;
+
+  // Running-Total pro Position rechnen → Bar-Range [von, bis]
+  const bars: Array<{
+    label: string;
+    from: number;
+    to: number;
+    kind: WaterfallPosition["kind"];
+    signedValue: number;
+  }> = [];
+  let running = 0;
+  for (const p of data) {
+    if (p.kind === "start") {
+      running = p.value;
+      bars.push({
+        label: p.label,
+        from: 0,
+        to: p.value,
+        kind: p.kind,
+        signedValue: p.value,
+      });
+    } else if (p.kind === "end") {
+      bars.push({
+        label: p.label,
+        from: 0,
+        to: p.value,
+        kind: p.kind,
+        signedValue: p.value,
+      });
+    } else {
+      const from = running;
+      running += p.value;
+      bars.push({
+        label: p.label,
+        from: Math.min(from, running),
+        to: Math.max(from, running),
+        kind: p.kind,
+        signedValue: p.value,
+      });
+    }
+  }
+
+  const maxVal = Math.max(...bars.map((b) => b.to));
+  const minVal = Math.min(...bars.map((b) => b.from), 0);
+  const yMax = niceMax(Math.max(Math.abs(maxVal), Math.abs(minVal)));
+  const range = yMax; // wir nehmen 0..yMax als Y-Range; negative Werte fangen wir mit Absolute-Werten ab
+
+  return (
+    <View style={styles.chartWrap}>
+      <Text style={styles.chartTitle}>{title}</Text>
+      <View style={{ flexDirection: "row" }}>
+        <YAxis max={yMax} height={height} />
+        <View style={{ flex: 1, position: "relative" }}>
+          <GridLines height={height} />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "flex-end",
+              height,
+              gap: 3,
+            }}
+          >
+            {bars.map((b, i) => {
+              const barH = ((b.to - b.from) / range) * height;
+              const bottomOffset = (b.from / range) * height;
+              const isCost = b.kind === "delta" && b.signedValue < 0;
+              const color = isCost ? NEGATIVE_ROSE : pdfColors.accent;
+              return (
+                <View
+                  key={i}
+                  style={{ flex: 1, height, position: "relative" }}
+                >
+                  <View
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: bottomOffset,
+                      height: barH,
+                      backgroundColor: color,
+                      borderRadius: 1,
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+      <View style={{ flexDirection: "row", gap: 3, marginTop: 3, marginLeft: Y_AXIS_WIDTH }}>
+        {bars.map((b, i) => (
+          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            <Text
+              style={{
+                fontSize: 6,
+                color: pdfColors.muted,
+                textAlign: "center",
+              }}
+              wrap={false}
+            >
+              {b.label.length > 12 ? b.label.slice(0, 11) + "…" : b.label}
+            </Text>
+            <Text
+              style={{
+                fontSize: 6,
+                color: b.kind === "delta" && b.signedValue < 0
+                  ? NEGATIVE_ROSE
+                  : pdfColors.text,
+                textAlign: "center",
+                fontFamily: "Inter-SemiBold",
+              }}
+              wrap={false}
+            >
+              {b.kind === "delta" && b.signedValue < 0 ? "−" : ""}
+              {eurCompact(Math.abs(b.signedValue))}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendSwatch, { backgroundColor: pdfColors.accent }]} />
+          <Text style={styles.legendText}>Zufluss / Ergebnis</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendSwatch, { backgroundColor: NEGATIVE_ROSE }]} />
+          <Text style={styles.legendText}>Abzug</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tenancy-Timeline — "Vermietet seit"                                */
+/* ------------------------------------------------------------------ */
+
+export type TenancyRow = {
+  label: string;
+  /** ISO-Date des Mietbeginns. */
+  contractStart: string;
+  /** ISO-Date des Vertragsendes; NULL bei unbefristet. */
+  contractEnd: string | null;
+  isActive: boolean;
+};
+
+export function PdfTenancyTimeline({
+  title,
+  data,
+  todayIso,
+  height = 130,
+}: {
+  title: string;
+  data: TenancyRow[];
+  todayIso: string;
+  height?: number;
+}) {
+  if (data.length === 0) return <EmptyChart title={title} height={height} />;
+
+  const today = new Date(todayIso).getTime();
+  const startEpoch = Math.min(
+    ...data.map((d) => new Date(d.contractStart).getTime())
+  );
+  // X-Achse: von frühestem Vertragsstart bis heute. Etwas Puffer nach
+  // vorne, damit die Balken nicht am linken Rand kleben.
+  const rangeMs = today - startEpoch;
+  const paddedStart = startEpoch - rangeMs * 0.05;
+  const paddedEnd = today + rangeMs * 0.02;
+  const totalRange = paddedEnd - paddedStart;
+
+  // Jahres-Ticks für die X-Achse
+  const startYear = new Date(paddedStart).getUTCFullYear();
+  const endYear = new Date(paddedEnd).getUTCFullYear();
+  const years: number[] = [];
+  for (let y = startYear; y <= endYear; y++) years.push(y);
+  // Max 6 Jahres-Labels — sonst wird's zu eng
+  const step = Math.max(1, Math.ceil(years.length / 6));
+  const shownYears = years.filter((_, i) => i % step === 0);
+
+  const rowHeight = Math.max(10, Math.floor(height / data.length));
+  const chartHeight = rowHeight * data.length;
+
+  const pctFor = (iso: string): number => {
+    const ms = new Date(iso).getTime();
+    return ((ms - paddedStart) / totalRange) * 100;
+  };
+
+  return (
+    <View style={styles.chartWrap}>
+      <Text style={styles.chartTitle}>{title}</Text>
+      <View style={{ position: "relative" }}>
+        {/* Vertikale Jahres-Gitter */}
+        {shownYears.map((y) => {
+          const yearIso = `${y}-01-01`;
+          const left = pctFor(yearIso);
+          if (left < 0 || left > 100) return null;
+          return (
+            <View
+              key={y}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: `${left}%`,
+                width: 0.5,
+                height: chartHeight,
+                backgroundColor: pdfColors.border,
+              }}
+            />
+          );
+        })}
+
+        {/* Bars — eine pro Objekt */}
+        {data.map((row, i) => {
+          const left = pctFor(row.contractStart);
+          const endIso = row.contractEnd && !row.isActive
+            ? row.contractEnd
+            : todayIso;
+          const right = pctFor(endIso);
+          const width = Math.max(1, right - left);
+          const barColor = row.isActive ? pdfColors.accent : pdfColors.muted;
+          return (
+            <View
+              key={i}
+              style={{
+                height: rowHeight,
+                position: "relative",
+                justifyContent: "center",
+              }}
+            >
+              <View
+                style={{
+                  position: "absolute",
+                  left: `${left}%`,
+                  width: `${width}%`,
+                  height: rowHeight - 4,
+                  top: 2,
+                  backgroundColor: barColor,
+                  borderRadius: 1,
+                }}
+              />
+              <Text
+                style={{
+                  position: "absolute",
+                  left: 3,
+                  top: (rowHeight - 6) / 2,
+                  fontSize: 6,
+                  color: "#FFFFFF",
+                  fontFamily: "Inter-SemiBold",
+                }}
+                wrap={false}
+              >
+                {row.label.length > 18 ? row.label.slice(0, 17) + "…" : row.label}
+              </Text>
+              <Text
+                style={{
+                  position: "absolute",
+                  right: 3,
+                  top: (rowHeight - 6) / 2,
+                  fontSize: 6,
+                  color: pdfColors.text,
+                }}
+                wrap={false}
+              >
+                seit {new Date(row.contractStart).getUTCFullYear()}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      {/* X-Achse: Jahres-Labels */}
+      <View style={{ position: "relative", height: 8, marginTop: 2 }}>
+        {shownYears.map((y) => {
+          const left = pctFor(`${y}-01-01`);
+          if (left < 0 || left > 100) return null;
+          return (
+            <Text
+              key={y}
+              style={{
+                position: "absolute",
+                left: `${left}%`,
+                fontSize: 6,
+                color: pdfColors.muted,
+                transform: "translateX(-50%)",
+              }}
+            >
+              {y}
+            </Text>
+          );
+        })}
+      </View>
+
+      <View style={styles.legendRow}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendSwatch, { backgroundColor: pdfColors.accent }]} />
+          <Text style={styles.legendText}>aktiv vermietet</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendSwatch, { backgroundColor: pdfColors.muted }]} />
+          <Text style={styles.legendText}>Vertrag ausgelaufen</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Empty-State                                                        */
+/* ------------------------------------------------------------------ */
+
+function EmptyChart({ title, height }: { title: string; height: number }) {
+  return (
+    <View style={styles.chartWrap}>
+      <Text style={styles.chartTitle}>{title}</Text>
+      <View
+        style={{
+          height,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ fontSize: 7, color: pdfColors.textMuted }}>
+          keine Daten
+        </Text>
       </View>
     </View>
   );
