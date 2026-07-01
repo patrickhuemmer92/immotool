@@ -96,9 +96,18 @@ function niceMax(rawMax: number): number {
 /*  Y-Axis-Renderer — geteilt zwischen Simple/Stacked/Waterfall        */
 /* ------------------------------------------------------------------ */
 
-function YAxis({ max, height }: { max: number; height: number }) {
+function YAxis({
+  max,
+  min = 0,
+  height,
+}: {
+  max: number;
+  min?: number;
+  height: number;
+}) {
+  const range = max - min;
   const ticks = Array.from({ length: CHART_TICK_COUNT }, (_, i) => {
-    const value = (max * (CHART_TICK_COUNT - 1 - i)) / (CHART_TICK_COUNT - 1);
+    const value = max - (range * i) / (CHART_TICK_COUNT - 1);
     return value;
   });
   return (
@@ -121,7 +130,8 @@ function YAxis({ max, height }: { max: number; height: number }) {
             lineHeight: 1,
           }}
         >
-          {eurCompact(v)}
+          {v < 0 ? "−" : ""}
+          {eurCompact(Math.abs(v))}
         </Text>
       ))}
     </View>
@@ -465,29 +475,57 @@ export function PdfWaterfallChart({
     }
   }
 
-  const maxVal = Math.max(...bars.map((b) => b.to));
-  const yMax = niceMax(maxVal);
+  // Range über ALLE Bar-Ecken bestimmen — inkl. negativer Werte, damit
+  // ein negativer Endstand (Cashflow n. Steuer < 0) sauber unter der
+  // 0-Baseline dargestellt werden kann.
+  const allEdges = bars.flatMap((b) => [b.from, b.to]);
+  const rawMin = Math.min(...allEdges, 0);
+  const rawMax = Math.max(...allEdges, 0);
+  const yMax = niceMax(rawMax);
+  const yMin =
+    rawMin < 0 ? -niceMax(Math.abs(rawMin)) : 0;
+  const yRange = yMax - yMin;
+  const baselinePx = (yMax / yRange) * height;
 
   return (
     <View style={styles.chartWrap} wrap={false}>
       <Text style={styles.chartTitle}>{title}</Text>
       <View style={{ flexDirection: "row" }}>
-        <YAxis max={yMax} height={height} />
-        <View style={{ flex: 1, position: "relative" }}>
+        <YAxis max={yMax} min={yMin} height={height} />
+        <View style={{ flex: 1, position: "relative", height }}>
           <GridLines height={height} />
+          {/* 0-Baseline optisch hervorheben, wenn es negative Werte gibt. */}
+          {yMin < 0 ? (
+            <View
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: baselinePx - 0.5,
+                height: 1,
+                backgroundColor: pdfColors.textMuted,
+              }}
+            />
+          ) : null}
           <View
             style={{
               flexDirection: "row",
-              alignItems: "flex-end",
               height,
               gap: 4,
             }}
           >
             {bars.map((b, i) => {
-              const barH = ((b.to - b.from) / yMax) * height;
-              const bottomOffset = (b.from / yMax) * height;
-              const isCost = b.kind === "delta" && b.signedValue < 0;
-              const color = isCost ? NEGATIVE_ROSE : pdfColors.accent;
+              // b.from/b.to sind so gesetzt, dass to >= from ist —
+              // aber wenn b.to negativ ist, sind BEIDE negativ (End-Bar
+              // mit negativem Value: from=0, to=negative → wir korrigieren
+              // die Reihenfolge, damit die Positionierung stimmt).
+              const lo = Math.min(b.from, b.to);
+              const hi = Math.max(b.from, b.to);
+              const topPx = ((yMax - hi) / yRange) * height;
+              const botPx = ((yMax - lo) / yRange) * height;
+              const barH = Math.max(1, botPx - topPx);
+              const color =
+                b.signedValue < 0 ? NEGATIVE_ROSE : pdfColors.accent;
               return (
                 <View
                   key={i}
@@ -498,8 +536,8 @@ export function PdfWaterfallChart({
                       position: "absolute",
                       left: 0,
                       right: 0,
-                      bottom: bottomOffset,
-                      height: Math.max(1, barH),
+                      top: topPx,
+                      height: barH,
                       backgroundColor: color,
                       borderRadius: 1,
                     }}
@@ -536,16 +574,14 @@ export function PdfWaterfallChart({
               style={{
                 fontSize: 7,
                 color:
-                  b.kind === "delta" && b.signedValue < 0
-                    ? NEGATIVE_ROSE
-                    : pdfColors.text,
+                  b.signedValue < 0 ? NEGATIVE_ROSE : pdfColors.text,
                 textAlign: "center",
                 fontFamily: "Inter-SemiBold",
                 marginTop: 1,
               }}
               wrap={false}
             >
-              {b.kind === "delta" && b.signedValue < 0 ? "−" : ""}
+              {b.signedValue < 0 ? "−" : ""}
               {eurCompact(Math.abs(b.signedValue))}
             </Text>
           </View>
