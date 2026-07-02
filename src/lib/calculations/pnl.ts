@@ -413,24 +413,47 @@ export function computeBankView(args: BankViewInput): BankViewResult {
       ? args.pnl.principalOverride * months
       : auto.principal;
 
-  // Stress test — adds stressBps of *remaining principal* as extra interest
-  // for the portion of the period that lies after rateLockUntil.
+  // Stress test — legt stressBps auf die Restschuld drauf. Die Logik
+  // ist dreiteilig, damit sowohl "Zinsbindung endet in der Periode" als
+  // auch "Zinsbindung liegt vollständig außerhalb" sinnvoll behandelt
+  // werden:
+  //   - lockEnd VOR Periodenstart  → Zinsbindung abgelaufen: Stress
+  //                                   greift auf die ganze Periode.
+  //   - lockEnd IN der Periode      → Stress nur ab lockEnd bis Ende.
+  //   - lockEnd NACH Periodenende   → reine Sensitivitätsanalyse
+  //                                   ("was wäre, wenn die Zinsen sofort
+  //                                   +250 bp wären"): Stress auf die
+  //                                   ganze Periode. Vorher wurde der
+  //                                   Stress hier stillschweigend
+  //                                   verworfen — bei historischen
+  //                                   Snapshots mit Zinsbindung weit in
+  //                                   der Zukunft blieben die Zahlen
+  //                                   dann identisch zur Nicht-Stress-
+  //                                   Sicht.
   const stressBps = args.stressBps ?? 0;
   let stressApplied = false;
   if (stressBps > 0 && args.pnl.loans && args.pnl.loans.length > 0) {
-    const lockEnd = args.rateLockUntil ?? args.pnl.period.start;
-    if (lockEnd.getTime() < args.pnl.period.end.getTime()) {
-      // Approximate extra interest = stress rate × avg loan balance × stressed
-      // months. Avg balance approximation: open balance at period start.
-      const stressedStart =
-        lockEnd.getTime() > args.pnl.period.start.getTime()
-          ? lockEnd
-          : args.pnl.period.start;
-      const stressedMonths =
-        (args.pnl.period.end.getUTCFullYear() - stressedStart.getUTCFullYear()) *
-          12 +
-        (args.pnl.period.end.getUTCMonth() - stressedStart.getUTCMonth()) +
-        1;
+    const lockEnd = args.rateLockUntil;
+    const periodStart = args.pnl.period.start;
+    const periodEnd = args.pnl.period.end;
+    let stressedStart: Date;
+    if (!lockEnd || lockEnd.getTime() <= periodStart.getTime()) {
+      // keine Zinsbindung oder bereits abgelaufen → volle Periode
+      stressedStart = periodStart;
+    } else if (lockEnd.getTime() < periodEnd.getTime()) {
+      // Zinsbindung endet mitten in der Periode → ab dem Ende stressen
+      stressedStart = lockEnd;
+    } else {
+      // Zinsbindung reicht über die Periode hinaus → volle Periode
+      // als Sensitivitätsanalyse. Restschuld nehmen wir zum Beginn
+      // der Periode, damit der Wert reproduzierbar ist.
+      stressedStart = periodStart;
+    }
+    const stressedMonths =
+      (periodEnd.getUTCFullYear() - stressedStart.getUTCFullYear()) * 12 +
+      (periodEnd.getUTCMonth() - stressedStart.getUTCMonth()) +
+      1;
+    if (stressedMonths > 0) {
       const stressRateMonthly = stressBps / 10000 / 12;
       let balanceAtStress = 0;
       for (const ref of args.pnl.loans) {
@@ -440,8 +463,10 @@ export function computeBankView(args: BankViewInput): BankViewResult {
         });
         const last = sched[sched.length - 1];
         if (last) balanceAtStress += last.balance;
+        else balanceAtStress += ref.loan.loanAmount;
       }
-      const extraInterest = balanceAtStress * stressRateMonthly * stressedMonths;
+      const extraInterest =
+        balanceAtStress * stressRateMonthly * stressedMonths;
       interest += extraInterest;
       stressApplied = true;
     }
