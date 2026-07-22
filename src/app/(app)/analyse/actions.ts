@@ -93,6 +93,47 @@ export async function archiveDdProject(projectId: string) {
   redirect("/analyse");
 }
 
+/**
+ * Nutzer-Korrekturen an den extrahierten Exposé-Werten speichern.
+ * Übergabe ist ein Partial des Exposé-Extraction-JSON — wir mergen es
+ * mit dem bestehenden JSON in `dd_projects.extracted_expose`, damit
+ * Nutzer einzelne Felder korrigieren können ohne den Rest zu berühren.
+ */
+export async function saveExtractedExposeEdit(
+  projectId: string,
+  patch: Record<string, unknown>
+): Promise<{ error?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("dd_projects")
+    .select("id, extracted_expose")
+    .eq("id", projectId)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+
+  if (!project) return { error: "project_not_found" };
+
+  const current =
+    (project.extracted_expose as Record<string, unknown> | null) ?? {};
+  const merged = { ...current, ...patch };
+
+  const { error } = await supabase
+    .from("dd_projects")
+    .update({
+      extracted_expose: merged,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/analyse/${projectId}`);
+  return {};
+}
+
 export async function deleteDdProject(projectId: string) {
   const active = await getActiveWorkspace();
   if (!active) return;
