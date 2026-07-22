@@ -38,7 +38,7 @@ export async function listDdProjects(
   workspaceId: string
 ): Promise<DdProject[]> {
   const { data } = await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .select(
       "id, workspace_id, name, address_hint, status, promoted_to_property_id, paid, paid_at, score_overall, score_confidence, created_at, updated_at, analyzed_at"
     )
@@ -54,7 +54,7 @@ export async function getDdProject(
   id: string
 ): Promise<DdProject | null> {
   const { data } = await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .select("*")
     .eq("workspace_id", workspaceId)
     .eq("id", id)

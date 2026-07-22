@@ -31,7 +31,7 @@ export async function createDdProject(
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .insert({
       workspace_id: active.id,
       name: parsed.data.name,
@@ -57,7 +57,7 @@ export async function moveToWatchlist(projectId: string) {
 
   const supabase = await createClient();
   await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .update({ status: "watchlist" })
     .eq("id", projectId)
     .eq("workspace_id", active.id);
@@ -71,7 +71,7 @@ export async function moveOutOfWatchlist(projectId: string) {
 
   const supabase = await createClient();
   await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .update({ status: "analyzed" })
     .eq("id", projectId)
     .eq("workspace_id", active.id);
@@ -85,7 +85,7 @@ export async function archiveDdProject(projectId: string) {
 
   const supabase = await createClient();
   await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .update({ status: "archived" })
     .eq("id", projectId)
     .eq("workspace_id", active.id);
@@ -99,7 +99,7 @@ export async function deleteDdProject(projectId: string) {
 
   const supabase = await createClient();
   await supabase
-    .from("due_diligence_projects")
+    .from("dd_projects")
     .delete()
     .eq("id", projectId)
     .eq("workspace_id", active.id);

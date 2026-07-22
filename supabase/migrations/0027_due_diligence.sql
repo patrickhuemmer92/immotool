@@ -3,7 +3,7 @@
 -- KI-gestützte Objekt-Due-Diligence für Käufer VOR dem Kauf.
 --
 -- Model:
---   due_diligence_projects — 1 Projekt = 1 zu prüfendes Objekt
+--   dd_projects — 1 Projekt = 1 zu prüfendes Objekt
 --   dd_documents          — n Dokumente (Exposé + WEG + Wirtschaftsplan …)
 --   dd_findings           — n Risiko-/Positiv-Findings mit Quellenzitat
 --   dd_market_data        — n Marktdatenpunkte (Bodenrichtwert etc.)
@@ -17,9 +17,9 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- due_diligence_projects
+-- dd_projects
 -- ---------------------------------------------------------------------
-create table public.due_diligence_projects (
+create table public.dd_projects (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   created_by uuid references auth.users(id) on delete set null,
@@ -64,24 +64,24 @@ create table public.due_diligence_projects (
 );
 
 create trigger set_dd_projects_updated_at
-  before update on public.due_diligence_projects
+  before update on public.dd_projects
   for each row execute function public.set_updated_at();
 
-create index dd_projects_workspace_idx
-  on public.due_diligence_projects(workspace_id, status, updated_at desc);
+create index dd_projects_ws_idx
+  on public.dd_projects(workspace_id, status, updated_at desc);
 
-alter table public.due_diligence_projects enable row level security;
+alter table public.dd_projects enable row level security;
 
-create policy dd_projects_select on public.due_diligence_projects
+create policy dd_projects_select on public.dd_projects
   for select using (public.is_workspace_member(workspace_id, 'viewer'));
 
-create policy dd_projects_insert on public.due_diligence_projects
+create policy dd_projects_insert on public.dd_projects
   for insert with check (public.is_workspace_member(workspace_id, 'editor'));
 
-create policy dd_projects_update on public.due_diligence_projects
+create policy dd_projects_update on public.dd_projects
   for update using (public.is_workspace_member(workspace_id, 'editor'));
 
-create policy dd_projects_delete on public.due_diligence_projects
+create policy dd_projects_delete on public.dd_projects
   for delete using (public.is_workspace_member(workspace_id, 'editor'));
 
 -- ---------------------------------------------------------------------
@@ -92,7 +92,7 @@ create policy dd_projects_delete on public.due_diligence_projects
 create table public.dd_documents (
   id uuid primary key default gen_random_uuid(),
   dd_project_id uuid not null
-    references public.due_diligence_projects(id) on delete cascade,
+    references public.dd_projects(id) on delete cascade,
 
   kind text not null check (kind in (
     'expose',
@@ -131,7 +131,7 @@ alter table public.dd_documents enable row level security;
 create policy dd_documents_select on public.dd_documents
   for select using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'viewer')
     )
@@ -140,7 +140,7 @@ create policy dd_documents_select on public.dd_documents
 create policy dd_documents_insert on public.dd_documents
   for insert with check (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
@@ -149,7 +149,7 @@ create policy dd_documents_insert on public.dd_documents
 create policy dd_documents_update on public.dd_documents
   for update using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
@@ -158,7 +158,7 @@ create policy dd_documents_update on public.dd_documents
 create policy dd_documents_delete on public.dd_documents
   for delete using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
@@ -171,7 +171,7 @@ create policy dd_documents_delete on public.dd_documents
 create table public.dd_findings (
   id uuid primary key default gen_random_uuid(),
   dd_project_id uuid not null
-    references public.due_diligence_projects(id) on delete cascade,
+    references public.dd_projects(id) on delete cascade,
 
   category text not null check (category in (
     'substanz',       -- Bausubstanz, Sanierungsbedarf
@@ -216,7 +216,7 @@ alter table public.dd_findings enable row level security;
 create policy dd_findings_select on public.dd_findings
   for select using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'viewer')
     )
@@ -225,13 +225,13 @@ create policy dd_findings_select on public.dd_findings
 create policy dd_findings_write on public.dd_findings
   for all using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
   ) with check (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
@@ -244,7 +244,7 @@ create policy dd_findings_write on public.dd_findings
 create table public.dd_market_data (
   id uuid primary key default gen_random_uuid(),
   dd_project_id uuid not null
-    references public.due_diligence_projects(id) on delete cascade,
+    references public.dd_projects(id) on delete cascade,
 
   metric text not null,            -- z.B. 'bodenrichtwert', 'eur_per_sqm_median'
   value_num numeric,
@@ -266,7 +266,7 @@ alter table public.dd_market_data enable row level security;
 create policy dd_market_data_select on public.dd_market_data
   for select using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'viewer')
     )
@@ -275,13 +275,13 @@ create policy dd_market_data_select on public.dd_market_data
 create policy dd_market_data_write on public.dd_market_data
   for all using (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
   ) with check (
     exists (
-      select 1 from public.due_diligence_projects p
+      select 1 from public.dd_projects p
       where p.id = dd_project_id
         and public.is_workspace_member(p.workspace_id, 'editor')
     )
@@ -295,7 +295,7 @@ create policy dd_market_data_write on public.dd_market_data
 create table public.ai_usage (
   id bigserial primary key,
   workspace_id uuid references public.workspaces(id) on delete set null,
-  dd_project_id uuid references public.due_diligence_projects(id) on delete set null,
+  dd_project_id uuid references public.dd_projects(id) on delete set null,
 
   provider text not null,          -- 'anthropic', 'openai', …
   model text not null,             -- 'claude-sonnet-4-5', …
