@@ -36,11 +36,15 @@ export async function POST(req: Request) {
 
   const { data: project } = await supabase
     .from("dd_projects")
-    .select("id, workspace_id, extracted_expose, market_snapshot")
+    .select("id, workspace_id, extracted_expose, market_snapshot, paid")
     .eq("id", body.dd_project_id)
     .eq("workspace_id", active.id)
     .maybeSingle();
   if (!project) return NextResponse.json({ error: "project_not_found" }, { status: 404 });
+
+  if (!project.paid) {
+    return NextResponse.json({ error: "payment_required" }, { status: 402 });
+  }
 
   if (!project.extracted_expose) {
     return NextResponse.json({ error: "expose_missing" }, { status: 400 });

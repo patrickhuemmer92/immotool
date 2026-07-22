@@ -159,17 +159,42 @@ export async function POST(req: Request) {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        if (session.mode !== "subscription" || !session.subscription) break;
-        const subId =
-          typeof session.subscription === "string"
-            ? session.subscription
-            : session.subscription.id;
-        const subscription = await stripe.subscriptions.retrieve(subId);
-        const wsId =
-          (session.metadata?.workspace_id as string | undefined) ??
-          (session.client_reference_id as string | null) ??
-          null;
-        await syncSubscription(subscription, wsId);
+
+        // Fall A: Abo-Checkout (Modell D) → Subscription syncen.
+        if (session.mode === "subscription" && session.subscription) {
+          const subId =
+            typeof session.subscription === "string"
+              ? session.subscription
+              : session.subscription.id;
+          const subscription = await stripe.subscriptions.retrieve(subId);
+          const wsId =
+            (session.metadata?.workspace_id as string | undefined) ??
+            (session.client_reference_id as string | null) ??
+            null;
+          await syncSubscription(subscription, wsId);
+          break;
+        }
+
+        // Fall B: One-Off DD-Analyse (mode = "payment") → dd_projects.paid = true
+        if (session.mode === "payment") {
+          const ddProjectId = session.metadata?.dd_project_id as
+            | string
+            | undefined;
+          if (!ddProjectId) break;
+          const supabase = getSupabaseAdmin();
+          await supabase
+            .from("dd_projects")
+            .update({
+              paid: true,
+              paid_at: new Date().toISOString(),
+              stripe_payment_intent_id:
+                typeof session.payment_intent === "string"
+                  ? session.payment_intent
+                  : session.payment_intent?.id ?? null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", ddProjectId);
+        }
         break;
       }
 

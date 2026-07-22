@@ -10,6 +10,8 @@ import { ExposeEditor } from "./expose-editor";
 import { DdDocumentList } from "./document-list";
 import { FindingsView } from "./findings-view";
 import { MarketView } from "./market-view";
+import { DecisionActions } from "./decision-actions";
+import { DdPaywall } from "./paywall";
 
 export default async function DdProjectPage({
   params,
@@ -72,7 +74,19 @@ export default async function DdProjectPage({
             </p>
           )}
         </div>
-        <StatusBadge status={project.status} t={t} />
+        <div className="flex items-center gap-2">
+          {project.score_overall != null && (
+            <a
+              href={`/api/pdf/dd-dossier/${project.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            >
+              {t("dd.download_dossier")}
+            </a>
+          )}
+          <StatusBadge status={project.status} t={t} />
+        </div>
       </div>
 
       {/* Wizard-Steps als Fortschritts-Anzeige */}
@@ -161,8 +175,15 @@ export default async function DdProjectPage({
         </section>
       )}
 
-      {/* Schritt 4: Analyse + Findings */}
-      {expose && (
+      {/* Paywall — vor der Analyse-Sektion, wenn noch nicht bezahlt */}
+      {expose && !project.paid && (
+        <section className="mt-8">
+          <DdPaywall projectId={project.id} />
+        </section>
+      )}
+
+      {/* Schritt 4: Analyse + Findings — nur nach Zahlung */}
+      {expose && project.paid && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
             {t("dd.analysis_section")}
@@ -178,6 +199,20 @@ export default async function DdProjectPage({
             }
             findings={(findings ?? []) as Parameters<typeof FindingsView>[0]["findings"]}
             hasEnoughDataForAnalysis={!!expose}
+          />
+        </section>
+      )}
+
+      {/* Schritt 5: Entscheidung — nur nach Analyse */}
+      {expose && project.score_overall != null && (
+        <section className="mt-8">
+          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+            {t("dd.decision_section")}
+          </h2>
+          <DecisionActions
+            projectId={project.id}
+            status={project.status}
+            promotedPropertyId={project.promoted_to_property_id}
           />
         </section>
       )}

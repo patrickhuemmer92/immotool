@@ -147,3 +147,92 @@ export async function deleteDdProject(projectId: string) {
   revalidatePath("/analyse");
   redirect("/analyse");
 }
+
+/**
+ * Nach dem Kauf: DD-Projekt in eine „echte" Property übertragen.
+ * Legt aus dem extrahierten Exposé eine minimale Property an,
+ * markiert das DD-Projekt als `promoted` und speichert den Rück-FK.
+ *
+ * Idempotent: wenn bereits promoviert, tut nichts.
+ */
+export async function promoteToProperty(
+  projectId: string
+): Promise<{ error?: string; propertyId?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("dd_projects")
+    .select("id, name, status, promoted_to_property_id, extracted_expose")
+    .eq("id", projectId)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project) return { error: "project_not_found" };
+
+  if (project.promoted_to_property_id) {
+    return { propertyId: project.promoted_to_property_id };
+  }
+
+  const exp = (project.extracted_expose ?? {}) as {
+    kind?: string | null;
+    street?: string | null;
+    postal_code?: string | null;
+    city?: string | null;
+    purchase_price_eur?: number | null;
+    living_area_sqm?: number | null;
+    build_year?: number | null;
+  };
+
+  // Property braucht street/postal_code/city + kind — sonst kein
+  // Promote möglich.
+  if (!exp.street || !exp.postal_code || !exp.city) {
+    return { error: "address_missing" };
+  }
+
+  // Kind mapping: DD-Enum ist teils identisch zu Property-Kind.
+  // "row_house" gibts in Property-Schema nicht — mappen auf "house".
+  const kindMap: Record<string, string> = {
+    apartment: "apartment",
+    house: "house",
+    row_house: "house",
+    commercial: "commercial",
+    parking: "parking",
+    other: "other",
+  };
+  const kind =
+    exp.kind && kindMap[exp.kind] ? kindMap[exp.kind] : "apartment";
+
+  const { data: prop, error: propErr } = await supabase
+    .from("properties")
+    .insert({
+      workspace_id: active.id,
+      kind,
+      street: exp.street,
+      postal_code: exp.postal_code,
+      city: exp.city,
+      purchase_price: exp.purchase_price_eur ?? null,
+      sqm: exp.living_area_sqm ?? null,
+      notes:
+        `Angelegt aus DD-Analyse „${project.name}". ` +
+        `Weitere Felder aus dem Exposé kannst du in der Bearbeiten-Seite ergänzen.`,
+    })
+    .select("id")
+    .single();
+
+  if (propErr) return { error: propErr.message };
+
+  await supabase
+    .from("dd_projects")
+    .update({
+      status: "promoted",
+      promoted_to_property_id: prop.id,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  revalidatePath("/analyse");
+  revalidatePath(`/analyse/${projectId}`);
+  revalidatePath("/objekte");
+  return { propertyId: prop.id };
+}
