@@ -12,6 +12,7 @@
     "stripe:setup": "cross-env NODE_OPTIONS=--use-system-ca node scripts/stripe-setup.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.112.5",
     "@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.105.3",
@@ -23,6 +24,7 @@
     "react-image-crop": "^11.0.10",
     "recharts": "^3.8.1",
     "stripe": "^22.2.0",
+    "unpdf": "^1.6.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
