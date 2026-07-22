@@ -21,10 +21,26 @@ import { getActiveWorkspace } from "@/lib/workspace";
 import { extractPdfText } from "@/lib/dd/extract-pdf";
 import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
 import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
+import { wegExtractionSchema } from "@/lib/dd/schemas/weg";
+import { wirtschaftsplanExtractionSchema } from "@/lib/dd/schemas/wirtschaftsplan";
+import {
+  teilungExtractionSchema,
+  energieExtractionSchema,
+} from "@/lib/dd/schemas/teilung-und-energie";
 import {
   EXPOSE_SYSTEM_PROMPT,
   buildExposeUserMessage,
 } from "@/lib/dd/prompts/expose";
+import {
+  WEG_SYSTEM_PROMPT,
+  buildWegUserMessage,
+  WIRTSCHAFTSPLAN_SYSTEM_PROMPT,
+  buildWirtschaftsplanUserMessage,
+  TEILUNG_SYSTEM_PROMPT,
+  buildTeilungUserMessage,
+  ENERGIE_SYSTEM_PROMPT,
+  buildEnergieUserMessage,
+} from "@/lib/dd/prompts/documents";
 
 // Grober Größen-Cap: > 300k Zeichen (~75k Tokens) killen wir vorher, sonst
 // wird der LLM-Call teuer und langsam. In Phase 3 chunken wir große
@@ -179,13 +195,72 @@ export async function POST(req: Request) {
       });
     }
 
-    // Phase 3: weitere Dokumenttypen (WEG etc.) — hier noch nicht.
+    // Dispatch für die weiteren Dokumenttypen — gleiches Schema wie
+    // Exposé, nur mit typspezifischem Prompt und Zod-Schema.
+    let systemPrompt = "";
+    let userMessage = "";
+    let schema: Parameters<typeof callLlmJson>[0]["schema"] | null = null;
+    let purpose = "";
+
+    switch (doc.kind) {
+      case "weg_minutes":
+        systemPrompt = WEG_SYSTEM_PROMPT;
+        userMessage = buildWegUserMessage(trimmedText);
+        schema = wegExtractionSchema;
+        purpose = "extract_weg";
+        break;
+      case "wirtschaftsplan":
+        systemPrompt = WIRTSCHAFTSPLAN_SYSTEM_PROMPT;
+        userMessage = buildWirtschaftsplanUserMessage(trimmedText);
+        schema = wirtschaftsplanExtractionSchema;
+        purpose = "extract_wirtschaftsplan";
+        break;
+      case "teilungserklaerung":
+        systemPrompt = TEILUNG_SYSTEM_PROMPT;
+        userMessage = buildTeilungUserMessage(trimmedText);
+        schema = teilungExtractionSchema;
+        purpose = "extract_teilung";
+        break;
+      case "energieausweis":
+        systemPrompt = ENERGIE_SYSTEM_PROMPT;
+        userMessage = buildEnergieUserMessage(trimmedText);
+        schema = energieExtractionSchema;
+        purpose = "extract_energie";
+        break;
+      default:
+        // grundriss / other: nur Rohtext speichern, keine LLM-Analyse
+        await supabase
+          .from("dd_documents")
+          .update({
+            ocr_status: "extracted",
+            ocr_text_pages: pages,
+            extraction: { raw_text: trimmedText.slice(0, 5000) },
+            extracted_at: new Date().toISOString(),
+            file_hash: fileHash,
+          })
+          .eq("id", doc.id);
+        return NextResponse.json({ ok: true, kind: doc.kind });
+    }
+
+    const result = await callLlmJson({
+      model: "sonnet",
+      purpose,
+      systemPrompt,
+      userMessage,
+      schema,
+      maxTokens: 4096,
+      temperature: 0,
+      workspaceId: active.id,
+      ddProjectId: body.dd_project_id,
+      supabase,
+    });
+
     await supabase
       .from("dd_documents")
       .update({
         ocr_status: "extracted",
         ocr_text_pages: pages,
-        extraction: { raw_text: trimmedText.slice(0, 5000) },
+        extraction: result.data,
         extracted_at: new Date().toISOString(),
         file_hash: fileHash,
       })
@@ -194,7 +269,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       kind: doc.kind,
-      note: "extraction_pipeline_pending",
+      tokens: { in: result.tokensIn, out: result.tokensOut },
+      cost_cents: result.costCents,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

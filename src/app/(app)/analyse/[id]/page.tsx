@@ -8,6 +8,7 @@ import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
 import { DocumentUploader } from "./document-uploader";
 import { ExposeEditor } from "./expose-editor";
 import { DdDocumentList } from "./document-list";
+import { FindingsView } from "./findings-view";
 
 export default async function DdProjectPage({
   params,
@@ -40,6 +41,15 @@ export default async function DdProjectPage({
   const expose = exposeParsed?.success ? exposeParsed.data : null;
 
   const hasExpose = docs.some((d) => d.kind === "expose");
+
+  // Findings + Score-Meta laden — nur wenn schon eine Analyse gelaufen ist.
+  const { data: findings } = await supabase
+    .from("dd_findings")
+    .select(
+      "id, category, severity, title, description, cost_min, cost_max, cost_horizon, source_quote, source_location, source_market, confidence, confidence_reason, next_step"
+    )
+    .eq("dd_project_id", project.id)
+    .order("severity", { ascending: false });
 
   return (
     <div>
@@ -129,6 +139,27 @@ export default async function DdProjectPage({
               autoExtract={false}
             />
           </div>
+        </section>
+      )}
+
+      {/* Schritt 4: Analyse + Findings */}
+      {expose && (
+        <section className="mt-8">
+          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+            {t("dd.analysis_section")}
+          </h2>
+          <FindingsView
+            projectId={project.id}
+            scoreOverall={project.score_overall}
+            scoreConfidence={project.score_confidence}
+            scoreByCategory={
+              project.score_by_category as Parameters<
+                typeof FindingsView
+              >[0]["scoreByCategory"]
+            }
+            findings={(findings ?? []) as Parameters<typeof FindingsView>[0]["findings"]}
+            hasEnoughDataForAnalysis={!!expose}
+          />
         </section>
       )}
 
