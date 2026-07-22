@@ -1082,7 +1082,20 @@
     "addressed_bank": "to bank",
     "addressed_andere": "to other",
     "negotiation_title": "Negotiation arguments",
-    "negotiation_reduction": "Justified price reduction"
+    "negotiation_reduction": "Justified price reduction",
+    "market_section": "Market data (public sources)",
+    "market_title": "Market data",
+    "market_intro": "Enrich the analysis with public data — location context (transit, shops, schools) via OpenStreetMap. Further sources (land values, rent index) to follow.",
+    "market_recomputable": "Refresh market data — uses the current address from the listing editor.",
+    "market_fetch": "Fetch market data",
+    "market_refresh": "Refresh",
+    "market_eur_per_sqm": "Price per m²",
+    "market_no_reference": "Reference value for price comparison not yet available.",
+    "market_transit": "Transit (800 m)",
+    "market_supermarket": "Shops (800 m)",
+    "market_schools": "Schools/kindergarten (800 m)",
+    "market_show_all": "Show all data points + sources",
+    "market_computed_at": "As of: {date}"
   },
   "legal": {
     "footer_impressum": "Imprint",

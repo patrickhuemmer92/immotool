@@ -1082,7 +1082,20 @@
     "addressed_bank": "an Bank",
     "addressed_andere": "anderer",
     "negotiation_title": "Verhandlungsargumente",
-    "negotiation_reduction": "Begründeter Preisabschlag"
+    "negotiation_reduction": "Begründeter Preisabschlag",
+    "market_section": "Marktdaten (öffentliche Quellen)",
+    "market_title": "Marktdaten",
+    "market_intro": "Reichere die Analyse mit öffentlichen Daten an — Lage-Kontext (ÖPNV, Läden, Schulen) via OpenStreetMap. Weitere Quellen (Bodenrichtwerte, Mietspiegel) folgen.",
+    "market_recomputable": "Marktdaten aktualisieren — nutzt die aktuelle Adresse aus dem Exposé-Editor.",
+    "market_fetch": "Marktdaten abrufen",
+    "market_refresh": "Aktualisieren",
+    "market_eur_per_sqm": "Preis pro m²",
+    "market_no_reference": "Referenzwert für Preisvergleich noch nicht verfügbar.",
+    "market_transit": "ÖPNV (800 m)",
+    "market_supermarket": "Läden (800 m)",
+    "market_schools": "Schulen/Kita (800 m)",
+    "market_show_all": "Alle Datenpunkte + Quellen anzeigen",
+    "market_computed_at": "Stand: {date}"
   },
   "legal": {
     "footer_impressum": "Impressum",

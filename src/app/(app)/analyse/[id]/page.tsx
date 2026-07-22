@@ -9,6 +9,7 @@ import { DocumentUploader } from "./document-uploader";
 import { ExposeEditor } from "./expose-editor";
 import { DdDocumentList } from "./document-list";
 import { FindingsView } from "./findings-view";
+import { MarketView } from "./market-view";
 
 export default async function DdProjectPage({
   params,
@@ -139,6 +140,24 @@ export default async function DdProjectPage({
               autoExtract={false}
             />
           </div>
+        </section>
+      )}
+
+      {/* Marktdaten */}
+      {expose && (
+        <section className="mt-8">
+          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+            {t("dd.market_section")}
+          </h2>
+          <MarketView
+            projectId={project.id}
+            snapshot={
+              project.market_snapshot as Parameters<
+                typeof MarketView
+              >[0]["snapshot"]
+            }
+            canFetch={!!(expose.city || expose.postal_code)}
+          />
         </section>
       )}
 
