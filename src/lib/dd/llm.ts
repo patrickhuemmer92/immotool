@@ -96,9 +96,24 @@ export async function callLlmJson<T>(
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  // Timeout explizit setzen — Anthropic-Default ist 10 Minuten, viel
+  // länger als unsere Vercel-Function-maxDuration. Bei einem hängenden
+  // Request würden wir sonst mit einem 504 abgeschossen ohne saubere
+  // Fehler-Persistierung.
+  const client = new Anthropic({ apiKey, timeout: 45_000 });
   const modelInfo = MODELS[opts.model];
   const t0 = Date.now();
+
+  // Kurzes Server-Log: eine Zeile pro Extraktion (Purpose + Modell).
+  // Reicht für Vercel-Function-Logs zum Nachvollziehen was warum wie
+  // lange gedauert hat.
+  console.log(
+    `[dd-llm] start purpose=${opts.purpose} model=${modelInfo.id} ` +
+      `has_pdf=${!!opts.pdfBuffer} ` +
+      `pdf_size=${opts.pdfBuffer ? Math.round(opts.pdfBuffer.byteLength / 1024) : 0}kb ` +
+      `ws=${opts.workspaceId?.slice(0, 8) ?? "-"} ` +
+      `dd=${opts.ddProjectId?.slice(0, 8) ?? "-"}`
+  );
 
   const systemFull =
     opts.systemPrompt +
@@ -219,6 +234,11 @@ export async function callLlmJson<T>(
 
   const duration = Date.now() - t0;
   await maybeLogSuccess(opts, tokensIn, tokensOut, costCents, duration);
+  console.log(
+    `[dd-llm] done purpose=${opts.purpose} ` +
+      `duration_ms=${duration} tokens_in=${tokensIn} tokens_out=${tokensOut} ` +
+      `cost_cents=${costCents}`
+  );
   return {
     data: parseResult.data,
     tokensIn,

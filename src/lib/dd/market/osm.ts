@@ -124,7 +124,9 @@ out tags 300;`;
           "User-Agent": USER_AGENT,
         },
         body,
-        signal: AbortSignal.timeout(25_000),
+        // Kurzes Timeout pro Mirror (12s) — bei 3 Mirrors + Geocode
+        // bleiben wir unter der Vercel-Function-maxDuration.
+        signal: AbortSignal.timeout(12_000),
       });
       // Bei 429/504/503 versuchen wir den nächsten Mirror.
       if (!res.ok) continue;

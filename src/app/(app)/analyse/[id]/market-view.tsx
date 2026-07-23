@@ -43,8 +43,14 @@ export function MarketView({
         body: JSON.stringify({ dd_project_id: projectId }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({ error: "unknown" }));
-        setError(j?.error ?? res.statusText);
+        // Server-Timeout (504) oder Gateway-Error liefert kein JSON —
+        // wir zeigen dann eine sprechende Meldung statt „unknown".
+        if (res.status === 504 || res.status === 502) {
+          setError(t("dd.market_error_timeout"));
+          return;
+        }
+        const j = await res.json().catch(() => null as null);
+        setError(j?.error ?? `HTTP ${res.status} · ${res.statusText}`);
         return;
       }
       router.refresh();

@@ -9,7 +9,9 @@
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+// 60s Function-Timeout: OSM Nominatim ~2s + Overpass Retry-Kette
+// (3 Mirrors × je 12s max) = worst case ~38s. Puffer für Netz + DB.
+export const maxDuration = 60;
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
