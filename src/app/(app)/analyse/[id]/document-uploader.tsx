@@ -94,24 +94,39 @@ export function DocumentUploader({
           return;
         }
 
-        // Extract als fire-and-forget: der Server verarbeitet die
-        // Extraktion (30-90s bei WEG-Protokoll mit Vision) unabhängig
-        // vom Client. Wir refreshen SOFORT, damit die Detail-Seite die
-        // neue pending-Doku zeigt und das Sticky-Job-Status-Widget den
-        // Fortschritt übernimmt — Uploader ist wieder frei.
-        // Fehler-Feedback läuft dann über dd_documents.ocr_status='failed',
-        // sichtbar im Doku-Listen-Chip.
+        // Extract-Trigger — Race-Pattern:
+        // Ein reines `void fetch()` wird von React/Next abgebrochen,
+        // wenn `router.refresh()` den Uploader neu mounted BEVOR
+        // der HTTP-Request vollständig abgeschickt wurde. Ergebnis:
+        // der Server sieht den Call NIE, der Doku bleibt auf 'pending'.
+        //
+        // Lösung: wir warten bis zu 3.5s auf den fetch — genug Zeit
+        // dass der Request-Header rausgeht — und refreshen erst dann.
+        // Der Server verarbeitet die 30-90s-Extraktion in Ruhe fertig,
+        // Result via ocr_status in der DB.
         if (autoExtract) {
-          void fetch("/api/dd/extract", {
+          console.log("[uploader] triggering extract for doc", reg.documentId);
+          const extractPromise = fetch("/api/dd/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               dd_project_id: projectId,
               document_id: reg.documentId,
             }),
-          }).catch(() => {
-            /* Fehler landet im Server-Status; UI zeigt es dort. */
+            // keepalive: falls Seite navigiert wird bevor Request fertig,
+            // bleibt der Request im Browser-Netzwerk-Stack aktiv.
+            keepalive: true,
+          }).catch((e) => {
+            console.error("[uploader] extract fetch failed:", e);
+            return null;
           });
+          // Race: max 3.5s warten. Wenn der Server schneller ist,
+          // super — wenn nicht, geht der Request im Hintergrund weiter.
+          await Promise.race([
+            extractPromise,
+            new Promise((r) => setTimeout(r, 3500)),
+          ]);
+          console.log("[uploader] extract dispatch complete (may still be running server-side)");
         }
 
         setProgressMsg(null);

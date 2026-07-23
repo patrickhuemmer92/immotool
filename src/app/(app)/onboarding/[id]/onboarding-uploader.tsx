@@ -85,20 +85,26 @@ export function OnboardingUploader({
           return;
         }
 
-        // Fire-and-forget — Server verarbeitet die Extraktion (30-90s),
-        // Client wartet nicht, damit der Uploader wieder frei ist.
-        // Fehler landen in onboarding_documents.ocr_status='failed' und
-        // werden in der Doku-Liste angezeigt.
-        void fetch("/api/onboarding/extract", {
+        // Race-Trigger — analog zum DD-Uploader. `void fetch()` würde
+        // durch router.refresh() abgebrochen bevor der Request rausgeht.
+        console.log("[onb-uploader] triggering extract for doc", reg.documentId);
+        const extractPromise = fetch("/api/onboarding/extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             onboarding_project_id: projectId,
             document_id: reg.documentId,
           }),
-        }).catch(() => {
-          /* Fehler landet server-side; UI zeigt es dort. */
+          keepalive: true,
+        }).catch((e) => {
+          console.error("[onb-uploader] extract fetch failed:", e);
+          return null;
         });
+        await Promise.race([
+          extractPromise,
+          new Promise((r) => setTimeout(r, 3500)),
+        ]);
+        console.log("[onb-uploader] extract dispatch complete");
 
         setProgress(null);
         if (fileRef.current) fileRef.current.value = "";

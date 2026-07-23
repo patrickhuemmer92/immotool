@@ -46,6 +46,32 @@ export function DdDocumentList({
     });
   }
 
+  /**
+   * Manueller Re-Trigger für Extraktion. Nützlich wenn der ursprüngliche
+   * fetch-Aufruf beim Upload abgebrochen wurde (Race gegen router.refresh)
+   * oder das Doku auf 'failed' steht wegen Timeout — statt löschen+neu
+   * hochladen einmal draufklicken.
+   */
+  function onRetry(docId: string) {
+    setErrorId(null);
+    start(async () => {
+      const res = await fetch("/api/dd/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dd_project_id: projectId,
+          document_id: docId,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setErrorId(docId + ":" + (j?.error ?? res.statusText));
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden">
       <ul>
@@ -73,14 +99,26 @@ export function DdDocumentList({
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onDelete(d.id)}
-              disabled={pending}
-              className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-            >
-              {t("common.delete")}
-            </button>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {(d.ocr_status === "pending" || d.ocr_status === "failed") && (
+                <button
+                  type="button"
+                  onClick={() => onRetry(d.id)}
+                  disabled={pending}
+                  className="text-xs text-accent hover:underline disabled:opacity-50"
+                >
+                  {t("dd.retry_extract")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onDelete(d.id)}
+                disabled={pending}
+                className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+              >
+                {t("common.delete")}
+              </button>
+            </div>
           </li>
         ))}
       </ul>

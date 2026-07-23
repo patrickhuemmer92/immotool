@@ -1006,6 +1006,7 @@
     "upload_error_register": "Could not save document",
     "extract_error": "Extraction failed",
     "confirm_delete_doc": "Really delete this document?",
+    "retry_extract": "Retry extraction",
     "ocr_pending": "processing",
     "ocr_extracted": "extracted",
     "ocr_failed": "error",

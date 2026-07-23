@@ -1006,6 +1006,7 @@
     "upload_error_register": "Konnte Dokument nicht speichern",
     "extract_error": "Extraktion fehlgeschlagen",
     "confirm_delete_doc": "Dokument wirklich löschen?",
+    "retry_extract": "Auswertung neu starten",
     "ocr_pending": "wird verarbeitet",
     "ocr_extracted": "ausgewertet",
     "ocr_failed": "Fehler",
