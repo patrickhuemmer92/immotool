@@ -11,7 +11,7 @@
  */
 
 import { osmProvider } from "./osm";
-import { borisProvider } from "./boris";
+// import { borisProvider } from "./boris";
 import type {
   LocationInput,
   MarketDataPoint,
@@ -19,9 +19,14 @@ import type {
   MarketSnapshot,
 } from "./types";
 
-// Reihenfolge = Präferenz. OSM zuerst (liefert Geo-Basis), BORIS danach
-// als spezialisierte Quelle für Bodenrichtwerte.
-const PROVIDERS: MarketDataProvider[] = [osmProvider, borisProvider];
+// Reihenfolge = Präferenz. Aktuell nur OSM aktiv — der BORIS-Provider
+// bleibt im Code, aber ist deaktiviert, bis die Endpoints pro Land
+// verifiziert und (wo nötig) auf die aktuellen URLs / Feature-Type-Namen
+// gebracht sind. Live-Test 2026-07 hat alle bisher konfigurierten
+// Endpoints als 404 / veraltet identifiziert — deshalb der Rückzug,
+// damit die UI nicht suggeriert, dass etwas vorhanden wäre, das nicht
+// vorhanden ist. Siehe boris.ts Header-Kommentar für Details.
+const PROVIDERS: MarketDataProvider[] = [osmProvider];
 
 /**
  * Sammelt Datenpunkte von allen unterstützenden Providern.

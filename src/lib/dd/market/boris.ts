@@ -1,28 +1,34 @@
 /**
  * Bodenrichtwerte-Provider (BORIS) — Multi-Bundesland.
  *
- * Jedes Bundesland betreibt sein eigenes Portal mit eigener API (fast
- * immer OGC WFS, uneinheitliche Feature- und Property-Namen). Dieser
- * Provider mappt anhand der PLZ auf das jeweilige Land und ruft dessen
- * WFS mit der Objekt-Koordinate ab. Wenn ein Land keinen brauchbaren
- * öffentlichen Endpoint hat: `null` (statt erfundener Zahl).
+ * ============================================================
+ * STATUS: SKELETT — AKTUELL NICHT IN DER REGISTRY AKTIV.
  *
- * Länder mit Impl:
- *   - NRW  (BORIS-NRW WFS, JSON)
- *   - BW   (BORIS-BW WFS, GeoJSON)
- *   - BE   (Berlin FIS-Broker WFS, JSON)
- *   - HH   (GeoOnline Hamburg WFS, JSON)
- *   - NI   (BORIS.NI WFS, JSON)
- *   - BY   (BayernAtlas WMS + GetFeatureInfo, JSON/HTML-Fallback)
- *          Bayern hat keinen einfachen WFS mit Adress-Query — der WMS
- *          erlaubt aber Punkt-Klick-Requests. Best-Effort.
- *   - HE   (BORIS-HE via GeoServer-WFS, JSON) — Best-Effort, Endpoint
- *          unter www.gpm-webgis-11.de kann sich ändern.
+ * Live-Test 2026-07 hat gezeigt, dass die im Code hinterlegten
+ * Endpoint-URLs für alle 7 vermeintlich implementierten Länder
+ * (NW, BW, BE, HH, NI, BY, HE) 404 oder Auth-Fehler liefern.
+ * Grund: die Landes-Geoportale strukturieren ihre BRW-Services
+ * regelmäßig um (URLs, Feature-Type-Namen, Auth-Requirements).
  *
- * Andere Länder (BB, MV, RP, SL, SN, SH, ST, TH, HB): kein
- * offener REST/WFS-Endpoint mit Adress-Query in v1 verfügbar. Der
- * Provider gibt für diese Länder `null` zurück und die UI markiert
- * das als „nicht verfügbar".
+ * Damit die App nicht suggeriert, es käme etwas, wo nichts kommt,
+ * ist der Provider aus src/lib/dd/market/registry.ts entfernt
+ * (siehe Kommentar dort). Der Code hier bleibt als Grundgerüst:
+ *   - Provider-Skeleton (supports/fetch)
+ *   - PLZ→Bundesland-Mapping
+ *   - Fetcher-Registry pro Land
+ *   - JSON/HTML-Parsing-Helper
+ *
+ * Wenn du BORIS reaktivieren willst:
+ *   1. Aktuelle URL + Feature-Type-Name aus dem jeweiligen
+ *      Landes-Geoportal recherchieren (GetCapabilities-Request
+ *      auf den Basis-WFS-Endpoint zeigt die verfügbaren Types).
+ *   2. Fetcher-Function in diesem File updaten.
+ *   3. Provider in registry.ts wieder aufnehmen.
+ *   4. End-to-End-Test mit einer echten Adresse aus dem Land.
+ *
+ * Alternative für Production: kommerzielle API (z. B. Sprengnetter,
+ * PriceHubble, ImmoScout24-B2B) — verlässlich, aber kostenpflichtig.
+ * ============================================================
  */
 
 import type {
