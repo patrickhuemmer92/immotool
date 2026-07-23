@@ -7,15 +7,20 @@
  * WFS mit der Objekt-Koordinate ab. Wenn ein Land keinen brauchbaren
  * öffentlichen Endpoint hat: `null` (statt erfundener Zahl).
  *
- * v1-Länder mit Impl:
- *   - NRW  (BORIS-NRW WFS)
- *   - BW   (BORIS-BW WFS)
- *   - BE   (Berlin FIS-Broker WFS)
- *   - HH   (GeoOnline Hamburg WFS)
- *   - NI   (BORIS.NI WFS)
+ * Länder mit Impl:
+ *   - NRW  (BORIS-NRW WFS, JSON)
+ *   - BW   (BORIS-BW WFS, GeoJSON)
+ *   - BE   (Berlin FIS-Broker WFS, JSON)
+ *   - HH   (GeoOnline Hamburg WFS, JSON)
+ *   - NI   (BORIS.NI WFS, JSON)
+ *   - BY   (BayernAtlas WMS + GetFeatureInfo, JSON/HTML-Fallback)
+ *          Bayern hat keinen einfachen WFS mit Adress-Query — der WMS
+ *          erlaubt aber Punkt-Klick-Requests. Best-Effort.
+ *   - HE   (BORIS-HE via GeoServer-WFS, JSON) — Best-Effort, Endpoint
+ *          unter www.gpm-webgis-11.de kann sich ändern.
  *
- * Andere Länder (BY, BB, HE, MV, RP, SL, SN, SH, ST, TH, HB): kein
- * einfacher offener REST/WFS-Endpoint mit Adress-Query in v1. Der
+ * Andere Länder (BB, MV, RP, SL, SN, SH, ST, TH, HB): kein
+ * offener REST/WFS-Endpoint mit Adress-Query in v1 verfügbar. Der
  * Provider gibt für diese Länder `null` zurück und die UI markiert
  * das als „nicht verfügbar".
  */
@@ -319,6 +324,128 @@ async function fetchBorisNiedersachsen(
   };
 }
 
+async function fetchBorisBayern(
+  lat: number,
+  lon: number
+): Promise<BorisResult | null> {
+  // Bayern hat KEINEN einfachen WFS mit Adress-Query — die Bodenrichtwerte
+  // sind primär via BayernAtlas als Karten-Layer publiziert. Der offizielle
+  // WMS unterstützt aber `GetFeatureInfo`, d. h. wir simulieren einen
+  // Karten-Klick auf die Koordinate und parsen die zurückgelieferte Info.
+  //
+  // Kein 100 %-Garantie — der Endpoint kann sich ändern. Bei Nicht-
+  // Erreichbarkeit / anderem Format: null.
+  const buf = 0.0005;
+  const bbox = `${lat - buf},${lon - buf},${lat + buf},${lon + buf}`;
+
+  const url =
+    "https://geoservices.bayern.de/wms/v2/ogc_bodenrichtwert.cgi?" +
+    new URLSearchParams({
+      SERVICE: "WMS",
+      VERSION: "1.3.0",
+      REQUEST: "GetFeatureInfo",
+      LAYERS: "ba_brw",
+      QUERY_LAYERS: "ba_brw",
+      CRS: "EPSG:4326",
+      BBOX: bbox,
+      WIDTH: "101",
+      HEIGHT: "101",
+      I: "50",
+      J: "50",
+      INFO_FORMAT: "application/json",
+    });
+
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": USER_AGENT, "Accept-Language": "de" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") ?? "";
+
+    // Weg 1: JSON — der bevorzugte Pfad
+    if (contentType.includes("json")) {
+      const json = (await res.json().catch(() => null)) as Record<
+        string,
+        unknown
+      > | null;
+      const v = firstPropertyValue(json, [
+        "BRW",
+        "brw",
+        "Bodenrichtwert",
+        "bodenrichtwert",
+        "wert",
+      ]);
+      if (v != null) {
+        return {
+          value: v,
+          source: "BayernAtlas (BORIS Bayern)",
+          source_url: "https://www.ldbv.bayern.de/vermessung/immoinfo.html",
+        };
+      }
+    }
+
+    // Weg 2: HTML/XML-Fallback — der WMS gibt bei manchen Konfigurationen
+    // eine kleine HTML-Antwort mit dem BRW als Text. Wir suchen den ersten
+    // Zahlen-Match nach einem "BRW"- oder "Bodenrichtwert"-Vorkommen.
+    const text = await res.text();
+    const match =
+      text.match(/BRW[^0-9]{0,20}([0-9]+[.,]?[0-9]*)/i) ??
+      text.match(/Bodenrichtwert[^0-9]{0,40}([0-9]+[.,]?[0-9]*)/i);
+    if (match) {
+      const num = parseFloat(match[1].replace(",", "."));
+      if (Number.isFinite(num) && num > 0) {
+        return {
+          value: num,
+          source: "BayernAtlas (BORIS Bayern)",
+          source_url: "https://www.ldbv.bayern.de/vermessung/immoinfo.html",
+        };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBorisHessen(
+  lat: number,
+  lon: number
+): Promise<BorisResult | null> {
+  // Hessen: BORIS-HE ist über den öffentlichen GeoServer der
+  // Gutachterausschüsse als WFS abrufbar. Auth-frei für die
+  // GetFeature-Requests.
+  //
+  // Endpoint-URL kann sich ändern — bei Nicht-Erreichbarkeit: null.
+  const url =
+    "https://www.gpm-webgis-11.de/geoserver/gag_hessen/wfs?" +
+    new URLSearchParams({
+      service: "WFS",
+      version: "2.0.0",
+      request: "GetFeature",
+      typeNames: "gag_hessen:BRW_Punkte",
+      srsName: "EPSG:4326",
+      bbox: bbox4326(lat, lon),
+      count: "1",
+      outputFormat: "application/json",
+    });
+  const json = await fetchWfs(url);
+  const v = firstPropertyValue(json, [
+    "BRW",
+    "brw",
+    "BODENRICHTWERT",
+    "Bodenrichtwert",
+    "wert",
+  ]);
+  if (v == null) return null;
+  return {
+    value: v,
+    source: "BORIS-HE",
+    source_url: "https://www.gag-hessen.de/",
+  };
+}
+
 // ---------------------------------------------------------------------
 // Provider-Registrierung
 // ---------------------------------------------------------------------
@@ -332,6 +459,8 @@ const FETCHERS: Partial<
   BE: fetchBorisBerlin,
   HH: fetchBorisHamburg,
   NI: fetchBorisNiedersachsen,
+  BY: fetchBorisBayern,
+  HE: fetchBorisHessen,
 };
 
 export const borisProvider: MarketDataProvider = {
