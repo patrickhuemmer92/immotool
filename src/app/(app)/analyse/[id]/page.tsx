@@ -180,7 +180,7 @@ export default async function DdProjectPage({
               workspaceId={active.id}
               projectId={project.id}
               defaultKind="weg_minutes"
-              autoExtract={false}
+              autoExtract
             />
           </div>
         </section>
