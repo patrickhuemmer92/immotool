@@ -196,10 +196,20 @@ export async function confirmOnboarding(
   };
   const kind = kauf.kind && kindMap[kauf.kind] ? kindMap[kauf.kind] : "apartment";
 
+  // ---- MFH-Erkennung ------------------------------------------------
+  // Wenn is_multi_family + unit_count > 1: das Haupt-Property wird ein
+  // "house", und wir legen unit_count Sub-Properties (kind=apartment)
+  // an. Die Mietverträge weiter unten werden dann per unit_reference
+  // an die passende Sub-Property gehängt (Fallback: 1. unbenutzte).
+  const isMfh =
+    !!kauf.is_multi_family && !!kauf.unit_count && kauf.unit_count > 1;
+  const unitCount = isMfh ? Math.min(kauf.unit_count!, 200) : 0;
+  const mainKind = isMfh ? "house" : kind;
+
   const notesParts: string[] = ["Angelegt via KI-Onboarding."];
-  if (kauf.is_multi_family && kauf.unit_count) {
+  if (isMfh) {
     notesParts.push(
-      `Mehrfamilienhaus mit ${kauf.unit_count} Einheiten — lege Sub-Wohnungen über den +-Button auf der Objektseite an.`
+      `Mehrfamilienhaus mit ${unitCount} Wohneinheiten — Sub-Wohnungen wurden automatisch angelegt (siehe Untereinheiten unten).`
     );
   }
 
@@ -207,7 +217,7 @@ export async function confirmOnboarding(
     .from("properties")
     .insert({
       workspace_id: active.id,
-      kind,
+      kind: mainKind,
       street: kauf.street,
       postal_code: kauf.postal_code,
       city: kauf.city,
@@ -232,6 +242,55 @@ export async function confirmOnboarding(
     .single();
   if (propErr) return { error: propErr.message };
 
+  // ---- Sub-Properties für MFH-Wohneinheiten ------------------------
+  // Wir legen unit_count Apartments an, jedes mit parent_property_id =
+  // Haupt-Property. Die Wohnungsnummer nutzen wir als unit_number
+  // (String "1", "2", …) und als location_detail ("Wohnung Nr. N").
+  // Kaufpreis wird gleichmäßig aufgeteilt, wenn wir keine bessere
+  // Information haben — das ist eine Näherung, die der User später
+  // pro Wohnung einzeln korrigieren kann.
+  const subPropertyUnitMap: Array<{ id: string; unit_number: string }> = [];
+  if (isMfh) {
+    const perUnitPrice =
+      kauf.purchase_price_eur != null
+        ? Math.round(kauf.purchase_price_eur / unitCount)
+        : null;
+    const perUnitSqm =
+      kauf.living_area_sqm != null
+        ? Math.round((kauf.living_area_sqm / unitCount) * 10) / 10
+        : null;
+
+    for (let i = 1; i <= unitCount; i++) {
+      const unitNumber = String(i);
+      const { data: sub } = await supabase
+        .from("properties")
+        .insert({
+          workspace_id: active.id,
+          kind: "apartment",
+          parent_property_id: prop.id,
+          street: kauf.street,
+          postal_code: kauf.postal_code,
+          city: kauf.city,
+          unit_number: unitNumber,
+          location_detail: `Wohnung ${unitNumber}`,
+          sqm: perUnitSqm,
+          purchase_price: perUnitPrice,
+          notes:
+            "Sub-Einheit automatisch aus KI-Onboarding angelegt. " +
+            "Fläche und Kaufpreis anteilig geschätzt — bitte prüfen.",
+        })
+        .select("id")
+        .single();
+      if (sub?.id) {
+        subPropertyUnitMap.push({ id: sub.id, unit_number: unitNumber });
+      }
+    }
+  }
+
+  // ---- Darlehen: bleiben am Haupt-Property -------------------------
+  // Ein Baufi-Darlehen deckt in der Regel das gesamte Objekt ab. Wir
+  // ordnen es NICHT den Sub-Wohnungen zu — der User kann es später
+  // manuell splitten falls gewünscht.
   const loanIds: string[] = [];
   for (const l of summary.darlehen ?? []) {
     if (!l.loan_amount_eur || !l.disbursement_date || !l.first_payment_date)
@@ -259,13 +318,45 @@ export async function confirmOnboarding(
     if (loanRow?.id) loanIds.push(loanRow.id);
   }
 
+  // ---- Mietverträge: bei MFH an Sub-Wohnung zuordnen ---------------
+  // Matching-Regel:
+  //   1. unit_reference enthält Zahl → matcht Sub mit unit_number
+  //      (Substring/Regex — "Whg. 3", "Wohnung Nr. 3", "3. OG" …)
+  //   2. Fallback: erste noch nicht belegte Sub-Wohnung
+  //   3. Wenn kein MFH oder keine Subs mehr frei: Haupt-Property
   const tenantIds: string[] = [];
+  const takenSubs = new Set<string>();
+  const parseUnitFromRef = (ref: string | null): string | null => {
+    if (!ref) return null;
+    const m = ref.match(/\b(\d{1,3})\b/);
+    return m ? m[1] : null;
+  };
+
   for (const t of summary.miete ?? []) {
     if (!t.tenant_name) continue;
+
+    let targetPropertyId = prop.id;
+    if (isMfh && subPropertyUnitMap.length > 0) {
+      const wanted = parseUnitFromRef(t.unit_reference ?? null);
+      let match = wanted
+        ? subPropertyUnitMap.find(
+            (s) => s.unit_number === wanted && !takenSubs.has(s.id)
+          )
+        : undefined;
+      if (!match) {
+        // Fallback: erste noch nicht belegte Sub
+        match = subPropertyUnitMap.find((s) => !takenSubs.has(s.id));
+      }
+      if (match) {
+        targetPropertyId = match.id;
+        takenSubs.add(match.id);
+      }
+    }
+
     const { data: tenantRow } = await supabase
       .from("tenants")
       .insert({
-        property_id: prop.id,
+        property_id: targetPropertyId,
         name: t.tenant_name,
         contract_start: t.contract_start ?? null,
         is_fixed_term: t.is_fixed_term ?? false,
