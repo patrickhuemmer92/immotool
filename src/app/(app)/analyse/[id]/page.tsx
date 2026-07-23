@@ -12,6 +12,7 @@ import { FindingsView } from "./findings-view";
 import { MarketView } from "./market-view";
 import { DecisionActions } from "./decision-actions";
 import { DdPaywall } from "./paywall";
+import { JobStatusWidget } from "./job-status";
 
 export default async function DdProjectPage({
   params,
@@ -88,6 +89,19 @@ export default async function DdProjectPage({
           <StatusBadge status={project.status} t={t} />
         </div>
       </div>
+
+      {/* Job-Status-Widget — nur sichtbar wenn was läuft */}
+      {docs.some((d) => d.ocr_status === "pending") && (
+        <div className="mt-6">
+          <JobStatusWidget
+            projectId={project.id}
+            initialDocs={docs.map((d) => ({
+              id: d.id,
+              ocr_status: d.ocr_status,
+            }))}
+          />
+        </div>
+      )}
 
       {/* Wizard-Steps als Fortschritts-Anzeige */}
       <div className="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">

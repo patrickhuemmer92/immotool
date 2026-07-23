@@ -11,6 +11,7 @@
  */
 
 import { osmProvider } from "./osm";
+import { borisProvider } from "./boris";
 import type {
   LocationInput,
   MarketDataPoint,
@@ -18,7 +19,9 @@ import type {
   MarketSnapshot,
 } from "./types";
 
-const PROVIDERS: MarketDataProvider[] = [osmProvider];
+// Reihenfolge = Präferenz. OSM zuerst (liefert Geo-Basis), BORIS danach
+// als spezialisierte Quelle für Bodenrichtwerte.
+const PROVIDERS: MarketDataProvider[] = [osmProvider, borisProvider];
 
 /**
  * Sammelt Datenpunkte von allen unterstützenden Providern.

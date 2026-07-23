@@ -177,23 +177,42 @@ export async function POST(req: Request) {
 
         // Fall B: One-Off DD-Analyse (mode = "payment") → dd_projects.paid = true
         if (session.mode === "payment") {
+          const supabase = getSupabaseAdmin();
+          const paymentIntentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id ?? null;
+
+          // 1) DD-Kauf
           const ddProjectId = session.metadata?.dd_project_id as
             | string
             | undefined;
-          if (!ddProjectId) break;
-          const supabase = getSupabaseAdmin();
-          await supabase
-            .from("dd_projects")
-            .update({
-              paid: true,
-              paid_at: new Date().toISOString(),
-              stripe_payment_intent_id:
-                typeof session.payment_intent === "string"
-                  ? session.payment_intent
-                  : session.payment_intent?.id ?? null,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", ddProjectId);
+          if (ddProjectId) {
+            await supabase
+              .from("dd_projects")
+              .update({
+                paid: true,
+                paid_at: new Date().toISOString(),
+                stripe_payment_intent_id: paymentIntentId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", ddProjectId);
+          }
+
+          // 2) Onboarding-Kauf
+          const onboardingProjectId = session.metadata
+            ?.onboarding_project_id as string | undefined;
+          if (onboardingProjectId) {
+            await supabase
+              .from("onboarding_projects")
+              .update({
+                paid: true,
+                paid_at: new Date().toISOString(),
+                stripe_payment_intent_id: paymentIntentId,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", onboardingProjectId);
+          }
         }
         break;
       }

@@ -1,0 +1,354 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { getActiveWorkspace } from "@/lib/workspace";
+import { getPremiumStatus } from "@/lib/billing/premium";
+import type {
+  KaufvertragExtraction,
+  MietvertragExtraction,
+  DarlehensvertragExtraction,
+} from "@/lib/dd/schemas/onboarding";
+
+export type OnboardingState = { error?: string } | undefined;
+
+const projectSchema = z.object({
+  name: z.string().trim().min(1, "name_required").max(200),
+});
+
+export async function createOnboardingProject(
+  _prev: OnboardingState,
+  formData: FormData
+): Promise<OnboardingState> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const parsed = projectSchema.safeParse({ name: formData.get("name") });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const supabase = await createClient();
+
+  // Premium-User bekommen Onboarding kostenlos freigeschaltet — sonst
+  // muss der User später den 29-€-One-Off kaufen.
+  const premium = await getPremiumStatus(active.id);
+
+  const { data, error } = await supabase
+    .from("onboarding_projects")
+    .insert({
+      workspace_id: active.id,
+      name: parsed.data.name,
+      status: "draft",
+      premium_unlock: premium.hasPaidSubscription,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/onboarding");
+  redirect(`/onboarding/${data.id}`);
+}
+
+const registerDocSchema = z.object({
+  onboarding_project_id: z.string().uuid(),
+  kind: z.enum([
+    "kaufvertrag",
+    "mietvertrag",
+    "darlehensvertrag",
+    "grundbuchauszug",
+    "other",
+  ]),
+  filename: z.string().min(1).max(500),
+  storage_path: z.string().min(1).max(1000),
+  mime_type: z.string().min(1),
+  size_bytes: z.number().int().nonnegative(),
+});
+
+export async function registerOnboardingDocument(input: {
+  onboarding_project_id: string;
+  kind: string;
+  filename: string;
+  storage_path: string;
+  mime_type: string;
+  size_bytes: number;
+}): Promise<{ error?: string; documentId?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const parsed = registerDocSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message };
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("onboarding_projects")
+    .select("id, workspace_id")
+    .eq("id", parsed.data.onboarding_project_id)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project) return { error: "project_not_found" };
+
+  const { data, error } = await supabase
+    .from("onboarding_documents")
+    .insert({
+      onboarding_project_id: parsed.data.onboarding_project_id,
+      kind: parsed.data.kind,
+      filename: parsed.data.filename,
+      storage_path: parsed.data.storage_path,
+      mime_type: parsed.data.mime_type,
+      size_bytes: parsed.data.size_bytes,
+      ocr_status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/onboarding/${parsed.data.onboarding_project_id}`);
+  return { documentId: data.id };
+}
+
+export async function deleteOnboardingDocument(
+  docId: string,
+  projectId: string
+): Promise<void> {
+  const active = await getActiveWorkspace();
+  if (!active) return;
+
+  const supabase = await createClient();
+  const { data: doc } = await supabase
+    .from("onboarding_documents")
+    .select(
+      "storage_path, onboarding_projects!inner(workspace_id)"
+    )
+    .eq("id", docId)
+    .maybeSingle();
+  if (!doc) return;
+
+  const wsId = (doc as unknown as { onboarding_projects: { workspace_id: string } })
+    .onboarding_projects?.workspace_id;
+  if (wsId !== active.id) return;
+
+  const storagePath = (doc as unknown as { storage_path: string }).storage_path;
+  await supabase.storage.from("dd-documents").remove([storagePath]);
+  await supabase.from("onboarding_documents").delete().eq("id", docId);
+
+  revalidatePath(`/onboarding/${projectId}`);
+}
+
+/**
+ * Nach dem Confirm: aus den Extraktionen echte Rows in
+ * properties / loans / tenants schreiben und die IDs zurück ans
+ * Onboarding-Projekt hängen.
+ *
+ * v1: keine Sub-Property-Erzeugung bei MFH — der User bekommt ein
+ * einzelnes Property angelegt, mit Notes-Hinweis auf die Einheiten;
+ * die Sub-Property-Anlage kann er über die bestehenden Inline-Actions
+ * durchführen. Sonst würde die Onboarding-Route zu breit.
+ */
+export async function confirmOnboarding(
+  projectId: string
+): Promise<{ error?: string; propertyId?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("onboarding_projects")
+    .select(
+      "id, workspace_id, status, extracted_summary, created_property_id, paid, premium_unlock"
+    )
+    .eq("id", projectId)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project) return { error: "project_not_found" };
+
+  if (!project.paid && !project.premium_unlock) {
+    return { error: "payment_required" };
+  }
+  if (project.created_property_id) {
+    return { propertyId: project.created_property_id };
+  }
+  if (!project.extracted_summary) {
+    return { error: "no_extraction" };
+  }
+
+  const summary = project.extracted_summary as {
+    kauf?: KaufvertragExtraction;
+    miete?: MietvertragExtraction[];
+    darlehen?: DarlehensvertragExtraction[];
+  };
+  const kauf = summary.kauf;
+
+  if (!kauf?.street || !kauf?.postal_code || !kauf?.city) {
+    return { error: "address_missing" };
+  }
+
+  // Kind-Mapping (Property-Schema hat kein row_house)
+  const kindMap: Record<string, string> = {
+    apartment: "apartment",
+    house: "house",
+    row_house: "house",
+    commercial: "commercial",
+    parking: "parking",
+    other: "other",
+  };
+  const kind = kauf.kind && kindMap[kauf.kind] ? kindMap[kauf.kind] : "apartment";
+
+  const notesParts: string[] = ["Angelegt via KI-Onboarding."];
+  if (kauf.is_multi_family && kauf.unit_count) {
+    notesParts.push(
+      `Mehrfamilienhaus mit ${kauf.unit_count} Einheiten — lege Sub-Wohnungen über den +-Button auf der Objektseite an.`
+    );
+  }
+
+  const { data: prop, error: propErr } = await supabase
+    .from("properties")
+    .insert({
+      workspace_id: active.id,
+      kind,
+      street: kauf.street,
+      postal_code: kauf.postal_code,
+      city: kauf.city,
+      location_detail: kauf.location_detail ?? null,
+      sqm: kauf.living_area_sqm ?? null,
+      purchase_price: kauf.purchase_price_eur ?? null,
+      notary_appointment: kauf.notary_appointment ?? null,
+      transfer_date: kauf.transfer_date ?? null,
+      registration_date: kauf.registration_date ?? null,
+      transfer_tax: kauf.transfer_tax_eur ?? null,
+      broker_fee: kauf.broker_fee_eur ?? null,
+      notary_fee: kauf.notary_fee_eur ?? null,
+      registration_cost: kauf.registration_cost_eur ?? null,
+      land_value: kauf.land_value_eur ?? null,
+      building_value_share_pct:
+        kauf.building_value_share_pct != null
+          ? kauf.building_value_share_pct / 100
+          : null,
+      notes: notesParts.join(" "),
+    })
+    .select("id")
+    .single();
+  if (propErr) return { error: propErr.message };
+
+  const loanIds: string[] = [];
+  for (const l of summary.darlehen ?? []) {
+    if (!l.loan_amount_eur || !l.disbursement_date || !l.first_payment_date)
+      continue;
+    const { data: loanRow } = await supabase
+      .from("loans")
+      .insert({
+        property_id: prop.id,
+        designation: l.designation ?? "Annuitätendarlehen",
+        bank: l.bank ?? null,
+        loan_number: l.loan_number ?? null,
+        loan_amount: l.loan_amount_eur,
+        interest_rate_pa:
+          l.interest_rate_pa_pct != null ? l.interest_rate_pa_pct / 100 : 0,
+        amortization_pa:
+          l.amortization_pa_pct != null ? l.amortization_pa_pct / 100 : 0,
+        disbursement_date: l.disbursement_date,
+        first_payment_date: l.first_payment_date,
+        rate_lock_until: l.rate_lock_until ?? null,
+        maturity_date: l.maturity_date ?? null,
+        interest_share_first_rate: l.interest_share_first_rate_eur ?? null,
+      })
+      .select("id")
+      .single();
+    if (loanRow?.id) loanIds.push(loanRow.id);
+  }
+
+  const tenantIds: string[] = [];
+  for (const t of summary.miete ?? []) {
+    if (!t.tenant_name) continue;
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .insert({
+        property_id: prop.id,
+        name: t.tenant_name,
+        contract_start: t.contract_start ?? null,
+        is_fixed_term: t.is_fixed_term ?? false,
+        contract_end: t.is_fixed_term ? t.contract_end ?? null : null,
+        cold_rent_per_month: t.cold_rent_per_month_eur ?? 0,
+        ancillary_costs_per_month: t.ancillary_costs_per_month_eur ?? 0,
+        notes: t.rent_adjustments_notes ?? null,
+      })
+      .select("id")
+      .single();
+    if (tenantRow?.id) tenantIds.push(tenantRow.id);
+  }
+
+  await supabase
+    .from("onboarding_projects")
+    .update({
+      status: "confirmed",
+      created_property_id: prop.id,
+      created_loan_ids: loanIds,
+      created_tenant_ids: tenantIds,
+      confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+
+  revalidatePath("/onboarding");
+  revalidatePath("/objekte");
+  return { propertyId: prop.id };
+}
+
+export async function archiveOnboarding(projectId: string) {
+  const active = await getActiveWorkspace();
+  if (!active) return;
+  const supabase = await createClient();
+  await supabase
+    .from("onboarding_projects")
+    .update({ status: "archived" })
+    .eq("id", projectId)
+    .eq("workspace_id", active.id);
+  revalidatePath("/onboarding");
+  redirect("/onboarding");
+}
+
+export async function saveOnboardingEdit(
+  projectId: string,
+  patch: {
+    kauf?: Partial<KaufvertragExtraction>;
+    miete?: MietvertragExtraction[];
+    darlehen?: DarlehensvertragExtraction[];
+  }
+): Promise<{ error?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const { data: project } = await supabase
+    .from("onboarding_projects")
+    .select("id, extracted_summary")
+    .eq("id", projectId)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project) return { error: "project_not_found" };
+
+  const current = (project.extracted_summary ?? {}) as {
+    kauf?: KaufvertragExtraction;
+    miete?: MietvertragExtraction[];
+    darlehen?: DarlehensvertragExtraction[];
+  };
+  const merged = {
+    kauf: patch.kauf ? { ...current.kauf, ...patch.kauf } : current.kauf,
+    miete: patch.miete ?? current.miete ?? [],
+    darlehen: patch.darlehen ?? current.darlehen ?? [],
+  };
+
+  const { error } = await supabase
+    .from("onboarding_projects")
+    .update({
+      extracted_summary: merged,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/onboarding/${projectId}`);
+  return {};
+}

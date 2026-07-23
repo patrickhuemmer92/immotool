@@ -128,20 +128,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "unsupported_mime" }, { status: 415 });
   }
 
-  if (scanned || text.trim().length < 50) {
+  // Extraktions-Strategie:
+  //   - Text-PDF mit ausreichend Inhalt → billiger Text-Modus
+  //   - Sonst (gescannt) → Vision-Modus: PDF direkt an Anthropic senden.
+  //     Anthropic hat nativen PDF-Support (Text UND Bild) — kein
+  //     separater OCR-Layer nötig.
+  const useVision = scanned || text.trim().length < 50;
+  const pdfBufferForVision = useVision ? new Uint8Array(arrayBuf) : undefined;
+
+  // Sanity-Cap: Anthropic akzeptiert PDFs bis 32 MB / 100 Seiten. Wenn
+  // hier drüber, brechen wir ab — Chunking kommt später.
+  if (useVision && arrayBuf.byteLength > 32 * 1024 * 1024) {
     await supabase
       .from("dd_documents")
       .update({
         ocr_status: "failed",
         ocr_error:
-          "PDF enthält keinen extrahierbaren Text — vermutlich gescannt. OCR folgt in einer späteren Version.",
+          "PDF größer als 32 MB. Bitte kleiner splitten (nur die relevanten Seiten hochladen).",
         file_hash: fileHash,
       })
       .eq("id", doc.id);
-    return NextResponse.json(
-      { error: "probably_scanned_needs_ocr" },
-      { status: 422 }
-    );
+    return NextResponse.json({ error: "pdf_too_large" }, { status: 413 });
   }
 
   const trimmedText =
@@ -154,9 +161,14 @@ export async function POST(req: Request) {
     if (doc.kind === "expose") {
       const result = await callLlmJson({
         model: "sonnet",
-        purpose: "extract_expose",
+        purpose: useVision ? "extract_expose_vision" : "extract_expose",
         systemPrompt: EXPOSE_SYSTEM_PROMPT,
-        userMessage: buildExposeUserMessage(trimmedText),
+        userMessage: useVision
+          ? buildExposeUserMessage(
+              "[PDF wird direkt vom Modell gelesen — extrahiere die Felder aus dem angehängten Dokument.]"
+            )
+          : buildExposeUserMessage(trimmedText),
+        pdfBuffer: pdfBufferForVision,
         schema: exposeExtractionSchema,
         maxTokens: 4096,
         temperature: 0,
@@ -244,9 +256,16 @@ export async function POST(req: Request) {
 
     const result = await callLlmJson({
       model: "sonnet",
-      purpose,
+      purpose: useVision ? `${purpose}_vision` : purpose,
       systemPrompt,
-      userMessage,
+      // Bei Vision: User-Message ist nur Instruktion, PDF ist im
+      // document-Block — sonst Textinhalt wie bisher.
+      userMessage: useVision
+        ? `[Das PDF wird direkt vom Modell gelesen — extrahiere die Felder aus dem angehängten Dokument in das folgende JSON-Format.]
+
+${userMessage.split("Format:")[1] ?? userMessage}`
+        : userMessage,
+      pdfBuffer: pdfBufferForVision,
       schema,
       maxTokens: 4096,
       temperature: 0,

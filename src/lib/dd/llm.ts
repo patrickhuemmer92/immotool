@@ -55,6 +55,14 @@ export type LlmCallOptions<T> = {
   schema: ZodType<T>;           // Zod-Schema für Output-Validierung
   maxTokens?: number;
   temperature?: number;
+  /**
+   * Optional: PDF direkt an das LLM übergeben (Vision-basierter Weg,
+   * ideal für gescannte Dokumente). Wenn gesetzt, ist `userMessage` die
+   * Instruktion — der PDF-Content kommt ZUSÄTZLICH als document-Block.
+   * Buffer muss ein rohes PDF (Uint8Array) sein — Base64-Encoding
+   * übernehmen wir hier.
+   */
+  pdfBuffer?: Uint8Array;
   /** Workspace-Kontext für Kosten-Logging. */
   workspaceId?: string;
   ddProjectId?: string;
@@ -101,6 +109,24 @@ export async function callLlmJson<T>(
     "Antworte AUSSCHLIESSLICH mit gültigem JSON gemäß dem geforderten Schema. " +
     "Keine Prosa vor oder nach dem JSON.";
 
+  // Content-Blocks bauen: bei pdfBuffer ist der erste Block das PDF
+  // (document-Content-Type), danach die Text-Instruktion. Anthropic
+  // erwartet document VOR text — sonst reagiert das Modell primär auf
+  // Text und ignoriert das PDF.
+  const userContent: Anthropic.ContentBlockParam[] = opts.pdfBuffer
+    ? [
+        {
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: Buffer.from(opts.pdfBuffer).toString("base64"),
+          },
+        },
+        { type: "text", text: opts.userMessage },
+      ]
+    : [{ type: "text", text: opts.userMessage }];
+
   let response;
   try {
     response = await client.messages.create({
@@ -108,7 +134,7 @@ export async function callLlmJson<T>(
       max_tokens: opts.maxTokens ?? 4096,
       temperature: opts.temperature ?? 0,
       system: systemFull,
-      messages: [{ role: "user", content: opts.userMessage }],
+      messages: [{ role: "user", content: userContent }],
     });
   } catch (err) {
     await maybeLogFailure(opts, 0, 0, err, Date.now() - t0);
@@ -125,13 +151,16 @@ export async function callLlmJson<T>(
 
   // 2. Versuch: Reparatur-Retry mit Fehler-Feedback
   if (!parseResult.ok) {
+    // Für den Retry brauchen wir das PDF NICHT nochmal mitzuschicken —
+    // das Modell hat den Content schon "gesehen" (via Assistant-Turn).
+    // Spart 90 % der Retry-Kosten bei großen PDFs.
     const repair = await client.messages.create({
       model: modelInfo.id,
       max_tokens: opts.maxTokens ?? 4096,
       temperature: 0,
       system: systemFull,
       messages: [
-        { role: "user", content: opts.userMessage },
+        { role: "user", content: userContent },
         { role: "assistant", content: rawText },
         {
           role: "user",
