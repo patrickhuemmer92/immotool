@@ -53,7 +53,7 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("dd_projects")
-    .select("id, name, paid")
+    .select("id, name, paid, extracted_expose")
     .eq("id", parsed.data.dd_project_id)
     .eq("workspace_id", active.id)
     .maybeSingle();
@@ -62,6 +62,29 @@ export async function POST(req: Request) {
   }
   if (project.paid) {
     return NextResponse.json({ error: "already_paid" }, { status: 400 });
+  }
+
+  // Doku-Gate: die 29 € rechtfertigen sich nur, wenn WEG-Protokoll ODER
+  // Wirtschaftsplan mit hochgeladen (und erfolgreich extrahiert) ist —
+  // sonst bleibt die Score-Konfidenz auf ~30 % und der Kundenwert
+  // ist gering. Wir lehnen den Kauf serverseitig ab und erklären den
+  // Grund; der Client zeigt eine Prerequisite-Card.
+  const { data: docs } = await supabase
+    .from("dd_documents")
+    .select("kind, ocr_status")
+    .eq("dd_project_id", project.id)
+    .in("kind", ["weg_minutes", "wirtschaftsplan"])
+    .eq("ocr_status", "extracted");
+  const hasKeyDoc = (docs ?? []).length > 0;
+  if (!hasKeyDoc) {
+    return NextResponse.json(
+      {
+        error: "prerequisites_missing",
+        detail:
+          "Für eine belastbare Analyse braucht es mindestens ein WEG-Protokoll oder einen Wirtschaftsplan (erfolgreich ausgewertet).",
+      },
+      { status: 412 } // Precondition Failed
+    );
   }
 
   let priceId: string;

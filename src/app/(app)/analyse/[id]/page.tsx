@@ -189,10 +189,18 @@ export default async function DdProjectPage({
         </section>
       )}
 
-      {/* Paywall — vor der Analyse-Sektion, wenn noch nicht bezahlt */}
+      {/* Paywall — vor der Analyse-Sektion, wenn noch nicht bezahlt.
+          Die Paywall zeigt intern eine Prerequisite-Card wenn noch
+          kein WEG-Protokoll oder Wirtschaftsplan hochgeladen wurde. */}
       {expose && !project.paid && (
         <section className="mt-8">
-          <DdPaywall projectId={project.id} />
+          <DdPaywall
+            projectId={project.id}
+            docs={docs.map((d) => ({
+              kind: d.kind as string,
+              ocr_status: d.ocr_status,
+            }))}
+          />
         </section>
       )}
 
