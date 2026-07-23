@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
+import { getPremiumStatus } from "@/lib/billing/premium";
 import { OnboardingUploader } from "./onboarding-uploader";
 import { OnboardingConfirm } from "./confirm";
 import { OnboardingPaywall } from "./paywall";
@@ -43,6 +44,15 @@ export default async function OnboardingProjectPage({
 
   const unlocked = project.paid || project.premium_unlock;
 
+  // Wenn der Unlock via premium_unlock erfolgt und der Workspace KEIN
+  // Paid-Abo hat, dann war es First-Object-Free. Das unterscheiden wir,
+  // damit die UI den richtigen Vertrauens-Anker setzt („kostenlos für
+  // dein erstes Objekt" vs. „in deinem Premium-Abo enthalten").
+  const premium = await getPremiumStatus(active.id);
+  const unlockedByFirstFree =
+    project.premium_unlock && !project.paid && !premium.hasPaidSubscription;
+  const unlockedByPremium = project.premium_unlock && premium.hasPaidSubscription;
+
   const summary = (project.extracted_summary ?? null) as
     | {
         kauf?: unknown;
@@ -69,6 +79,32 @@ export default async function OnboardingProjectPage({
           {t(`onb.status_${project.status}`)}
         </span>
       </div>
+
+      {/* Unlock-Info: zeigt WARUM freigeschaltet (First-Free / Premium) */}
+      {unlockedByFirstFree && (
+        <section className="mt-6">
+          <div className="rounded-2xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 p-4">
+            <p className="text-sm font-medium text-green-900 dark:text-green-200">
+              🎁 {t("onb.free_first_title")}
+            </p>
+            <p className="mt-1 text-xs text-green-800 dark:text-green-300">
+              {t("onb.free_first_body")}
+            </p>
+          </div>
+        </section>
+      )}
+      {unlockedByPremium && (
+        <section className="mt-6">
+          <div className="rounded-2xl border border-accent/30 bg-accent-soft p-4">
+            <p className="text-sm font-medium text-accent-foreground">
+              ✓ {t("onb.premium_unlock_title")}
+            </p>
+            <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
+              {t("onb.premium_unlock_body")}
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* Paywall (falls nicht bezahlt und kein Premium) — vor Upload */}
       {!unlocked && (

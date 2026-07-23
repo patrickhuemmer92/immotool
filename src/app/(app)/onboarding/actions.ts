@@ -32,9 +32,19 @@ export async function createOnboardingProject(
 
   const supabase = await createClient();
 
-  // Premium-User bekommen Onboarding kostenlos freigeschaltet — sonst
-  // muss der User später den 29-€-One-Off kaufen.
+  // Unlock-Logik (Option A: „First-Object-Free" + Premium-inclusive):
+  //   - Premium-User (hasPaidSubscription): immer inklusive
+  //   - Alle anderen: das ERSTE je erzeugte Onboarding-Projekt im
+  //     Workspace ist gratis. Ab dem zweiten muss 29 € gezahlt werden.
+  //     Wir zählen ALLE historischen Projekte (auch archived), sonst
+  //     könnte man durch Archivieren + Neuanlegen First-Free farmen.
   const premium = await getPremiumStatus(active.id);
+  const { count: existingCount } = await supabase
+    .from("onboarding_projects")
+    .select("id", { count: "exact", head: true })
+    .eq("workspace_id", active.id);
+  const isFirstOnboarding = (existingCount ?? 0) === 0;
+  const unlock = premium.hasPaidSubscription || isFirstOnboarding;
 
   const { data, error } = await supabase
     .from("onboarding_projects")
@@ -42,7 +52,7 @@ export async function createOnboardingProject(
       workspace_id: active.id,
       name: parsed.data.name,
       status: "draft",
-      premium_unlock: premium.hasPaidSubscription,
+      premium_unlock: unlock,
     })
     .select("id")
     .single();
