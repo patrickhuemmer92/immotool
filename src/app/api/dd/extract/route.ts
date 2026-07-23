@@ -62,6 +62,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
+  console.log(
+    `[dd-extract] enter dd=${body.dd_project_id.slice(0, 8)} doc=${body.document_id.slice(0, 8)}`
+  );
+
   const supabase = await createClient();
 
   // Workspace-Scoping via Parent-Projekt
@@ -274,7 +278,10 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
       supabase,
     });
 
-    await supabase
+    console.log(
+      `[dd-extract] persist ok kind=${doc.kind} doc=${doc.id.slice(0, 8)}`
+    );
+    const { error: upErr } = await supabase
       .from("dd_documents")
       .update({
         ocr_status: "extracted",
@@ -285,6 +292,29 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
       })
       .eq("id", doc.id);
 
+    if (upErr) {
+      console.error(
+        `[dd-extract] DB-UPDATE FAILED doc=${doc.id.slice(0, 8)} err=${upErr.message}`
+      );
+      // Wenn wir hier den DB-Update-Fehler nicht sichtbar machen,
+      // bleibt der Job für immer auf pending. Wir bringen ihn deshalb
+      // aktiv auf 'failed', damit der User im Widget sieht dass was
+      // schiefging.
+      await supabase
+        .from("dd_documents")
+        .update({
+          ocr_status: "failed",
+          ocr_error: "DB-Update fehlgeschlagen: " + upErr.message,
+          file_hash: fileHash,
+        })
+        .eq("id", doc.id);
+      return NextResponse.json({ error: upErr.message }, { status: 500 });
+    }
+
+    console.log(
+      `[dd-extract] SUCCESS kind=${doc.kind} doc=${doc.id.slice(0, 8)}`
+    );
+
     return NextResponse.json({
       ok: true,
       kind: doc.kind,
@@ -293,7 +323,11 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    await supabase
+    console.error(
+      `[dd-extract] CAUGHT err msg="${msg.slice(0, 200)}"`
+    );
+    // Doku aktiv auf failed setzen — Widget zeigt dann den Fehler.
+    const { error: failErr } = await supabase
       .from("dd_documents")
       .update({
         ocr_status: "failed",
@@ -301,6 +335,11 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
         file_hash: fileHash,
       })
       .eq("id", doc.id);
+    if (failErr) {
+      console.error(
+        `[dd-extract] FAIL-UPDATE ALSO FAILED doc=${doc.id.slice(0, 8)} err=${failErr.message}`
+      );
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

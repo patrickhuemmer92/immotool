@@ -160,9 +160,20 @@ export async function callLlmJson<T>(
   const tokensIn = response.usage.input_tokens;
   const tokensOut = response.usage.output_tokens;
   const costCents = estimateCostCents(opts.model, tokensIn, tokensOut);
+  console.log(
+    `[dd-llm] response received purpose=${opts.purpose} ` +
+      `tokens_in=${tokensIn} tokens_out=${tokensOut} raw_len=${rawText.length}`
+  );
 
   // 1. Versuch: Direktes JSON.parse + Schema-Validierung
   let parseResult = tryParseAndValidate(rawText, opts.schema);
+  if (!parseResult.ok) {
+    console.warn(
+      `[dd-llm] parse-1 failed purpose=${opts.purpose} ` +
+        `err="${parseResult.error.slice(0, 200)}" ` +
+        `raw_head="${rawText.slice(0, 200).replace(/\s+/g, " ")}"`
+    );
+  }
 
   // 2. Versuch: Reparatur-Retry mit Fehler-Feedback
   if (!parseResult.ok) {
@@ -202,6 +213,11 @@ export async function callLlmJson<T>(
     );
 
     if (!parseResult.ok) {
+      console.error(
+        `[dd-llm] parse-2 failed purpose=${opts.purpose} ` +
+          `err="${parseResult.error.slice(0, 200)}" ` +
+          `raw_head="${repairText.slice(0, 200).replace(/\s+/g, " ")}"`
+      );
       await maybeLogFailure(
         opts,
         totalTokensIn,
@@ -213,6 +229,10 @@ export async function callLlmJson<T>(
         `LLM lieferte nach Retry kein schema-konformes JSON: ${parseResult.error}`
       );
     }
+    console.log(
+      `[dd-llm] repair succeeded purpose=${opts.purpose} ` +
+        `retry_tokens_in=${retryTokensIn} retry_tokens_out=${retryTokensOut}`
+    );
 
     const duration = Date.now() - t0;
     await maybeLogSuccess(
