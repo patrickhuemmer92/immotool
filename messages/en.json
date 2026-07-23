@@ -1099,6 +1099,7 @@
     "market_supermarket": "Shops (800 m)",
     "market_schools": "Schools/kindergarten (800 m)",
     "market_show_all": "Show all data points + sources",
+    "market_nearby_unavailable": "Nearby amenities (transit, shops, schools) couldn't be fetched — the public OpenStreetMap endpoint was overloaded. Click „Refresh\" above to try again.",
     "market_computed_at": "As of: {date}",
     "decision_section": "Step 5 — Decision",
     "decision_title": "What's next?",

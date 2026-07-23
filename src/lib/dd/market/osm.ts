@@ -17,7 +17,16 @@ import type {
 } from "./types";
 
 const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
-const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+
+// Overpass hat einen einzelnen public Endpoint, der regelmäßig überlastet
+// ist (HTTP 504). Wir probieren die offiziellen Instanzen + einen
+// Community-Mirror durch, bis eine antwortet. Reihenfolge = Präferenz.
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://z.overpass-api.de/api/interpreter",
+];
+
 const USER_AGENT = "estateably-dd/1.0 (contact: kontakt@estateably.de)";
 
 async function geocode(loc: LocationInput): Promise<{
@@ -70,67 +79,102 @@ async function geocode(loc: LocationInput): Promise<{
  * Score, aber ein sinnvoller Lage-Kontext ("gute Anbindung / dünn
  * besiedelt / Krankenhäuser in der Nähe").
  */
+/**
+ * Zählt POIs in einem Radius um die gegebene Koordinate.
+ *
+ * Zwei wichtige Details:
+ *   1. `nwr` (node/way/relation) statt `node` — Supermärkte,
+ *      Krankenhäuser etc. sind in OSM überwiegend als Polygone (way)
+ *      oder Multi-Polygone (relation) getaggt, nicht als Punkte.
+ *      Mit `node` hätten wir sie fast alle verpasst.
+ *   2. Multi-Endpoint-Retry: der offizielle Overpass-Endpoint hat
+ *      regelmäßig 504-Timeouts. Wir probieren mehrere Mirrors durch.
+ *
+ * Rückgabe: null nur wenn ALLE Endpoints fehlgeschlagen sind — dann
+ * markiert die UI die Punkte als „nicht verfügbar". „0 gefunden" ist
+ * ein legitimes Ergebnis (ländliche Lage), das wir nicht unterdrücken.
+ */
 async function countNearby(
   lat: number,
   lon: number,
   radiusMeters: number
 ): Promise<Record<string, number> | null> {
   const bbox = `around:${radiusMeters},${lat},${lon}`;
-  const query = `
-[out:json][timeout:20];
+  // Query: `nwr` findet auch Polygone. Timeout 15s im Query, 25s auf
+  // dem fetch-Client — der Server-Timeout muss < Client-Timeout sein,
+  // sonst kriegen wir eine leere 504-Antwort statt einer klaren Anfrage-
+  // Absage.
+  const query = `[out:json][timeout:15];
 (
+  nwr["amenity"~"^(school|hospital|doctors|pharmacy|supermarket|kindergarten)$"](${bbox});
+  nwr["shop"="supermarket"](${bbox});
   node["public_transport"~"^(station|stop_position)$"](${bbox});
-  node["railway"~"^(station|halt)$"](${bbox});
-  node["amenity"~"^(school|hospital|doctors|pharmacy|supermarket|kindergarten)$"](${bbox});
-  node["shop"="supermarket"](${bbox});
+  node["railway"~"^(station|halt|tram_stop)$"](${bbox});
 );
-out tags;`.trim();
+out tags 300;`;
 
-  try {
-    const res = await fetch(OVERPASS_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "User-Agent": USER_AGENT,
-      },
-      body: "data=" + encodeURIComponent(query),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as {
-      elements: { tags?: Record<string, string> }[];
-    };
+  const body = "data=" + encodeURIComponent(query);
 
-    const counts: Record<string, number> = {
-      transit: 0,
-      school: 0,
-      hospital: 0,
-      doctors: 0,
-      pharmacy: 0,
-      supermarket: 0,
-      kindergarten: 0,
-    };
-    for (const el of json.elements) {
-      const tags = el.tags ?? {};
-      if (
-        tags.public_transport === "station" ||
-        tags.public_transport === "stop_position" ||
-        tags.railway === "station" ||
-        tags.railway === "halt"
-      )
-        counts.transit++;
-      const am = tags.amenity;
-      if (am === "school") counts.school++;
-      else if (am === "hospital") counts.hospital++;
-      else if (am === "doctors") counts.doctors++;
-      else if (am === "pharmacy") counts.pharmacy++;
-      else if (am === "kindergarten") counts.kindergarten++;
-      if (tags.shop === "supermarket" || am === "supermarket")
-        counts.supermarket++;
+  for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": USER_AGENT,
+        },
+        body,
+        signal: AbortSignal.timeout(25_000),
+      });
+      // Bei 429/504/503 versuchen wir den nächsten Mirror.
+      if (!res.ok) continue;
+
+      // Content-Type prüfen: einige Mirrors liefern bei Timeout HTML
+      // statt JSON. Ohne diesen Check würde JSON.parse crashen und wir
+      // den nächsten Mirror verpassen.
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("json")) continue;
+
+      const json = (await res.json().catch(() => null)) as {
+        elements?: { tags?: Record<string, string> }[];
+      } | null;
+      if (!json?.elements) continue;
+
+      const counts: Record<string, number> = {
+        transit: 0,
+        school: 0,
+        hospital: 0,
+        doctors: 0,
+        pharmacy: 0,
+        supermarket: 0,
+        kindergarten: 0,
+      };
+      for (const el of json.elements) {
+        const tags = el.tags ?? {};
+        if (
+          tags.public_transport === "station" ||
+          tags.public_transport === "stop_position" ||
+          tags.railway === "station" ||
+          tags.railway === "halt" ||
+          tags.railway === "tram_stop"
+        )
+          counts.transit++;
+        const am = tags.amenity;
+        if (am === "school") counts.school++;
+        else if (am === "hospital") counts.hospital++;
+        else if (am === "doctors") counts.doctors++;
+        else if (am === "pharmacy") counts.pharmacy++;
+        else if (am === "kindergarten") counts.kindergarten++;
+        if (tags.shop === "supermarket" || am === "supermarket")
+          counts.supermarket++;
+      }
+      return counts;
+    } catch {
+      // Timeout / DNS / TLS — nächsten Mirror probieren.
+      continue;
     }
-    return counts;
-  } catch {
-    return null;
   }
+  return null;
 }
 
 export const osmProvider: MarketDataProvider = {
@@ -186,6 +230,30 @@ export const osmProvider: MarketDataProvider = {
           source_date: today,
         });
       }
+      // Erfolgsmarker — UI kann so 0 (echt keine POI) von
+      // "nicht verfügbar" unterscheiden.
+      points.push({
+        metric: "nearby_status",
+        value_num: null,
+        value_text: "ok",
+        unit: null,
+        source: "OpenStreetMap Overpass",
+        source_url: null,
+        source_date: today,
+      });
+    } else {
+      // Alle Overpass-Mirrors haben nicht geantwortet. Legen wir einen
+      // Status-Punkt an, damit die UI eine klare Fehlermeldung zeigen
+      // kann statt drei nichtssagender Bindestriche.
+      points.push({
+        metric: "nearby_status",
+        value_num: null,
+        value_text: "unavailable",
+        unit: null,
+        source: "OpenStreetMap Overpass",
+        source_url: null,
+        source_date: today,
+      });
     }
 
     return points;

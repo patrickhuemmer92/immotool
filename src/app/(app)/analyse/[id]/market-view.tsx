@@ -60,6 +60,10 @@ export function MarketView({
   const schoolPoint = snapshot?.points.find(
     (p) => p.metric === "nearby_school_800m"
   );
+  const nearbyStatus = snapshot?.points.find(
+    (p) => p.metric === "nearby_status"
+  )?.value_text;
+  const nearbyUnavailable = nearbyStatus === "unavailable";
 
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
@@ -107,20 +111,26 @@ export function MarketView({
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-2">
-            <NearbyBadge
-              label={t("dd.market_transit")}
-              count={transitPoint?.value_num ?? null}
-            />
-            <NearbyBadge
-              label={t("dd.market_supermarket")}
-              count={supermarketPoint?.value_num ?? null}
-            />
-            <NearbyBadge
-              label={t("dd.market_schools")}
-              count={schoolPoint?.value_num ?? null}
-            />
-          </div>
+          {nearbyUnavailable ? (
+            <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+              {t("dd.market_nearby_unavailable")}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              <NearbyBadge
+                label={t("dd.market_transit")}
+                count={transitPoint?.value_num ?? null}
+              />
+              <NearbyBadge
+                label={t("dd.market_supermarket")}
+                count={supermarketPoint?.value_num ?? null}
+              />
+              <NearbyBadge
+                label={t("dd.market_schools")}
+                count={schoolPoint?.value_num ?? null}
+              />
+            </div>
+          )}
 
           <details className="text-xs text-neutral-500 dark:text-neutral-400">
             <summary className="cursor-pointer hover:text-neutral-700 dark:hover:text-neutral-300">
