@@ -1131,6 +1131,10 @@
     "gate_where_from": "As a prospective buyer, you have a legal right to see these documents. Ask the broker or the HOA administrator directly — you typically get them via email within 1-2 days. The upload area for additional documents is above.",
     "gate_why_title": "Why is this a prerequisite?",
     "gate_why_body": "The actual value of our analysis lives in HOA minutes and budget plan: planned renovations, special-levy risks, reserve coverage, HOA disputes. These items cost you 10,000 to 50,000 € in the worst case. With only the listing, our AI would arrive at a very low-confidence conclusion — that's not worth 29 €. So: paperwork first, then payment.",
+    "bypass_zone": "Internal test zone",
+    "bypass_cta": "Test unlock (no payment)",
+    "bypass_confirm": "Unlock for testing without Stripe payment. Marked in audit as TEST_BYPASS. Continue?",
+    "bypass_hint": "Only visible to whitelisted test accounts (DD_ADMIN_EMAILS env). Real customers never see this zone.",
     "job_running_title": "AI is working…",
     "job_running_body": "{count, plural, =1 {1 document is being processed.} other {# documents are being processed.}} Scanned pages take a bit longer (vision mode)."
   },

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { getPremiumStatus } from "@/lib/billing/premium";
+import { requireUser } from "@/lib/auth";
+import { isDdAdmin } from "@/lib/dd/admin";
 import type {
   KaufvertragExtraction,
   MietvertragExtraction,
@@ -385,6 +387,41 @@ export async function confirmOnboarding(
   revalidatePath("/onboarding");
   revalidatePath("/objekte");
   return { propertyId: prop.id };
+}
+
+/**
+ * Test-Bypass für die Onboarding-Paywall — analog zu unlockDdForTest.
+ * Nur für ENV-whitelisted Admin-Emails.
+ */
+export async function unlockOnboardingForTest(
+  projectId: string
+): Promise<{ error?: string }> {
+  const user = await requireUser();
+  if (!isDdAdmin(user.email)) return { error: "not_authorized" };
+
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const marker = `TEST_BYPASS_${(user.email ?? "unknown").replace(
+    /[^a-zA-Z0-9._@-]/g,
+    ""
+  )}_${Date.now()}`;
+  const { error } = await supabase
+    .from("onboarding_projects")
+    .update({
+      paid: true,
+      paid_at: new Date().toISOString(),
+      stripe_payment_intent_id: marker,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId)
+    .eq("workspace_id", active.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/onboarding/${projectId}`);
+  return {};
 }
 
 export async function archiveOnboarding(projectId: string) {

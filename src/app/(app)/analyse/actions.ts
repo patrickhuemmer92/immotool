@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { requireUser } from "@/lib/auth";
+import { isDdAdmin } from "@/lib/dd/admin";
 
 export type DdProjectState = { error?: string } | undefined;
 
@@ -127,6 +129,46 @@ export async function saveExtractedExposeEdit(
       updated_at: new Date().toISOString(),
     })
     .eq("id", projectId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/analyse/${projectId}`);
+  return {};
+}
+
+/**
+ * Test-Bypass für die DD-Paywall.
+ *
+ * Nur Nutzer mit einer E-Mail in DD_ADMIN_EMAILS dürfen das aufrufen —
+ * Server-seitige Verifikation, verlässt sich NICHT auf den Client-Guard
+ * in der UI. Setzt paid=true mit erkennbarem Marker im
+ * stripe_payment_intent_id, damit der Test-Kauf im Audit klar von
+ * echten Käufen unterscheidbar bleibt.
+ */
+export async function unlockDdForTest(
+  projectId: string
+): Promise<{ error?: string }> {
+  const user = await requireUser();
+  if (!isDdAdmin(user.email)) return { error: "not_authorized" };
+
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const supabase = await createClient();
+  const marker = `TEST_BYPASS_${(user.email ?? "unknown").replace(
+    /[^a-zA-Z0-9._@-]/g,
+    ""
+  )}_${Date.now()}`;
+  const { error } = await supabase
+    .from("dd_projects")
+    .update({
+      paid: true,
+      paid_at: new Date().toISOString(),
+      stripe_payment_intent_id: marker,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId)
+    .eq("workspace_id", active.id);
 
   if (error) return { error: error.message };
 

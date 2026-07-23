@@ -1131,6 +1131,10 @@
     "gate_where_from": "Du hast als Kaufinteressent Anspruch auf Einsicht in diese Unterlagen. Frag den Makler oder direkt die Hausverwaltung — meistens bekommst du sie binnen 1-2 Tagen per E-Mail zugeschickt. Der Upload-Bereich für weitere Dokumente ist oben.",
     "gate_why_title": "Warum ist das eine Voraussetzung?",
     "gate_why_body": "Der eigentliche Mehrwert unserer Analyse steckt in WEG-Protokoll und Wirtschaftsplan: geplante Sanierungen, Sonderumlage-Risiken, Rücklagen-Deckung, Streit in der Eigentümergemeinschaft. Diese Themen kosten dich im schlechten Fall 10.000 bis 50.000 €. Nur mit dem Exposé allein käme unsere KI zu einer Aussage mit sehr niedriger Konfidenz — das ist keine 29 € wert. Deshalb: erst die Papiere, dann der Kauf.",
+    "bypass_zone": "Interner Test-Bereich",
+    "bypass_cta": "Test-Freischaltung (ohne Zahlung)",
+    "bypass_confirm": "Nur zum Testen ohne Stripe-Zahlung freischalten. Wird im Audit als TEST_BYPASS markiert. Fortfahren?",
+    "bypass_hint": "Nur sichtbar für whitelisted Test-Accounts (DD_ADMIN_EMAILS-ENV). Echte Kunden sehen diese Zone nie.",
     "job_running_title": "KI arbeitet …",
     "job_running_body": "{count, plural, =1 {1 Dokument wird gerade ausgewertet.} other {# Dokumente werden gerade ausgewertet.}} Bei gescannten Seiten dauert das etwas länger (Vision-Modus)."
   },

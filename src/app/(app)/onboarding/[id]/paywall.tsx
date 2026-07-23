@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { unlockOnboardingForTest } from "../actions";
 
-export function OnboardingPaywall({ projectId }: { projectId: string }) {
+export function OnboardingPaywall({
+  projectId,
+  isAdmin = false,
+}: {
+  projectId: string;
+  isAdmin?: boolean;
+}) {
   const t = useTranslations();
+  const router = useRouter();
   const [pending, start] = useTransition();
+  const [bypassPending, startBypass] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function onCheckout() {
@@ -23,6 +33,19 @@ export function OnboardingPaywall({ projectId }: { projectId: string }) {
       }
       const { url } = (await res.json()) as { url: string };
       window.location.href = url;
+    });
+  }
+
+  function onTestBypass() {
+    if (!confirm(t("dd.bypass_confirm"))) return;
+    setError(null);
+    startBypass(async () => {
+      const result = await unlockOnboardingForTest(projectId);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -61,6 +84,24 @@ export function OnboardingPaywall({ projectId }: { projectId: string }) {
       </button>
       {error && (
         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {isAdmin && (
+        <div className="mt-4 pt-4 border-t border-dashed border-red-300 dark:border-red-800">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-red-600 dark:text-red-400 mb-2">
+            {t("dd.bypass_zone")}
+          </p>
+          <button
+            type="button"
+            onClick={onTestBypass}
+            disabled={bypassPending}
+            className="w-full rounded-lg border-2 border-dashed border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 bg-white/50 dark:bg-black/20 px-3 py-2 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50"
+          >
+            {bypassPending ? "…" : t("dd.bypass_cta")}
+          </button>
+          <p className="mt-1 text-[10px] text-red-600/70 dark:text-red-400/70">
+            {t("dd.bypass_hint")}
+          </p>
+        </div>
       )}
     </div>
   );

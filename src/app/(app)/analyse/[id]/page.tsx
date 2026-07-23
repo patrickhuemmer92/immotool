@@ -4,6 +4,8 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { getDdProject } from "@/lib/dd/projects";
+import { requireUser } from "@/lib/auth";
+import { isDdAdmin } from "@/lib/dd/admin";
 import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
 import { DocumentUploader } from "./document-uploader";
 import { ExposeEditor } from "./expose-editor";
@@ -23,6 +25,8 @@ export default async function DdProjectPage({
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
+  const user = await requireUser();
+  const isAdmin = isDdAdmin(user.email);
 
   const supabase = await createClient();
   const project = await getDdProject(supabase, active.id, id);
@@ -200,6 +204,7 @@ export default async function DdProjectPage({
               kind: d.kind as string,
               ocr_status: d.ocr_status,
             }))}
+            isAdmin={isAdmin}
           />
         </section>
       )}

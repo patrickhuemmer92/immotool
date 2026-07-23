@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { requireUser } from "@/lib/auth";
+import { isDdAdmin } from "@/lib/dd/admin";
 import { OnboardingUploader } from "./onboarding-uploader";
 import { OnboardingConfirm } from "./confirm";
 import { OnboardingPaywall } from "./paywall";
@@ -16,6 +18,8 @@ export default async function OnboardingProjectPage({
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
+  const user = await requireUser();
+  const isAdmin = isDdAdmin(user.email);
 
   const supabase = await createClient();
   const { data: project } = await supabase
@@ -69,7 +73,7 @@ export default async function OnboardingProjectPage({
       {/* Paywall (falls nicht bezahlt und kein Premium) — vor Upload */}
       {!unlocked && (
         <section className="mt-6">
-          <OnboardingPaywall projectId={project.id} />
+          <OnboardingPaywall projectId={project.id} isAdmin={isAdmin} />
         </section>
       )}
 
