@@ -85,25 +85,27 @@ export function OnboardingUploader({
           return;
         }
 
-        setProgress(t("onb.extracting"));
-        const res = await fetch("/api/onboarding/extract", {
+        // Fire-and-forget — Server verarbeitet die Extraktion (30-90s),
+        // Client wartet nicht, damit der Uploader wieder frei ist.
+        // Fehler landen in onboarding_documents.ocr_status='failed' und
+        // werden in der Doku-Liste angezeigt.
+        void fetch("/api/onboarding/extract", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             onboarding_project_id: projectId,
             document_id: reg.documentId,
           }),
+        }).catch(() => {
+          /* Fehler landet server-side; UI zeigt es dort. */
         });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({ error: "unknown" }));
-          setError(t("onb.extract_error") + ": " + (j?.error ?? res.statusText));
-          setProgress(null);
-          return;
-        }
 
         setProgress(null);
         if (fileRef.current) fileRef.current.value = "";
         router.refresh();
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
       } catch (e) {
         setError(t("onb.upload_error_generic") + ": " + (e as Error).message);
         setProgress(null);

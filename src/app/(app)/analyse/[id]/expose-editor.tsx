@@ -372,8 +372,21 @@ export function ExposeEditor({
               <li key={m}>{t(`dd.missing_${m}`, { default: m })}</li>
             ))}
           </ul>
+          {/* Kontext-abhängiger Hinweis. GEG/EnEV kennt Ausnahmen:
+              - Baujahr vor 1918 UND unter Denkmalschutz → häufig komplett befreit
+              - Denkmalschutz allein → oft befreit
+              - Alle anderen → Angaben sind Pflicht bei Verkauf / Neuvermietung
+              Wir zeigen daher drei Textvarianten je nach Kontext, statt
+              pauschal „ist Pflicht" zu behaupten. */}
           <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-            {t("dd.missing_hint")}
+            {(() => {
+              const buildYear = num(values.build_year);
+              const heritage = expose.is_heritage_protected === true;
+              if (heritage) return t("dd.missing_hint_heritage");
+              if (buildYear != null && buildYear < 1918)
+                return t("dd.missing_hint_prewar");
+              return t("dd.missing_hint");
+            })()}
           </p>
         </Section>
       )}

@@ -41,6 +41,7 @@ export function DocumentUploader({
   const [kind, setKind] = useState<Kind>(defaultKind);
   const [uploading, startUpload] = useTransition();
   const [progressMsg, setProgressMsg] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleFile(file: File) {
@@ -93,31 +94,36 @@ export function DocumentUploader({
           return;
         }
 
+        // Extract als fire-and-forget: der Server verarbeitet die
+        // Extraktion (30-90s bei WEG-Protokoll mit Vision) unabhängig
+        // vom Client. Wir refreshen SOFORT, damit die Detail-Seite die
+        // neue pending-Doku zeigt und das Sticky-Job-Status-Widget den
+        // Fortschritt übernimmt — Uploader ist wieder frei.
+        // Fehler-Feedback läuft dann über dd_documents.ocr_status='failed',
+        // sichtbar im Doku-Listen-Chip.
         if (autoExtract) {
-          setProgressMsg(t("dd.extracting"));
-          const res = await fetch("/api/dd/extract", {
+          void fetch("/api/dd/extract", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               dd_project_id: projectId,
               document_id: reg.documentId,
             }),
+          }).catch(() => {
+            /* Fehler landet im Server-Status; UI zeigt es dort. */
           });
-          if (!res.ok) {
-            const errJson = await res
-              .json()
-              .catch(() => ({ error: "unknown" }));
-            setError(
-              t("dd.extract_error") + ": " + (errJson?.error ?? res.statusText)
-            );
-            setProgressMsg(null);
-            return;
-          }
         }
 
         setProgressMsg(null);
+        setSuccessToast(t("dd.upload_success_toast"));
         if (fileRef.current) fileRef.current.value = "";
         router.refresh();
+        // Nach oben scrollen — sonst sieht der User das Sticky-Widget
+        // nicht, das oberhalb der Wizard-Steps sitzt.
+        if (typeof window !== "undefined") {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        setTimeout(() => setSuccessToast(null), 4000);
       } catch (e) {
         setError(t("dd.upload_error_generic") + ": " + (e as Error).message);
         setProgressMsg(null);
@@ -177,6 +183,12 @@ export function DocumentUploader({
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+      )}
+      {successToast && (
+        <div className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/30 px-3 py-2 text-sm text-green-900 dark:text-green-200 flex items-center gap-2">
+          <span>✓</span>
+          <span>{successToast}</span>
+        </div>
       )}
     </div>
   );

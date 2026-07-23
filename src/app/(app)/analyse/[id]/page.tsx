@@ -15,6 +15,7 @@ import { MarketView } from "./market-view";
 import { DecisionActions } from "./decision-actions";
 import { DdPaywall } from "./paywall";
 import { JobStatusWidget } from "./job-status";
+import { AcquisitionCard } from "./acquisition-card";
 
 export default async function DdProjectPage({
   params,
@@ -94,9 +95,12 @@ export default async function DdProjectPage({
         </div>
       </div>
 
-      {/* Job-Status-Widget — nur sichtbar wenn was läuft */}
+      {/* Job-Status-Widget — sticky, damit es beim Scrollen sichtbar bleibt
+          wenn User weiter unten neue Dokumente hochlädt. `sticky top-4`
+          klebt es 16px unter dem Viewport-Rand fest, sobald der User
+          runterscrollt. */}
       {docs.some((d) => d.ocr_status === "pending") && (
-        <div className="mt-6">
+        <div className="mt-6 sticky top-4 z-40">
           <JobStatusWidget
             projectId={project.id}
             initialDocs={docs.map((d) => ({
@@ -151,6 +155,13 @@ export default async function DdProjectPage({
           <ExposeEditor projectId={project.id} expose={expose} />
         )}
       </section>
+
+      {/* Kaufnebenkosten + Bruttorendite — nur wenn Kaufpreis bekannt */}
+      {expose && expose.purchase_price_eur != null && (
+        <section className="mt-6">
+          <AcquisitionCard expose={expose} />
+        </section>
+      )}
 
       {/* Schritt 3: Weitere Dokumente — erst nach Exposé sinnvoll */}
       {expose && (
