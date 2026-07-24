@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
+import { getPremiumStatus } from "@/lib/billing/premium";
 
 export type DdProjectState = { error?: string } | undefined;
 
@@ -32,6 +33,13 @@ export async function createDdProject(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
   const supabase = await createClient();
+
+  // Premium-User bekommen DD-Analysen inklusive — kein 29-€-Kauf.
+  // Wir markieren das direkt beim Anlegen als paid mit einem
+  // erkennbaren Marker (kein echter Stripe-Payment-Intent).
+  const premium = await getPremiumStatus(active.id);
+  const premiumUnlock = premium.hasPaidSubscription;
+
   const { data, error } = await supabase
     .from("dd_projects")
     .insert({
@@ -39,6 +47,11 @@ export async function createDdProject(
       name: parsed.data.name,
       address_hint: parsed.data.address_hint,
       status: "draft",
+      paid: premiumUnlock,
+      paid_at: premiumUnlock ? new Date().toISOString() : null,
+      stripe_payment_intent_id: premiumUnlock
+        ? `PREMIUM_UNLOCK_${active.id.slice(0, 8)}_${Date.now()}`
+        : null,
     })
     .select("id")
     .single();

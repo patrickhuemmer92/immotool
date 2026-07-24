@@ -6,6 +6,7 @@ import { getActiveWorkspace } from "@/lib/workspace";
 import { getDdProject } from "@/lib/dd/projects";
 import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
+import { getPremiumStatus } from "@/lib/billing/premium";
 import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
 import { DocumentUploader } from "./document-uploader";
 import { ExposeEditor } from "./expose-editor";
@@ -33,6 +34,25 @@ export default async function DdProjectPage({
   const supabase = await createClient();
   const project = await getDdProject(supabase, active.id, id);
   if (!project) notFound();
+
+  // Self-Heal für bestehende DD-Projekte: wenn der User Premium hat
+  // aber das Projekt noch nicht paid ist, schalten wir es hier direkt
+  // frei. Verhindert dass alte Projekte (angelegt vor dem Premium-
+  // Bypass-Fix) für Premium-User weiterhin die Paywall zeigen.
+  if (!project.paid) {
+    const premium = await getPremiumStatus(active.id);
+    if (premium.hasPaidSubscription) {
+      await supabase
+        .from("dd_projects")
+        .update({
+          paid: true,
+          paid_at: new Date().toISOString(),
+          stripe_payment_intent_id: `PREMIUM_UNLOCK_${active.id.slice(0, 8)}_${Date.now()}`,
+        })
+        .eq("id", project.id);
+      project.paid = true;
+    }
+  }
 
   const { data: docsRaw } = await supabase
     .from("dd_documents")
