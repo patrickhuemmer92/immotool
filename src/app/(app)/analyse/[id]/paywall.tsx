@@ -91,6 +91,7 @@ export function DdPaywall({
 
   if (!gateOk) {
     return (
+      <PaywallOverlay>
       <div className="rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 p-6">
         <h3 className="text-base font-semibold text-blue-900 dark:text-blue-200">
           {t("dd.gate_title")}
@@ -138,11 +139,13 @@ export function DdPaywall({
 
         {isAdmin && <TestBypassBar onClick={onTestBypass} pending={bypassPending} error={error} t={t} />}
       </div>
+      </PaywallOverlay>
     );
   }
 
   // Gate erfüllt → normale Paywall
   return (
+    <PaywallOverlay>
     <div className="rounded-2xl border border-accent/30 bg-accent-soft p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
@@ -182,6 +185,26 @@ export function DdPaywall({
         <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
       {isAdmin && <TestBypassBar onClick={onTestBypass} pending={bypassPending} error={null} t={t} />}
+    </div>
+    </PaywallOverlay>
+  );
+}
+
+/**
+ * Fixed-positioned Overlay mit backdrop-blur. Alles was UNTER dem
+ * Overlay liegt (in unserer Detail-Seite: die Placeholder-Preview),
+ * wird gepixelt/geblurred angezeigt — so wird visuell klar, dass hier
+ * echter Inhalt kommt.
+ *
+ * SICHERHEIT: die echten Findings werden im Server (page.tsx) nur bei
+ * paid=true gerendert. Das Overlay ist reine UX — wenn jemand es per
+ * CSS ausblendet, sieht er nur den generic Skeleton (AnalysisPreview),
+ * niemals echte Analyse-Daten.
+ */
+function PaywallOverlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-2xl my-8">{children}</div>
     </div>
   );
 }

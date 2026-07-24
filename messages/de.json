@@ -1159,7 +1159,8 @@
     "acq_yield_annual": "Jahres-Kaltmiete",
     "acq_yield_gross_on_price": "auf Kaufpreis",
     "acq_yield_gross_on_total": "auf Gesamt-Erwerbskosten",
-    "acq_yield_note": "Bruttorendite = Jahres-Kaltmiete geteilt durch Kaufpreis (bzw. Gesamt-Erwerbskosten). Nettorendite nach Betriebskosten, Instandhaltung, Verwaltung und Vermietungsrisiko liegt typisch 1-2 Prozentpunkte darunter."
+    "acq_yield_note": "Bruttorendite = Jahres-Kaltmiete geteilt durch Kaufpreis (bzw. Gesamt-Erwerbskosten). Nettorendite nach Betriebskosten, Instandhaltung, Verwaltung und Vermietungsrisiko liegt typisch 1-2 Prozentpunkte darunter.",
+    "preview_sr_note": "Beispiel-Struktur der Analyse. Nach Freischaltung erscheinen hier deine echten Findings, Fragen und Verhandlungsargumente."
   },
   "onb": {
     "title": "KI-Onboarding",

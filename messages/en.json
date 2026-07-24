@@ -1159,7 +1159,8 @@
     "acq_yield_annual": "Annual cold rent",
     "acq_yield_gross_on_price": "on purchase price",
     "acq_yield_gross_on_total": "on total acquisition cost",
-    "acq_yield_note": "Gross yield = annual cold rent divided by purchase price (resp. total acquisition cost). Net yield after operating costs, maintenance, management and vacancy risk is typically 1-2 percentage points lower."
+    "acq_yield_note": "Gross yield = annual cold rent divided by purchase price (resp. total acquisition cost). Net yield after operating costs, maintenance, management and vacancy risk is typically 1-2 percentage points lower.",
+    "preview_sr_note": "Example structure of the analysis. Your real findings, questions and negotiation arguments will appear here after unlocking."
   },
   "onb": {
     "title": "AI onboarding",

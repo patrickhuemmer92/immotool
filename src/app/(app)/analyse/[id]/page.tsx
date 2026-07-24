@@ -16,6 +16,7 @@ import { DecisionActions } from "./decision-actions";
 import { DdPaywall } from "./paywall";
 import { JobStatusWidget } from "./job-status";
 import { AcquisitionCard } from "./acquisition-card";
+import { AnalysisPreview } from "./analysis-preview";
 
 export default async function DdProjectPage({
   params,
@@ -204,11 +205,20 @@ export default async function DdProjectPage({
         </section>
       )}
 
-      {/* Paywall — vor der Analyse-Sektion, wenn noch nicht bezahlt.
-          Die Paywall zeigt intern eine Prerequisite-Card wenn noch
-          kein WEG-Protokoll oder Wirtschaftsplan hochgeladen wurde. */}
+      {/* Paywall + Preview — wenn noch nicht bezahlt.
+          Placeholder-Preview zeigt die grobe Struktur der Analyse
+          (rein generic, kein echter Content). Modal-Overlay mit
+          backdrop-blur liegt darüber — visueller Anreiz, aber
+          per CSS nicht umgehbar, weil die echten Findings sowieso
+          nur bei paid=true vom Server gerendert werden. */}
       {expose && !project.paid && (
-        <section className="mt-8">
+        <>
+          <section className="mt-8">
+            <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+              {t("dd.analysis_section")}
+            </h2>
+            <AnalysisPreview />
+          </section>
           <DdPaywall
             projectId={project.id}
             docs={docs.map((d) => ({
@@ -217,7 +227,7 @@ export default async function DdProjectPage({
             }))}
             isAdmin={isAdmin}
           />
-        </section>
+        </>
       )}
 
       {/* Schritt 4: Analyse + Findings — nur nach Zahlung */}
