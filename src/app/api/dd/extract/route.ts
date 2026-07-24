@@ -12,7 +12,9 @@
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 300s: WEG-Protokolle mit 30+ Seiten im Vision-Modus können 60-120s
+// dauern. Puffer für Retry bei ungültigem JSON.
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { createHash } from "node:crypto";

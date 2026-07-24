@@ -103,8 +103,14 @@ export function FindingsView({
         body: JSON.stringify({ dd_project_id: projectId }),
       });
       if (!res.ok) {
-        const j = await res.json().catch(() => ({ error: "unknown" }));
-        setError(j?.error ?? res.statusText);
+        // 504 vom Vercel-Gateway hat keinen JSON-Body, sonst würde
+        // "unknown" angezeigt. Sprechende Meldung mit Handlungshinweis.
+        if (res.status === 504 || res.status === 502) {
+          setError(t("dd.analysis_error_timeout"));
+          return;
+        }
+        const j = await res.json().catch(() => null as null);
+        setError(j?.error ?? `HTTP ${res.status} · ${res.statusText}`);
         return;
       }
       router.refresh();

@@ -97,10 +97,11 @@ export async function callLlmJson<T>(
   }
 
   // Timeout explizit setzen — Anthropic-Default ist 10 Minuten, viel
-  // länger als unsere Vercel-Function-maxDuration. Bei einem hängenden
-  // Request würden wir sonst mit einem 504 abgeschossen ohne saubere
-  // Fehler-Persistierung.
-  const client = new Anthropic({ apiKey, timeout: 45_000 });
+  // länger als unsere Vercel-Function-maxDuration (jetzt 300s). Wir
+  // setzen etwas unter maxDuration, damit wir bei einem hängenden
+  // Anthropic-Request noch Zeit haben, unseren Fehler sauber in die DB
+  // zu schreiben, bevor Vercel die Function abschießt.
+  const client = new Anthropic({ apiKey, timeout: 240_000 });
   const modelInfo = MODELS[opts.model];
   const t0 = Date.now();
 

@@ -1061,6 +1061,7 @@
     "run_analysis": "Analyse starten",
     "rerun_analysis": "Analyse neu berechnen",
     "analyzing": "KI konsolidiert …",
+    "analysis_error_timeout": "Die Analyse hat zu lange gebraucht — die KI konnte die Konsolidierung nicht in der Zeit fertigstellen. Meist reicht es, einfach noch mal „Analyse starten\" zu klicken. Falls es wieder klemmt: eventuell eines der WEG-Protokolle löschen (die kürzeren behalten) und erneut probieren.",
     "cat_substanz": "Substanz",
     "cat_finanzierung": "Finanzierung",
     "cat_recht": "Recht",

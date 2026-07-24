@@ -10,7 +10,10 @@
  */
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// 300s — Konsolidierung mehrerer großer Extractions (Exposé + WEG-
+// Protokolle + Wirtschaftsplan) kann leicht 60s übersteigen. Vercel
+// Pro erlaubt bis 300s pro Function.
+export const maxDuration = 300;
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -87,7 +90,10 @@ export async function POST(req: Request) {
       systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
       userMessage,
       schema: consolidationResultSchema,
-      maxTokens: 8192,
+      // Halbiert von 8192 → 4096: Konsolidierungs-Output ist deutlich
+      // schneller (weniger Streaming-Zeit), 4096 Tokens reichen für
+      // 15-20 Findings + 10 Fragen + 5 Argumente pro Projekt.
+      maxTokens: 4096,
       temperature: 0,
       workspaceId: active.id,
       ddProjectId: body.dd_project_id,

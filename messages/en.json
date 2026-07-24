@@ -1061,6 +1061,7 @@
     "run_analysis": "Run analysis",
     "rerun_analysis": "Recompute analysis",
     "analyzing": "AI is consolidating…",
+    "analysis_error_timeout": "The analysis took too long — the AI couldn't finish consolidation in time. Usually just clicking „Start analysis\" again works. If it still hangs: consider removing one of the HOA minutes (keep the shorter ones) and retry.",
     "cat_substanz": "Substance",
     "cat_finanzierung": "Financing",
     "cat_recht": "Legal",
