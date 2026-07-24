@@ -143,6 +143,14 @@ export async function callLlmJson<T>(
       ]
     : [{ type: "text", text: opts.userMessage }];
 
+  // Prefill-Trick: der Assistant-Turn beginnt mit "{" — Claude ist
+  // dann fest darauf commited, JSON zu produzieren, kann keine
+  // Markdown-Fences ```json davor setzen. Beobachtet wurde: bei
+  // Konsolidierung ignoriert Sonnet regelmäßig die "kein Markdown"-
+  // Anweisung im System-Prompt und liefert ```json {...}``` zurück,
+  // was JSON.parse zum Absturz bringt. Prefill löst das zuverlässig.
+  const PREFILL = "{";
+
   let response;
   try {
     response = await client.messages.create({
@@ -150,20 +158,28 @@ export async function callLlmJson<T>(
       max_tokens: opts.maxTokens ?? 4096,
       temperature: opts.temperature ?? 0,
       system: systemFull,
-      messages: [{ role: "user", content: userContent }],
+      messages: [
+        { role: "user", content: userContent },
+        { role: "assistant", content: PREFILL },
+      ],
     });
   } catch (err) {
     await maybeLogFailure(opts, 0, 0, err, Date.now() - t0);
     throw err;
   }
 
-  const rawText = extractText(response);
+  const rawTextResponse = extractText(response);
+  // Prefill wieder vor den Response prependen — Anthropic gibt in
+  // response NUR das aus, was NACH dem Prefill kommt. Zum Parsen
+  // brauchen wir das komplette JSON inkl. führender `{`.
+  const rawText = PREFILL + rawTextResponse;
   const tokensIn = response.usage.input_tokens;
   const tokensOut = response.usage.output_tokens;
   const costCents = estimateCostCents(opts.model, tokensIn, tokensOut);
   console.log(
     `[dd-llm] response received purpose=${opts.purpose} ` +
-      `tokens_in=${tokensIn} tokens_out=${tokensOut} raw_len=${rawText.length}`
+      `tokens_in=${tokensIn} tokens_out=${tokensOut} raw_len=${rawText.length} ` +
+      `stop_reason=${response.stop_reason ?? "-"}`
   );
 
   // 1. Versuch: Direktes JSON.parse + Schema-Validierung
@@ -188,6 +204,7 @@ export async function callLlmJson<T>(
       system: systemFull,
       messages: [
         { role: "user", content: userContent },
+        // Zeige dem Modell was es letztes Mal geliefert hat (mit Prefill)
         { role: "assistant", content: rawText },
         {
           role: "user",
@@ -195,11 +212,13 @@ export async function callLlmJson<T>(
             "Deine vorherige Antwort war kein gültiges JSON gemäß Schema. " +
             "Fehler: " +
             parseResult.error +
-            "\nGib jetzt das korrekte JSON zurück — nur JSON, keine Prosa.",
+            "\nGib jetzt das korrekte JSON zurück — nur JSON, keine Prosa, kein Markdown-Fence.",
         },
+        // Wieder Prefill für den Retry-Response
+        { role: "assistant", content: PREFILL },
       ],
     });
-    const repairText = extractText(repair);
+    const repairText = PREFILL + extractText(repair);
     parseResult = tryParseAndValidate(repairText, opts.schema);
 
     // Retry-Tokens auf Rechnung addieren
@@ -290,6 +309,14 @@ function tryParseAndValidate<T>(
   let text = raw.trim();
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
   if (fenceMatch) text = fenceMatch[1].trim();
+
+  // Fallback: der Fence-Regex braucht ein SCHLIESSENDES ```. Wenn
+  // das Response an maxTokens abgeschnitten wurde, fehlt das. Dann
+  // strip wir zumindest den ÖFFNENDEN Marker manuell — vielleicht ist
+  // das JSON darin trotzdem noch parseable.
+  if (text.startsWith("```")) {
+    text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "").trim();
+  }
 
   let json: unknown;
   try {

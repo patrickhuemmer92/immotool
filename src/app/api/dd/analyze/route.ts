@@ -90,10 +90,10 @@ export async function POST(req: Request) {
       systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
       userMessage,
       schema: consolidationResultSchema,
-      // Halbiert von 8192 → 4096: Konsolidierungs-Output ist deutlich
-      // schneller (weniger Streaming-Zeit), 4096 Tokens reichen für
-      // 15-20 Findings + 10 Fragen + 5 Argumente pro Projekt.
-      maxTokens: 4096,
+      // Zurück auf 8192 — mit maxDuration=300s haben wir genug Zeit
+      // fürs Streaming. Bei 4096 wurde das JSON exakt am Limit
+      // abgeschnitten (Response begann in halber Finding-Liste).
+      maxTokens: 8192,
       temperature: 0,
       workspaceId: active.id,
       ddProjectId: body.dd_project_id,
