@@ -191,7 +191,10 @@ export async function POST(req: Request) {
         supabase,
       });
 
-      // Doku aktualisieren + Projekt-Level extracted_expose setzen
+      // Doku aktualisieren + Projekt-Level extracted_expose setzen.
+      // ocr_error explizit auf null zurücksetzen — bei einem Retry
+      // eines vorher gescheiterten Docs würde sonst der alte Fehler
+      // stehen bleiben, obwohl der Extract jetzt erfolgreich war.
       await supabase
         .from("dd_documents")
         .update({
@@ -200,6 +203,7 @@ export async function POST(req: Request) {
           extraction: result.data,
           extracted_at: new Date().toISOString(),
           file_hash: fileHash,
+          ocr_error: null,
         })
         .eq("id", doc.id);
 
@@ -263,6 +267,7 @@ export async function POST(req: Request) {
             extraction: { raw_text: trimmedText.slice(0, 5000) },
             extracted_at: new Date().toISOString(),
             file_hash: fileHash,
+            ocr_error: null,
           })
           .eq("id", doc.id);
         return NextResponse.json({ ok: true, kind: doc.kind });
@@ -299,6 +304,7 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
         extraction: result.data,
         extracted_at: new Date().toISOString(),
         file_hash: fileHash,
+        ocr_error: null,
       })
       .eq("id", doc.id);
 

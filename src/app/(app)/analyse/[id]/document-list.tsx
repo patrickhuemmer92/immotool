@@ -93,7 +93,10 @@ export function DdDocumentList({
               <div className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">
                 {fmtBytes(d.size_bytes)} · {new Date(d.uploaded_at).toLocaleDateString("de-DE")}
               </div>
-              {d.ocr_error && (
+              {/* Fehler nur zeigen wenn Status wirklich failed —
+                  sonst würde bei erfolgreichem Retry der alte Fehler
+                  stehen bleiben. */}
+              {d.ocr_error && d.ocr_status === "failed" && (
                 <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                   {d.ocr_error}
                 </p>

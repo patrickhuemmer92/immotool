@@ -172,6 +172,7 @@ export async function POST(req: Request) {
           extraction: { raw_text: trimmedText.slice(0, 5000) },
           extracted_at: new Date().toISOString(),
           file_hash: fileHash,
+          ocr_error: null,
         })
         .eq("id", doc.id);
       return NextResponse.json({ ok: true, kind: doc.kind });
@@ -203,6 +204,7 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
         extraction: result.data,
         extracted_at: new Date().toISOString(),
         file_hash: fileHash,
+        ocr_error: null,
       })
       .eq("id", doc.id);
 
