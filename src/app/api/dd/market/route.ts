@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   const supabase = await createClient();
   const { data: project } = await supabase
     .from("dd_projects")
-    .select("id, workspace_id, extracted_expose")
+    .select("id, workspace_id, extracted_expose, market_snapshot")
     .eq("id", body.dd_project_id)
     .eq("workspace_id", active.id)
     .maybeSingle();
@@ -63,6 +63,53 @@ export async function POST(req: Request) {
   }
 
   const points = await collectMarketData(loc);
+
+  // Wenn Overpass fehlgeschlagen ist (nearby_status = "unavailable"),
+  // aber wir schon mal erfolgreiche nearby-Daten hatten: alte Daten
+  // beibehalten, statt sie durch die "leeren" zu überschreiben. Der
+  // User verliert nicht seinen letzten guten Stand nur weil OSM
+  // gerade ein Timeout hat.
+  const newHasFailedNearby = points.some(
+    (p) => p.metric === "nearby_status" && p.value_text === "unavailable"
+  );
+  if (newHasFailedNearby) {
+    // Alte nearby_*-Points aus dem letzten Snapshot lesen (nicht aus
+    // dd_market_data — der wurde noch nicht überschrieben) und in
+    // den neuen Points-Array übernehmen, falls vorhanden.
+    const oldSnapshot = project.market_snapshot as {
+      points?: Array<{
+        metric: string;
+        value_num: number | null;
+        value_text: string | null;
+        unit: string | null;
+        source: string;
+        source_url: string | null;
+        source_date: string | null;
+      }>;
+    } | null;
+    const oldNearby = (oldSnapshot?.points ?? []).filter(
+      (p) =>
+        p.metric.startsWith("nearby_") &&
+        p.metric !== "nearby_status" &&
+        p.value_num != null
+    );
+    if (oldNearby.length > 0) {
+      // "unavailable" Marker rauswerfen, statt "cached" markieren
+      const idx = points.findIndex((p) => p.metric === "nearby_status");
+      if (idx >= 0) {
+        points[idx] = {
+          metric: "nearby_status",
+          value_num: null,
+          value_text: "cached",
+          unit: null,
+          source: "OpenStreetMap Overpass (Cache)",
+          source_url: null,
+          source_date: new Date().toISOString().slice(0, 10),
+        };
+      }
+      points.push(...oldNearby);
+    }
+  }
 
   // Alte Marktdaten dieses Projekts löschen
   await supabase

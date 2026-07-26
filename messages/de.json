@@ -1103,6 +1103,7 @@
     "market_schools": "Schulen/Kita (800 m)",
     "market_show_all": "Alle Datenpunkte + Quellen anzeigen",
     "market_nearby_unavailable": "Umgebungsdaten (ÖPNV, Läden, Schulen) konnten gerade nicht abgerufen werden — der öffentliche OpenStreetMap-Server war überlastet. Klick oben auf „Aktualisieren\", um es erneut zu versuchen.",
+    "market_nearby_cached": "OpenStreetMap war gerade nicht erreichbar — die angezeigten Zahlen sind vom letzten erfolgreichen Abruf. Kein Blocker; POI-Daten ändern sich selten.",
     "market_error_timeout": "Der OpenStreetMap-Server hat zu lange gebraucht. In ein paar Minuten nochmal probieren — die öffentlichen Endpoints sind zeitweise überlastet.",
     "market_computed_at": "Stand: {date}",
     "decision_section": "Schritt 5 — Entscheidung",

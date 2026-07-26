@@ -70,6 +70,7 @@ export function MarketView({
     (p) => p.metric === "nearby_status"
   )?.value_text;
   const nearbyUnavailable = nearbyStatus === "unavailable";
+  const nearbyCached = nearbyStatus === "cached";
 
   return (
     <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
@@ -122,20 +123,27 @@ export function MarketView({
               {t("dd.market_nearby_unavailable")}
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
-              <NearbyBadge
-                label={t("dd.market_transit")}
-                count={transitPoint?.value_num ?? null}
-              />
-              <NearbyBadge
-                label={t("dd.market_supermarket")}
-                count={supermarketPoint?.value_num ?? null}
-              />
-              <NearbyBadge
-                label={t("dd.market_schools")}
-                count={schoolPoint?.value_num ?? null}
-              />
-            </div>
+            <>
+              {nearbyCached && (
+                <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 px-3 py-2 text-[11px] text-neutral-600 dark:text-neutral-400 mb-2">
+                  {t("dd.market_nearby_cached")}
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-2">
+                <NearbyBadge
+                  label={t("dd.market_transit")}
+                  count={transitPoint?.value_num ?? null}
+                />
+                <NearbyBadge
+                  label={t("dd.market_supermarket")}
+                  count={supermarketPoint?.value_num ?? null}
+                />
+                <NearbyBadge
+                  label={t("dd.market_schools")}
+                  count={schoolPoint?.value_num ?? null}
+                />
+              </div>
+            </>
           )}
 
           <details className="text-xs text-neutral-500 dark:text-neutral-400">
