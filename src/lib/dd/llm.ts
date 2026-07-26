@@ -145,11 +145,21 @@ export async function callLlmJson<T>(
 
   // Prefill-Trick: der Assistant-Turn beginnt mit "{" — Claude ist
   // dann fest darauf commited, JSON zu produzieren, kann keine
-  // Markdown-Fences ```json davor setzen. Beobachtet wurde: bei
-  // Konsolidierung ignoriert Sonnet regelmäßig die "kein Markdown"-
-  // Anweisung im System-Prompt und liefert ```json {...}``` zurück,
-  // was JSON.parse zum Absturz bringt. Prefill löst das zuverlässig.
+  // Markdown-Fences ```json davor setzen. Notwendig für die
+  // Konsolidierung, wo Sonnet regelmäßig die "kein Markdown"-
+  // Anweisung ignoriert und Fence-Wrapped JSON liefert.
+  //
+  // ABER: Prefill in Kombination mit dem document-Content-Block
+  // (native PDF) hat empirisch zu 500-Errors geführt. Deshalb
+  // aktivieren wir Prefill NUR bei text-basierten Requests.
   const PREFILL = "{";
+  const usePrefill = !opts.pdfBuffer;
+  const messages: Anthropic.MessageParam[] = usePrefill
+    ? [
+        { role: "user", content: userContent },
+        { role: "assistant", content: PREFILL },
+      ]
+    : [{ role: "user", content: userContent }];
 
   let response;
   try {
@@ -158,10 +168,7 @@ export async function callLlmJson<T>(
       max_tokens: opts.maxTokens ?? 4096,
       temperature: opts.temperature ?? 0,
       system: systemFull,
-      messages: [
-        { role: "user", content: userContent },
-        { role: "assistant", content: PREFILL },
-      ],
+      messages,
     });
   } catch (err) {
     await maybeLogFailure(opts, 0, 0, err, Date.now() - t0);
@@ -169,10 +176,10 @@ export async function callLlmJson<T>(
   }
 
   const rawTextResponse = extractText(response);
-  // Prefill wieder vor den Response prependen — Anthropic gibt in
-  // response NUR das aus, was NACH dem Prefill kommt. Zum Parsen
-  // brauchen wir das komplette JSON inkl. führender `{`.
-  const rawText = PREFILL + rawTextResponse;
+  // Prefill nur dann prependen, wenn wir es auch geschickt haben.
+  // Anthropic gibt bei Prefill NUR das aus, was NACH dem Prefill
+  // kommt — wir müssen den Prefix zum Parsen wieder ergänzen.
+  const rawText = usePrefill ? PREFILL + rawTextResponse : rawTextResponse;
   const tokensIn = response.usage.input_tokens;
   const tokensOut = response.usage.output_tokens;
   const costCents = estimateCostCents(opts.model, tokensIn, tokensOut);
@@ -197,28 +204,31 @@ export async function callLlmJson<T>(
     // Für den Retry brauchen wir das PDF NICHT nochmal mitzuschicken —
     // das Modell hat den Content schon "gesehen" (via Assistant-Turn).
     // Spart 90 % der Retry-Kosten bei großen PDFs.
+    const repairMessages: Anthropic.MessageParam[] = [
+      { role: "user", content: userContent },
+      { role: "assistant", content: rawText },
+      {
+        role: "user",
+        content:
+          "Deine vorherige Antwort war kein gültiges JSON gemäß Schema. " +
+          "Fehler: " +
+          parseResult.error +
+          "\nGib jetzt das korrekte JSON zurück — nur JSON, keine Prosa, kein Markdown-Fence.",
+      },
+    ];
+    if (usePrefill) {
+      repairMessages.push({ role: "assistant", content: PREFILL });
+    }
     const repair = await client.messages.create({
       model: modelInfo.id,
       max_tokens: opts.maxTokens ?? 4096,
       temperature: 0,
       system: systemFull,
-      messages: [
-        { role: "user", content: userContent },
-        // Zeige dem Modell was es letztes Mal geliefert hat (mit Prefill)
-        { role: "assistant", content: rawText },
-        {
-          role: "user",
-          content:
-            "Deine vorherige Antwort war kein gültiges JSON gemäß Schema. " +
-            "Fehler: " +
-            parseResult.error +
-            "\nGib jetzt das korrekte JSON zurück — nur JSON, keine Prosa, kein Markdown-Fence.",
-        },
-        // Wieder Prefill für den Retry-Response
-        { role: "assistant", content: PREFILL },
-      ],
+      messages: repairMessages,
     });
-    const repairText = PREFILL + extractText(repair);
+    const repairText = usePrefill
+      ? PREFILL + extractText(repair)
+      : extractText(repair);
     parseResult = tryParseAndValidate(repairText, opts.schema);
 
     // Retry-Tokens auf Rechnung addieren
