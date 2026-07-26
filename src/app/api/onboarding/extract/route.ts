@@ -84,18 +84,20 @@ export async function POST(req: Request) {
     );
   }
   const arrayBuf = await fileBlob.arrayBuffer();
-  // Sofort in Uint8Array kopieren. Anderenfalls detacht Buffer.from()
-  // den ArrayBuffer (Node-spezifisches Zero-Copy-Ownership-Transfer)
-  // und der spätere `new Uint8Array(arrayBuf)`-Aufruf crasht mit
-  // "Cannot perform Construct on a detached ArrayBuffer".
-  const bytes = new Uint8Array(arrayBuf);
-  const fileHash = createHash("sha256").update(bytes).digest("hex");
+  // WICHTIG: pdfjs-dist (via unpdf) übernimmt den Buffer als
+  // Transferable Object — der übergebene Uint8Array wird DETACHED,
+  // sobald unpdf die Worker-Loading-Task startet. Wir brauchen die
+  // Bytes aber später NOCH für den Vision-Modus. Deshalb: zwei
+  // unabhängige Kopien via arrayBuf.slice().
+  const bytesForPdfExtract = new Uint8Array(arrayBuf.slice(0));
+  const bytesForVision = new Uint8Array(arrayBuf.slice(0));
+  const fileHash = createHash("sha256").update(bytesForVision).digest("hex");
 
   let text = "";
   let pages = 0;
   let scanned = false;
   if (doc.mime_type === "application/pdf") {
-    const pdf = await extractPdfText(bytes);
+    const pdf = await extractPdfText(bytesForPdfExtract);
     text = pdf.text;
     pages = pdf.textPages;
     scanned = pdf.isProbablyScanned;
@@ -112,9 +114,9 @@ export async function POST(req: Request) {
   }
 
   const useVision = scanned || text.trim().length < 50;
-  const pdfBufferForVision = useVision ? bytes : undefined;
+  const pdfBufferForVision = useVision ? bytesForVision : undefined;
 
-  if (useVision && bytes.byteLength > 32 * 1024 * 1024) {
+  if (useVision && bytesForVision.byteLength > 32 * 1024 * 1024) {
     await supabase
       .from("onboarding_documents")
       .update({

@@ -447,6 +447,45 @@ export async function archiveOnboarding(projectId: string) {
   redirect("/onboarding");
 }
 
+/**
+ * Hartes Löschen eines Onboarding-Projekts inkl. aller Dokumente.
+ * Storage-Files werden mit-gelöscht. Redirect zur Liste; wenn von
+ * der Liste selbst aufgerufen, nur revalidate.
+ *
+ * Wichtig: eine bereits erstellte `properties`-Row (nach Confirm)
+ * bleibt bestehen — das echte Objekt löschen wir NICHT.
+ */
+export async function deleteOnboardingProject(
+  projectId: string,
+  opts: { redirectToList?: boolean } = { redirectToList: true }
+) {
+  const active = await getActiveWorkspace();
+  if (!active) return;
+
+  const supabase = await createClient();
+
+  // Storage-Files einsammeln damit wir sie mit-löschen können.
+  const { data: docs } = await supabase
+    .from("onboarding_documents")
+    .select("storage_path")
+    .eq("onboarding_project_id", projectId);
+  const paths = (docs ?? []).map((d) => d.storage_path);
+  if (paths.length > 0) {
+    await supabase.storage.from("dd-documents").remove(paths);
+  }
+
+  await supabase
+    .from("onboarding_projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("workspace_id", active.id);
+
+  revalidatePath("/onboarding");
+  if (opts.redirectToList) {
+    redirect("/onboarding");
+  }
+}
+
 export async function saveOnboardingEdit(
   projectId: string,
   patch: {

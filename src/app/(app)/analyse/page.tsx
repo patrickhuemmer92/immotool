@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { listDdProjects, type DdProject } from "@/lib/dd/projects";
+import { DdDeleteButton } from "./delete-button";
 
 export default async function AnalysePage() {
   const t = await getTranslations();
@@ -84,29 +85,33 @@ function ProjectGrid({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       {projects.map((p) => (
-        <Link
+        <div
           key={p.id}
-          href={`/analyse/${p.id}`}
-          className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+          className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors overflow-hidden"
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
-              {t(`dd.status_${p.status}`)}
-            </span>
-            {p.score_overall != null && (
-              <ScoreBadge
-                score={p.score_overall}
-                confidence={p.score_confidence ?? 0}
-              />
+          <Link href={`/analyse/${p.id}`} className="block p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+                {t(`dd.status_${p.status}`)}
+              </span>
+              {p.score_overall != null && (
+                <ScoreBadge
+                  score={p.score_overall}
+                  confidence={p.score_confidence ?? 0}
+                />
+              )}
+            </div>
+            <h3 className="mt-2 text-base font-semibold truncate">{p.name}</h3>
+            {p.address_hint && (
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                {p.address_hint}
+              </p>
             )}
+          </Link>
+          <div className="flex justify-end px-4 pb-3">
+            <DdDeleteButton projectId={p.id} projectName={p.name} />
           </div>
-          <h3 className="mt-2 text-base font-semibold truncate">{p.name}</h3>
-          {p.address_hint && (
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400 truncate">
-              {p.address_hint}
-            </p>
-          )}
-        </Link>
+        </div>
       ))}
     </div>
   );
