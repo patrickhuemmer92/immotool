@@ -109,16 +109,21 @@ export async function POST(req: Request) {
     );
   }
   const arrayBuf = await fileBlob.arrayBuffer();
+  // Sofort in Uint8Array kopieren. Anderenfalls detacht Buffer.from()
+  // den ArrayBuffer (Node zero-copy Ownership-Transfer) und der
+  // spätere `new Uint8Array(arrayBuf)`-Aufruf crasht mit
+  // "Cannot perform Construct on a detached ArrayBuffer".
+  const bytes = new Uint8Array(arrayBuf);
 
   // File-Hash für Cache/Audit
-  const fileHash = createHash("sha256").update(Buffer.from(arrayBuf)).digest("hex");
+  const fileHash = createHash("sha256").update(bytes).digest("hex");
 
   // Text extrahieren (v1: nur PDF)
   let text = "";
   let pages = 0;
   let scanned = false;
   if (doc.mime_type === "application/pdf") {
-    const pdf = await extractPdfText(arrayBuf);
+    const pdf = await extractPdfText(bytes);
     text = pdf.text;
     pages = pdf.textPages;
     scanned = pdf.isProbablyScanned;
@@ -140,11 +145,11 @@ export async function POST(req: Request) {
   //     Anthropic hat nativen PDF-Support (Text UND Bild) — kein
   //     separater OCR-Layer nötig.
   const useVision = scanned || text.trim().length < 50;
-  const pdfBufferForVision = useVision ? new Uint8Array(arrayBuf) : undefined;
+  const pdfBufferForVision = useVision ? bytes : undefined;
 
   // Sanity-Cap: Anthropic akzeptiert PDFs bis 32 MB / 100 Seiten. Wenn
   // hier drüber, brechen wir ab — Chunking kommt später.
-  if (useVision && arrayBuf.byteLength > 32 * 1024 * 1024) {
+  if (useVision && bytes.byteLength > 32 * 1024 * 1024) {
     await supabase
       .from("dd_documents")
       .update({

@@ -46,6 +46,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
+  console.log(
+    `[onb-extract] enter onb=${body.onboarding_project_id.slice(0, 8)} doc=${body.document_id.slice(0, 8)}`
+  );
+
   const supabase = await createClient();
 
   const { data: project } = await supabase
@@ -80,13 +84,18 @@ export async function POST(req: Request) {
     );
   }
   const arrayBuf = await fileBlob.arrayBuffer();
-  const fileHash = createHash("sha256").update(Buffer.from(arrayBuf)).digest("hex");
+  // Sofort in Uint8Array kopieren. Anderenfalls detacht Buffer.from()
+  // den ArrayBuffer (Node-spezifisches Zero-Copy-Ownership-Transfer)
+  // und der spätere `new Uint8Array(arrayBuf)`-Aufruf crasht mit
+  // "Cannot perform Construct on a detached ArrayBuffer".
+  const bytes = new Uint8Array(arrayBuf);
+  const fileHash = createHash("sha256").update(bytes).digest("hex");
 
   let text = "";
   let pages = 0;
   let scanned = false;
   if (doc.mime_type === "application/pdf") {
-    const pdf = await extractPdfText(arrayBuf);
+    const pdf = await extractPdfText(bytes);
     text = pdf.text;
     pages = pdf.textPages;
     scanned = pdf.isProbablyScanned;
@@ -103,9 +112,9 @@ export async function POST(req: Request) {
   }
 
   const useVision = scanned || text.trim().length < 50;
-  const pdfBufferForVision = useVision ? new Uint8Array(arrayBuf) : undefined;
+  const pdfBufferForVision = useVision ? bytes : undefined;
 
-  if (useVision && arrayBuf.byteLength > 32 * 1024 * 1024) {
+  if (useVision && bytes.byteLength > 32 * 1024 * 1024) {
     await supabase
       .from("onboarding_documents")
       .update({
