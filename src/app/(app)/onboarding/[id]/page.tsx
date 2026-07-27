@@ -107,18 +107,8 @@ export default async function OnboardingProjectPage({
           </div>
         </section>
       )}
-      {unlockedByPremium && (
-        <section className="mt-6">
-          <div className="rounded-2xl border border-accent/30 bg-accent-soft p-4">
-            <p className="text-sm font-medium text-accent-foreground">
-              ✓ {t("onb.premium_unlock_title")}
-            </p>
-            <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-              {t("onb.premium_unlock_body")}
-            </p>
-          </div>
-        </section>
-      )}
+      {/* Premium-Info-Karte bewusst weggelassen — Premium-User sehen
+          eh sofort dass sie kein Paywall haben. Redundant. */}
 
       {/* Paywall (falls nicht bezahlt und kein Premium) — vor Upload */}
       {!unlocked && (

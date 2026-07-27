@@ -196,6 +196,42 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
       supabase,
     });
 
+    // Leere Extraktion erkennen — LLM ist alle Felder null geblieben,
+    // was heißt: kein passendes Dokument (z.B. Mieterhöhungsschreiben
+    // als "Mietvertrag" markiert). Nicht als "extracted" durchwinken,
+    // sonst landet ein "Geist"-Eintrag mit lauter Bindestrichen im
+    // Confirm-Editor.
+    const data = result.data as Record<string, unknown>;
+    const isEmpty =
+      (summaryKey === "kauf" &&
+        !data.street &&
+        !data.purchase_price_eur &&
+        !data.city) ||
+      (summaryKey === "miete" &&
+        !data.tenant_name &&
+        !data.cold_rent_per_month_eur) ||
+      (summaryKey === "darlehen" &&
+        !data.loan_amount_eur &&
+        !data.bank &&
+        !data.interest_rate_pa_pct);
+    if (isEmpty) {
+      const msg =
+        summaryKey === "kauf"
+          ? "Keine Kaufvertrag-Daten im Dokument erkannt. Ist das wirklich ein Kaufvertrag? Andernfalls Dokument-Typ auf „Sonstiges\" ändern."
+          : summaryKey === "miete"
+            ? "Keine Mieter-Daten im Dokument erkannt. Ist das wirklich ein Mietvertrag? Bei Mieterhöhungen etc. Dokument-Typ auf „Sonstiges\" setzen."
+            : "Keine Darlehens-Daten im Dokument erkannt. Ist das wirklich ein Darlehensvertrag?";
+      await supabase
+        .from("onboarding_documents")
+        .update({
+          ocr_status: "failed",
+          ocr_error: msg,
+          file_hash: fileHash,
+        })
+        .eq("id", doc.id);
+      return NextResponse.json({ error: msg, empty: true }, { status: 422 });
+    }
+
     await supabase
       .from("onboarding_documents")
       .update({
@@ -223,16 +259,25 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
       .eq("onboarding_project_id", body.onboarding_project_id)
       .eq("ocr_status", "extracted");
 
-    // Kauf: einer (letzter gewinnt), Miete/Darlehen: Array
+    // Kauf: einer (letzter gewinnt), Miete/Darlehen: Array.
+    // Leere Extractions (alle Kernfelder null) filtern wir raus,
+    // damit ein bereits vor diesem Fix hochgeladenes "leeres" Doku
+    // nicht mit-aggregiert wird und im Confirm-Editor Geist-Einträge
+    // mit "—" produziert.
     let mergedKauf: unknown = null;
     const mergedMiete: unknown[] = [];
     const mergedDarlehen: unknown[] = [];
     for (const d of allDocs ?? []) {
       if (!d.extraction) continue;
-      if (d.kind === "kaufvertrag") mergedKauf = d.extraction;
-      else if (d.kind === "mietvertrag") mergedMiete.push(d.extraction);
-      else if (d.kind === "darlehensvertrag")
-        mergedDarlehen.push(d.extraction);
+      const e = d.extraction as Record<string, unknown>;
+      if (d.kind === "kaufvertrag") {
+        if (e.street || e.purchase_price_eur || e.city) mergedKauf = e;
+      } else if (d.kind === "mietvertrag") {
+        if (e.tenant_name || e.cold_rent_per_month_eur) mergedMiete.push(e);
+      } else if (d.kind === "darlehensvertrag") {
+        if (e.loan_amount_eur || e.bank || e.interest_rate_pa_pct)
+          mergedDarlehen.push(e);
+      }
     }
 
     // Wichtig: den Doku, den wir GERADE aktualisiert haben, ist evtl.
