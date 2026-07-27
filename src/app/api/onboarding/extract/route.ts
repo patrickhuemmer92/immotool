@@ -16,6 +16,12 @@ import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { extractPdfText } from "@/lib/dd/extract-pdf";
+import { extractDocxText } from "@/lib/dd/extract-docx";
+
+const DOCX_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+]);
 import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
 import {
   kaufvertragSchema,
@@ -97,12 +103,28 @@ export async function POST(req: Request) {
   let pages = 0;
   let totalPages = 0;
   let scanned = false;
+  const isDocx = DOCX_MIMES.has(doc.mime_type ?? "");
   if (doc.mime_type === "application/pdf") {
     const pdf = await extractPdfText(bytesForPdfExtract);
     text = pdf.text;
     pages = pdf.textPages;
     totalPages = pdf.totalPages;
     scanned = pdf.isProbablyScanned;
+  } else if (isDocx) {
+    // DOCX = XML-Container mit Text — kein Vision-Modus möglich (Anthropic
+    // akzeptiert nur PDF-document-Blocks). mammoth extrahiert reinen Text.
+    const docx = await extractDocxText(bytesForPdfExtract);
+    text = docx.text;
+    if (!text || text.length < 20) {
+      const msg =
+        "Word-Dokument enthält keinen extrahierbaren Text (evtl. reine Bild-Scans in Word verpackt). " +
+        "Bitte als PDF exportieren und erneut hochladen.";
+      await supabase
+        .from("onboarding_documents")
+        .update({ ocr_status: "failed", ocr_error: msg, file_hash: fileHash })
+        .eq("id", doc.id);
+      return NextResponse.json({ error: msg }, { status: 422 });
+    }
   } else {
     await supabase
       .from("onboarding_documents")

@@ -9,6 +9,8 @@ import { registerDdDocument } from "../document-actions";
 const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED_MIMES = [
   "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/msword", // .doc (Legacy)
   "image/jpeg",
   "image/png",
   "image/webp",
@@ -187,7 +189,7 @@ export function DocumentUploader({
         ref={fileRef}
         id="dd-doc-file"
         type="file"
-        accept="application/pdf,image/jpeg,image/png,image/webp"
+        accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,image/jpeg,image/png,image/webp,.doc,.docx"
         disabled={uploading}
         className="hidden"
         onChange={(e) => {
