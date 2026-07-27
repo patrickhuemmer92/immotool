@@ -208,27 +208,55 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
       })
       .eq("id", doc.id);
 
-    // Aggregieren in onboarding_projects.extracted_summary.
-    // Kauf: einer, Miete/Darlehen: Array (mehrere Verträge möglich).
-    const current = (project.extracted_summary ?? {}) as {
-      kauf?: unknown;
-      miete?: unknown[];
-      darlehen?: unknown[];
-    };
-    let merged: Record<string, unknown> = { ...current };
-    if (summaryKey === "kauf") {
-      merged = { ...merged, kauf: result.data };
-    } else if (summaryKey === "miete") {
-      merged = {
-        ...merged,
-        miete: [...(current.miete ?? []), result.data],
-      };
-    } else if (summaryKey === "darlehen") {
-      merged = {
-        ...merged,
-        darlehen: [...(current.darlehen ?? []), result.data],
-      };
+    // Aggregation aus ALLEN extracted Docs — nicht inkrementell aus
+    // `project.extracted_summary` bauen, weil bei parallelen Uploads
+    // eine Race entsteht: zwei Jobs lesen dasselbe Snapshot, mergen
+    // ihre Änderung, schreiben zurück — der zweite überschreibt den
+    // ersten. Ergebnis: nur einer der Verträge landet im Summary.
+    //
+    // Deshalb: alle extracted Docs des Projekts JETZT frisch lesen
+    // und daraus das komplette Summary neu bauen. Idempotent und
+    // race-safe.
+    const { data: allDocs } = await supabase
+      .from("onboarding_documents")
+      .select("kind, extraction")
+      .eq("onboarding_project_id", body.onboarding_project_id)
+      .eq("ocr_status", "extracted");
+
+    // Kauf: einer (letzter gewinnt), Miete/Darlehen: Array
+    let mergedKauf: unknown = null;
+    const mergedMiete: unknown[] = [];
+    const mergedDarlehen: unknown[] = [];
+    for (const d of allDocs ?? []) {
+      if (!d.extraction) continue;
+      if (d.kind === "kaufvertrag") mergedKauf = d.extraction;
+      else if (d.kind === "mietvertrag") mergedMiete.push(d.extraction);
+      else if (d.kind === "darlehensvertrag")
+        mergedDarlehen.push(d.extraction);
     }
+
+    // Wichtig: den Doku, den wir GERADE aktualisiert haben, ist evtl.
+    // noch nicht als ocr_status='extracted' in dem obigen Query
+    // (Race gegen den vorherigen UPDATE). Deshalb: manuell mit-mergen
+    // basierend auf summaryKey.
+    if (summaryKey === "kauf") mergedKauf = result.data;
+    else if (summaryKey === "miete") {
+      // Wenn Doku bereits im query drin war, nicht doppelt zufügen
+      const alreadyIn = (allDocs ?? []).some(
+        (d) => d.kind === "mietvertrag" && d.extraction === result.data
+      );
+      if (!alreadyIn) mergedMiete.push(result.data);
+    } else if (summaryKey === "darlehen") {
+      const alreadyIn = (allDocs ?? []).some(
+        (d) => d.kind === "darlehensvertrag" && d.extraction === result.data
+      );
+      if (!alreadyIn) mergedDarlehen.push(result.data);
+    }
+
+    const merged: Record<string, unknown> = {};
+    if (mergedKauf) merged.kauf = mergedKauf;
+    if (mergedMiete.length > 0) merged.miete = mergedMiete;
+    if (mergedDarlehen.length > 0) merged.darlehen = mergedDarlehen;
 
     await supabase
       .from("onboarding_projects")
@@ -248,6 +276,9 @@ ${userMessage.split("Format:")[1] ?? userMessage}`
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[onb-extract] CAUGHT err kind=${doc.kind} msg="${msg.slice(0, 300)}"`
+    );
     await supabase
       .from("onboarding_documents")
       .update({
