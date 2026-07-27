@@ -123,12 +123,14 @@ export async function POST(req: Request) {
   // Text extrahieren (v1: nur PDF)
   let text = "";
   let pages = 0;
+  let totalPages = 0;
   let scanned = false;
   if (doc.mime_type === "application/pdf") {
     // bytesForPdfExtract wird von unpdf detached — Kopie ist absichtlich
     const pdf = await extractPdfText(bytesForPdfExtract);
     text = pdf.text;
     pages = pdf.textPages;
+    totalPages = pdf.totalPages;
     scanned = pdf.isProbablyScanned;
   } else {
     await supabase
@@ -149,6 +151,26 @@ export async function POST(req: Request) {
   //     separater OCR-Layer nötig.
   const useVision = scanned || text.trim().length < 50;
   const pdfBufferForVision = useVision ? bytesForVision : undefined;
+
+  // Hard-Cap: bei > 25 Seiten überschreitet die Vision-Extraktion die
+  // Vercel-Function-maxDuration. Klar failen statt User 4 Minuten warten
+  // zu lassen. WEG-Protokolle mit vielen Anhängen sind hier oft dran —
+  // Empfehlung: splitten, nur die Sitzungsteile hochladen.
+  if (useVision && totalPages > 25) {
+    const msg =
+      `Dokument hat ${totalPages} Seiten — zu groß für automatische Analyse. ` +
+      `Bei WEG-Protokollen reichen meist die Sitzungsteile (ohne Anhänge). ` +
+      `Bitte PDF splitten und nur die relevanten Seiten erneut hochladen.`;
+    await supabase
+      .from("dd_documents")
+      .update({
+        ocr_status: "failed",
+        ocr_error: msg,
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: msg }, { status: 413 });
+  }
 
   // Sanity-Cap: Anthropic akzeptiert PDFs bis 32 MB / 100 Seiten. Wenn
   // hier drüber, brechen wir ab — Chunking kommt später.

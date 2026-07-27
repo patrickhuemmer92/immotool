@@ -95,11 +95,13 @@ export async function POST(req: Request) {
 
   let text = "";
   let pages = 0;
+  let totalPages = 0;
   let scanned = false;
   if (doc.mime_type === "application/pdf") {
     const pdf = await extractPdfText(bytesForPdfExtract);
     text = pdf.text;
     pages = pdf.textPages;
+    totalPages = pdf.totalPages;
     scanned = pdf.isProbablyScanned;
   } else {
     await supabase
@@ -115,6 +117,26 @@ export async function POST(req: Request) {
 
   const useVision = scanned || text.trim().length < 50;
   const pdfBufferForVision = useVision ? bytesForVision : undefined;
+
+  // Hard-Cap für Vision: bei > 20 Seiten überschreitet die Extraktion
+  // regelmäßig die Vercel-Function-maxDuration (300s). Statt den User
+  // 4 Minuten warten zu lassen und ihn dann mit Timeout-Reklamation
+  // zu enttäuschen: sofort mit klarer Handlungsempfehlung failen.
+  if (useVision && totalPages > 20) {
+    const msg =
+      `Dokument hat ${totalPages} Seiten — zu groß für automatische Analyse. ` +
+      `Für Verträge reichen meist die ersten 3-5 Seiten (Konditions-Übersicht). ` +
+      `Bitte PDF splitten und nur die relevanten Seiten erneut hochladen.`;
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "failed",
+        ocr_error: msg,
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: msg }, { status: 413 });
+  }
 
   if (useVision && bytesForVision.byteLength > 32 * 1024 * 1024) {
     await supabase
