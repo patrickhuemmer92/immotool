@@ -1209,6 +1209,7 @@
     "upload_size_hint": "PDF · JPG · PNG · WEBP — max. 20 MB",
     "uploading": "Wird hochgeladen …",
     "extracting": "KI liest das Dokument …",
+    "upload_success_toast": "Hochgeladen — KI liest das Dokument im Hintergrund. Der Fortschritt erscheint oben.",
     "upload_error_too_large": "Datei größer als 20 MB.",
     "upload_error_bad_type": "Nur PDF und Bilder.",
     "upload_error_generic": "Upload fehlgeschlagen",

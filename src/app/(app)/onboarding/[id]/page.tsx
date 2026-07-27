@@ -9,6 +9,7 @@ import { getPremiumStatus } from "@/lib/billing/premium";
 import { OnboardingUploader } from "./onboarding-uploader";
 import { OnboardingConfirm } from "./confirm";
 import { OnboardingPaywall } from "./paywall";
+import { OnbJobStatusWidget } from "./job-status";
 
 export default async function OnboardingProjectPage({
   params,
@@ -79,6 +80,19 @@ export default async function OnboardingProjectPage({
           {t(`onb.status_${project.status}`)}
         </span>
       </div>
+
+      {/* Sticky Job-Status-Widget — nur sichtbar wenn Extraktion läuft */}
+      {documents.some((d) => d.ocr_status === "pending") && (
+        <div className="mt-6 sticky top-4 z-40">
+          <OnbJobStatusWidget
+            projectId={project.id}
+            initialDocs={documents.map((d) => ({
+              id: d.id,
+              ocr_status: d.ocr_status,
+            }))}
+          />
+        </div>
+      )}
 
       {/* Unlock-Info: zeigt WARUM freigeschaltet (First-Free / Premium) */}
       {unlockedByFirstFree && (

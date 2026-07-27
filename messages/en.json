@@ -1209,6 +1209,7 @@
     "upload_size_hint": "PDF · JPG · PNG · WEBP — max 20 MB",
     "uploading": "Uploading…",
     "extracting": "AI is reading the document…",
+    "upload_success_toast": "Uploaded — AI is reading the document in the background. Progress appears at the top.",
     "upload_error_too_large": "File larger than 20 MB.",
     "upload_error_bad_type": "Only PDF and images.",
     "upload_error_generic": "Upload failed",
