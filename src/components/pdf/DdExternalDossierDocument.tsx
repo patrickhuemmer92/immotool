@@ -129,15 +129,6 @@ const styles = StyleSheet.create({
     color: pdfColors.textMuted,
     fontStyle: "italic",
   },
-  statusBadge: {
-    fontSize: 8,
-    padding: 2,
-    paddingHorizontal: 6,
-    borderRadius: 3,
-    fontFamily: "Helvetica-Bold",
-    color: "#FFFFFF",
-    marginLeft: 6,
-  },
   openItem: {
     marginBottom: 6,
     paddingLeft: 6,
@@ -175,12 +166,6 @@ const STATUS_COLOR: Record<string, string> = {
   unklarheit: "#6B7280", // grau, nicht rot — bewusst zurückhaltend
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  unauffaellig: "unauffällig",
-  pruefung_empfohlen: "Prüfung empfohlen",
-  unklarheit: "Datenlage lückenhaft",
-};
-
 const CATEGORY_LABEL: Record<string, string> = {
   substanz: "Substanz & Bauzustand",
   finanzierung: "Wirtschaftliche Kennzahlen",
@@ -189,12 +174,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   energie: "Energetische Situation",
   markt: "Markteinordnung",
   lage: "Standort & Lage",
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  hoch: "hohe Priorität",
-  mittel: "mittlere Priorität",
-  niedrig: "niedrige Priorität",
 };
 
 function eurFromNum(v: number | null): string {
@@ -261,17 +240,11 @@ export function DdExternalDossierDocument({
                 <Text style={styles.assessmentCat}>
                   {CATEGORY_LABEL[a.category] ?? a.category}
                 </Text>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={styles.assessmentTitle}>{a.one_liner}</Text>
-                  <Text
-                    style={[
-                      styles.statusBadge,
-                      { backgroundColor: STATUS_COLOR[a.status] ?? "#6B7280" },
-                    ]}
-                  >
-                    {STATUS_LABEL[a.status] ?? a.status}
-                  </Text>
-                </View>
+                {/* Status-Badge bewusst weggelassen — für die externe
+                    Version wollen wir keine „Prüfung empfohlen"-Chips.
+                    Die Bewertungsfarbe (borderLeftColor) reicht als
+                    subtiler Ampel-Anker. */}
+                <Text style={styles.assessmentTitle}>{a.one_liner}</Text>
                 {a.details && (
                   <Text style={styles.assessmentBody}>{a.details}</Text>
                 )}
@@ -311,17 +284,11 @@ export function DdExternalDossierDocument({
             <Text style={styles.sectionTitle}>Offene Punkte / Dokumente</Text>
             {d.open_items.map((o, i) => (
               <View key={i} style={styles.openItem} wrap={false}>
+                {/* Priorität bewusst weggelassen — nicht für externe
+                    Vorlage geeignet („niedrige Priorität" signalisiert
+                    dem Verkäufer, was der Käufer nachrangig behandelt). */}
                 <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 10 }}>
-                  {o.topic}{" "}
-                  <Text
-                    style={{
-                      fontFamily: "Helvetica",
-                      fontSize: 8,
-                      color: pdfColors.textMuted,
-                    }}
-                  >
-                    · {PRIORITY_LABEL[o.priority] ?? o.priority}
-                  </Text>
+                  {o.topic}
                 </Text>
                 <Text style={{ fontSize: 9, marginTop: 2 }}>
                   {o.why_relevant}

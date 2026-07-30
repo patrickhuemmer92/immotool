@@ -11,15 +11,9 @@ import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
 import { DocumentUploader } from "./document-uploader";
 import { ExposeEditor } from "./expose-editor";
 import { DdDocumentList } from "./document-list";
-import { FindingsView } from "./findings-view";
 import { MarketView } from "./market-view";
-import { DecisionActions } from "./decision-actions";
-import { DdPaywall } from "./paywall";
 import { JobStatusWidget } from "./job-status";
-import { AcquisitionCard } from "./acquisition-card";
-import { AnalysisPreview } from "./analysis-preview";
 import { ExtraContextCard } from "./extra-context-card";
-import { DdCockpit } from "./cockpit";
 import {
   DOC_RELEVANCE,
   isPropertyType,
@@ -27,6 +21,16 @@ import {
   type PropertyType,
 } from "@/lib/dd/property-type";
 
+/**
+ * DD-Upload-Seite (früher „page.tsx" — jetzt auf Vorbereitung
+ * beschränkt: Objektart, Exposé, weitere Docs, Marktdaten, Freifeld).
+ *
+ * Die eigentliche Analyse mit Score, Cockpit, Findings und Dossier-
+ * Downloads lebt jetzt auf `/analyse/[id]/ergebnis` (eigene Route).
+ *
+ * Der CTA „Zur Analyse" oben leitet dorthin weiter, sobald mindestens
+ * das Exposé extrahiert ist.
+ */
 export default async function DdProjectPage({
   params,
 }: {
@@ -36,17 +40,16 @@ export default async function DdProjectPage({
   const t = await getTranslations();
   const active = await getActiveWorkspace();
   if (!active) return null;
-  const user = await requireUser();
-  const isAdmin = isDdAdmin(user.email);
+  // requireUser + admin bleiben, weil die Ergebnis-Seite es braucht.
+  // Hier nicht mehr verwendet, aber Auth muss durchgehen.
+  await requireUser();
+  void isDdAdmin;
 
   const supabase = await createClient();
   const project = await getDdProject(supabase, active.id, id);
   if (!project) notFound();
 
-  // Self-Heal für bestehende DD-Projekte: wenn der User Premium hat
-  // aber das Projekt noch nicht paid ist, schalten wir es hier direkt
-  // frei. Verhindert dass alte Projekte (angelegt vor dem Premium-
-  // Bypass-Fix) für Premium-User weiterhin die Paywall zeigen.
+  // Self-Heal für Premium-User (dass sie ohne 29 € starten können).
   if (!project.paid) {
     const premium = await getPremiumStatus(active.id);
     if (premium.hasPaidSubscription) {
@@ -71,23 +74,15 @@ export default async function DdProjectPage({
     .order("uploaded_at", { ascending: false });
   const docs = docsRaw ?? [];
 
-  // Sicheres Parsing des Extraction-JSONs — Migration schreibt `unknown`,
-  // wir validieren im Server damit die UI-Component saubere Typen sieht.
   const exposeParsed = project.extracted_expose
     ? exposeExtractionSchema.safeParse(project.extracted_expose)
     : null;
   const expose = exposeParsed?.success ? exposeParsed.data : null;
 
   const hasExpose = docs.some((d) => d.kind === "expose");
-
-  // Findings + Score-Meta laden — nur wenn schon eine Analyse gelaufen ist.
-  const { data: findings } = await supabase
-    .from("dd_findings")
-    .select(
-      "id, category, severity, title, description, cost_min, cost_max, cost_horizon, source_quote, source_location, source_market, confidence, confidence_reason, next_step"
-    )
-    .eq("dd_project_id", project.id)
-    .order("severity", { ascending: false });
+  const pType: PropertyType = isPropertyType(project.property_type)
+    ? project.property_type
+    : "etw_weg";
 
   return (
     <div>
@@ -109,37 +104,26 @@ export default async function DdProjectPage({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {project.score_overall != null && (
-            <>
-              <a
-                href={`/api/pdf/dd-dossier/${project.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                title={t("dd.download_internal_hint")}
-              >
-                {t("dd.download_internal")}
-              </a>
-              <a
-                href={`/api/pdf/dd-external-dossier/${project.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                title={t("dd.download_external_hint")}
-              >
-                {t("dd.download_external")}
-              </a>
-            </>
-          )}
-          <StatusBadge status={project.status} t={t} />
-        </div>
+        <StatusBadge status={project.status} t={t} />
       </div>
 
-      {/* Job-Status-Widget — sticky, damit es beim Scrollen sichtbar bleibt
-          wenn User weiter unten neue Dokumente hochlädt. `sticky top-4`
-          klebt es 16px unter dem Viewport-Rand fest, sobald der User
-          runterscrollt. */}
+      {/* CTA: sichtbar sobald Exposé extrahiert wurde. Verlinkt zur
+          Ergebnis-Seite mit Score, Cockpit, Findings, PDF-Downloads. */}
+      {expose && (
+        <div className="mt-6">
+          <Link
+            href={`/analyse/${project.id}/ergebnis`}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent text-accent-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90"
+          >
+            {project.score_overall != null
+              ? t("dd.open_ergebnis")
+              : t("dd.start_ergebnis")}
+            <span aria-hidden>→</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Sticky Job-Status-Widget während Extraction läuft */}
       {docs.some((d) => d.ocr_status === "pending") && (
         <div className="mt-6 sticky top-4 z-40">
           <JobStatusWidget
@@ -152,7 +136,22 @@ export default async function DdProjectPage({
         </div>
       )}
 
-      {/* Freifeld: zusätzlicher Käufer-Kontext für die KI. */}
+      {/* Wizard-Steps als Fortschritts-Anzeige — reduziert auf die
+          Upload-Steps, da die Analyse jetzt eine eigene Seite ist. */}
+      <div className="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
+        <ol className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+          <Step done label={t("dd.step_project")} n={1} />
+          <Step done={hasExpose} label={t("dd.step_expose")} n={2} />
+          <Step done={docs.length > 1} label={t("dd.step_documents")} n={3} />
+          <Step
+            done={project.score_overall != null}
+            label={t("dd.step_analysis")}
+            n={4}
+          />
+        </ol>
+      </div>
+
+      {/* Freifeld für zusätzlichen Käufer-Kontext */}
       <div className="mt-6">
         <ExtraContextCard
           projectId={project.id}
@@ -160,30 +159,7 @@ export default async function DdProjectPage({
         />
       </div>
 
-      {/* Wizard-Steps als Fortschritts-Anzeige */}
-      <div className="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
-        <ol className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-          <Step done label={t("dd.step_project")} n={1} />
-          <Step done={hasExpose} label={t("dd.step_expose")} n={2} />
-          <Step
-            done={docs.length > 1}
-            label={t("dd.step_documents")}
-            n={3}
-          />
-          <Step
-            done={project.score_overall != null}
-            label={t("dd.step_analysis")}
-            n={4}
-          />
-          <Step
-            done={project.status === "watchlist" || project.status === "promoted"}
-            label={t("dd.step_decision")}
-            n={5}
-          />
-        </ol>
-      </div>
-
-      {/* Schritt 2: Exposé-Upload — oder Extraktion-Preview + Edit */}
+      {/* Schritt 1: Exposé */}
       <section className="mt-6">
         <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
           {t("dd.expose_section")}
@@ -205,24 +181,9 @@ export default async function DdProjectPage({
         )}
       </section>
 
-      {/* Kaufnebenkosten + Bruttorendite — nur wenn Kaufpreis bekannt */}
-      {expose && expose.purchase_price_eur != null && (
-        <section className="mt-6">
-          <AcquisitionCard expose={expose} />
-        </section>
-      )}
-
-      {/* Schritt 3: Weitere Dokumente — erst nach Exposé sinnvoll.
-          Doku-Auswahl richtet sich nach der Objektart: bei MFH keine
-          WEG-Dokumente anfragen (existieren dort nicht), stattdessen
-          Mieterliste + Grundbuch. */}
+      {/* Schritt 2: weitere Dokumente, objektart-gefiltert */}
       {expose && (() => {
-        const pType: PropertyType = isPropertyType(project.property_type)
-          ? project.property_type
-          : "etw_weg";
         const rel = DOC_RELEVANCE[pType];
-        // Alles ausser "irrelevant" darf hoch (expose ist über den 1.
-        // Uploader schon erledigt, muss aber nicht rausgefiltert werden).
         const allowedKinds = (
           Object.entries(rel)
             .filter(([, r]) => r !== "irrelevant")
@@ -286,7 +247,9 @@ export default async function DdProjectPage({
                     | "mieterliste"
                     | "other"
                 }
-                allowedKinds={allowedKinds as Parameters<typeof DocumentUploader>[0]["allowedKinds"]}
+                allowedKinds={
+                  allowedKinds as Parameters<typeof DocumentUploader>[0]["allowedKinds"]
+                }
                 autoExtract
               />
             </div>
@@ -308,89 +271,6 @@ export default async function DdProjectPage({
               >[0]["snapshot"]
             }
             canFetch={!!(expose.city || expose.postal_code)}
-          />
-        </section>
-      )}
-
-      {/* Paywall + Preview — wenn noch nicht bezahlt.
-          Placeholder-Preview zeigt die grobe Struktur der Analyse
-          (rein generic, kein echter Content). Modal-Overlay mit
-          backdrop-blur liegt darüber — visueller Anreiz, aber
-          per CSS nicht umgehbar, weil die echten Findings sowieso
-          nur bei paid=true vom Server gerendert werden. */}
-      {expose && !project.paid && (
-        <>
-          <section className="mt-8">
-            <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-              {t("dd.analysis_section")}
-            </h2>
-            <AnalysisPreview />
-          </section>
-          <DdPaywall
-            projectId={project.id}
-            docs={docs.map((d) => ({
-              kind: d.kind as string,
-              ocr_status: d.ocr_status,
-            }))}
-            isAdmin={isAdmin}
-          />
-        </>
-      )}
-
-      {/* Schritt 4: Analyse + Findings — nur nach Zahlung */}
-      {expose && project.paid && (
-        <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-            {t("dd.analysis_section")}
-          </h2>
-          {project.score_overall != null && (
-            <div className="mb-4">
-              <DdCockpit
-                scoreOverall={project.score_overall}
-                scoreConfidence={
-                  project.score_confidence == null
-                    ? null
-                    : Number(project.score_confidence)
-                }
-                scoreByCategory={
-                  project.score_by_category as Parameters<
-                    typeof DdCockpit
-                  >[0]["scoreByCategory"]
-                }
-                propertyType={(project.property_type ?? "etw_weg") as PropertyType}
-                uploadedKinds={
-                  docs
-                    .filter((d) => d.ocr_status === "extracted")
-                    .map((d) => d.kind as DocumentKind)
-                }
-              />
-            </div>
-          )}
-          <FindingsView
-            projectId={project.id}
-            scoreOverall={project.score_overall}
-            scoreConfidence={project.score_confidence}
-            scoreByCategory={
-              project.score_by_category as Parameters<
-                typeof FindingsView
-              >[0]["scoreByCategory"]
-            }
-            findings={(findings ?? []) as Parameters<typeof FindingsView>[0]["findings"]}
-            hasEnoughDataForAnalysis={!!expose}
-          />
-        </section>
-      )}
-
-      {/* Schritt 5: Entscheidung — nur nach Analyse */}
-      {expose && project.score_overall != null && (
-        <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-            {t("dd.decision_section")}
-          </h2>
-          <DecisionActions
-            projectId={project.id}
-            status={project.status}
-            promotedPropertyId={project.promoted_to_property_id}
           />
         </section>
       )}
@@ -417,7 +297,7 @@ export default async function DdProjectPage({
         </section>
       )}
 
-      {/* Disclaimer — dauerhaft sichtbar */}
+      {/* Disclaimer */}
       <div className="mt-8 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-xs text-amber-900 dark:text-amber-200">
         <strong className="font-semibold">{t("dd.disclaimer_title")}:</strong>{" "}
         {t("dd.disclaimer_body")}
