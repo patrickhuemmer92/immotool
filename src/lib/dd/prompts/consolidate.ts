@@ -48,8 +48,18 @@ export function buildConsolidationUserMessage(input: {
   extractedTeilung: unknown | null;
   extractedEnergie: unknown | null;
   marketSnapshot?: unknown | null;
+  propertyTypeGuidance?: string | null;
+  extraUserContext?: string | null;
 }): string {
-  return `EXTRAHIERTE DATEN:
+  return `${
+    input.propertyTypeGuidance
+      ? `${input.propertyTypeGuidance}\n\n`
+      : ""
+  }${
+    input.extraUserContext
+      ? `ZUSÄTZLICHER KONTEXT VOM KÄUFER (nutzen wenn relevant):\n${input.extraUserContext}\n\n`
+      : ""
+  }EXTRAHIERTE DATEN:
 
 ## Exposé
 ${JSON.stringify(input.extractedExpose ?? null, null, 2)}

@@ -4,6 +4,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PropertyType } from "@/lib/dd/property-type";
 
 export type DdProjectStatus =
   | "draft"
@@ -17,6 +18,7 @@ export type DdProject = {
   workspace_id: string;
   name: string;
   address_hint: string | null;
+  property_type: PropertyType | null;
   status: DdProjectStatus;
   promoted_to_property_id: string | null;
   paid: boolean;
@@ -40,7 +42,7 @@ export async function listDdProjects(
   const { data } = await supabase
     .from("dd_projects")
     .select(
-      "id, workspace_id, name, address_hint, status, promoted_to_property_id, paid, paid_at, score_overall, score_confidence, created_at, updated_at, analyzed_at"
+      "id, workspace_id, name, address_hint, property_type, status, promoted_to_property_id, paid, paid_at, score_overall, score_confidence, created_at, updated_at, analyzed_at"
     )
     .eq("workspace_id", workspaceId)
     .neq("status", "archived")

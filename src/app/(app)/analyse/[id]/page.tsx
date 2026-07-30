@@ -18,6 +18,12 @@ import { DdPaywall } from "./paywall";
 import { JobStatusWidget } from "./job-status";
 import { AcquisitionCard } from "./acquisition-card";
 import { AnalysisPreview } from "./analysis-preview";
+import {
+  DOC_RELEVANCE,
+  isPropertyType,
+  type DocumentKind,
+  type PropertyType,
+} from "@/lib/dd/property-type";
 
 export default async function DdProjectPage({
   params,
@@ -184,28 +190,87 @@ export default async function DdProjectPage({
         </section>
       )}
 
-      {/* Schritt 3: Weitere Dokumente — erst nach Exposé sinnvoll */}
-      {expose && (
-        <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
-            {t("dd.more_docs_section")}
-          </h2>
-          <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
-            <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-2">
-              {t("dd.more_docs_intro")}
-            </p>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4">
-              {t("dd.more_docs_hint_phase3")}
-            </p>
-            <DocumentUploader
-              workspaceId={active.id}
-              projectId={project.id}
-              defaultKind="weg_minutes"
-              autoExtract
-            />
-          </div>
-        </section>
-      )}
+      {/* Schritt 3: Weitere Dokumente — erst nach Exposé sinnvoll.
+          Doku-Auswahl richtet sich nach der Objektart: bei MFH keine
+          WEG-Dokumente anfragen (existieren dort nicht), stattdessen
+          Mieterliste + Grundbuch. */}
+      {expose && (() => {
+        const pType: PropertyType = isPropertyType(project.property_type)
+          ? project.property_type
+          : "etw_weg";
+        const rel = DOC_RELEVANCE[pType];
+        // Alles ausser "irrelevant" darf hoch (expose ist über den 1.
+        // Uploader schon erledigt, muss aber nicht rausgefiltert werden).
+        const allowedKinds = (
+          Object.entries(rel)
+            .filter(([, r]) => r !== "irrelevant")
+            .map(([k]) => k) as DocumentKind[]
+        );
+        const recommended = (
+          Object.entries(rel)
+            .filter(([k, r]) => r === "recommended" && k !== "expose")
+            .map(([k]) => k) as DocumentKind[]
+        );
+        const KIND_LABEL_KEY: Record<DocumentKind, string> = {
+          expose: "dd.doc_kind_expose",
+          weg_minutes: "dd.doc_kind_weg",
+          wirtschaftsplan: "dd.doc_kind_budget",
+          teilungserklaerung: "dd.doc_kind_teilung",
+          energieausweis: "dd.doc_kind_energie",
+          grundriss: "dd.doc_kind_grundriss",
+          grundbuchauszug: "dd.doc_kind_grundbuch",
+          mieterliste: "dd.doc_kind_mieterliste",
+          other: "dd.doc_kind_other",
+        };
+        return (
+          <section className="mt-8">
+            <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
+              {t("dd.more_docs_section")}
+            </h2>
+            <div className="rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-2">
+                {t("dd.more_docs_intro")}
+              </p>
+              {recommended.length > 0 && (
+                <div className="mb-4 rounded-lg bg-neutral-50 dark:bg-neutral-800/50 px-3 py-2">
+                  <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                    {t("dd.recommended_for_type", {
+                      type: t(`dd.ptype_${pType}`),
+                    })}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {recommended.map((k) => (
+                      <span
+                        key={k}
+                        className="inline-flex items-center rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 px-2 py-0.5 text-[11px] text-neutral-700 dark:text-neutral-300"
+                      >
+                        {t(KIND_LABEL_KEY[k])}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <DocumentUploader
+                workspaceId={active.id}
+                projectId={project.id}
+                defaultKind={
+                  (recommended[0] ?? "other") as
+                    | "weg_minutes"
+                    | "wirtschaftsplan"
+                    | "teilungserklaerung"
+                    | "energieausweis"
+                    | "grundriss"
+                    | "grundbuchauszug"
+                    | "mieterliste"
+                    | "other"
+                }
+                allowedKinds={allowedKinds as Parameters<typeof DocumentUploader>[0]["allowedKinds"]}
+                autoExtract
+              />
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Marktdaten */}
       {expose && (

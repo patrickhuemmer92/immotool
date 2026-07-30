@@ -6,6 +6,30 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { registerDdDocument } from "../document-actions";
 
+const ALL_KINDS = [
+  "expose",
+  "weg_minutes",
+  "wirtschaftsplan",
+  "teilungserklaerung",
+  "energieausweis",
+  "grundriss",
+  "grundbuchauszug",
+  "mieterliste",
+  "other",
+] as const;
+
+const KIND_LABEL: Record<(typeof ALL_KINDS)[number], string> = {
+  expose: "dd.doc_kind_expose",
+  weg_minutes: "dd.doc_kind_weg",
+  wirtschaftsplan: "dd.doc_kind_budget",
+  teilungserklaerung: "dd.doc_kind_teilung",
+  energieausweis: "dd.doc_kind_energie",
+  grundriss: "dd.doc_kind_grundriss",
+  grundbuchauszug: "dd.doc_kind_grundbuch",
+  mieterliste: "dd.doc_kind_mieterliste",
+  other: "dd.doc_kind_other",
+};
+
 const MAX_BYTES = 20 * 1024 * 1024;
 const ALLOWED_MIMES = [
   "application/pdf",
@@ -23,6 +47,8 @@ type Kind =
   | "teilungserklaerung"
   | "energieausweis"
   | "grundriss"
+  | "grundbuchauszug"
+  | "mieterliste"
   | "other";
 
 export function DocumentUploader({
@@ -30,12 +56,15 @@ export function DocumentUploader({
   projectId,
   defaultKind = "expose",
   autoExtract = true,
+  allowedKinds,
 }: {
   workspaceId: string;
   projectId: string;
   defaultKind?: Kind;
   /** Nach Upload sofort Extraktion starten. */
   autoExtract?: boolean;
+  /** Wenn gesetzt: nur diese Doku-Typen im Dropdown anzeigen. */
+  allowedKinds?: readonly Kind[];
 }) {
   const t = useTranslations();
   const router = useRouter();
@@ -160,13 +189,11 @@ export function DocumentUploader({
           disabled={uploading}
           className="w-full rounded-lg border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 py-2 text-sm"
         >
-          <option value="expose">{t("dd.doc_kind_expose")}</option>
-          <option value="weg_minutes">{t("dd.doc_kind_weg")}</option>
-          <option value="wirtschaftsplan">{t("dd.doc_kind_budget")}</option>
-          <option value="teilungserklaerung">{t("dd.doc_kind_teilung")}</option>
-          <option value="energieausweis">{t("dd.doc_kind_energie")}</option>
-          <option value="grundriss">{t("dd.doc_kind_grundriss")}</option>
-          <option value="other">{t("dd.doc_kind_other")}</option>
+          {(allowedKinds ?? ALL_KINDS).map((k) => (
+            <option key={k} value={k}>
+              {t(KIND_LABEL[k])}
+            </option>
+          ))}
         </select>
       </div>
 

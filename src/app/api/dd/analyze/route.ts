@@ -25,6 +25,10 @@ import {
   buildConsolidationUserMessage,
 } from "@/lib/dd/prompts/consolidate";
 import { computeScore } from "@/lib/dd/scoring";
+import {
+  isPropertyType,
+  propertyTypeGuidance,
+} from "@/lib/dd/property-type";
 
 export async function POST(req: Request) {
   const active = await getActiveWorkspace();
@@ -39,7 +43,7 @@ export async function POST(req: Request) {
 
   const { data: project } = await supabase
     .from("dd_projects")
-    .select("id, workspace_id, extracted_expose, market_snapshot, paid")
+    .select("id, workspace_id, property_type, extracted_expose, market_snapshot, paid, extra_user_context")
     .eq("id", body.dd_project_id)
     .eq("workspace_id", active.id)
     .maybeSingle();
@@ -73,6 +77,9 @@ export async function POST(req: Request) {
     (d) => d.kind === "energieausweis" && d.ocr_status === "extracted"
   );
 
+  const pType = isPropertyType(project.property_type)
+    ? project.property_type
+    : "etw_weg";
   const userMessage = buildConsolidationUserMessage({
     extractedExpose: project.extracted_expose,
     extractedWeg: wegExtractions,
@@ -80,6 +87,12 @@ export async function POST(req: Request) {
     extractedTeilung: teilungDoc?.extraction ?? null,
     extractedEnergie: energieDoc?.extraction ?? null,
     marketSnapshot: project.market_snapshot,
+    propertyTypeGuidance: propertyTypeGuidance(pType),
+    extraUserContext:
+      typeof project.extra_user_context === "string" &&
+      project.extra_user_context.trim().length > 0
+        ? project.extra_user_context.trim()
+        : null,
   });
 
   let result;

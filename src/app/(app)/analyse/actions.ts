@@ -8,6 +8,7 @@ import { getActiveWorkspace } from "@/lib/workspace";
 import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
 import { getPremiumStatus } from "@/lib/billing/premium";
+import { PROPERTY_TYPES } from "@/lib/dd/property-type";
 
 export type DdProjectState = { error?: string } | undefined;
 
@@ -17,6 +18,7 @@ const projectSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v && v.trim().length ? v.trim() : null)),
+  property_type: z.enum(PROPERTY_TYPES),
 });
 
 export async function createDdProject(
@@ -29,6 +31,7 @@ export async function createDdProject(
   const parsed = projectSchema.safeParse({
     name: formData.get("name"),
     address_hint: formData.get("address_hint"),
+    property_type: formData.get("property_type"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message };
 
@@ -46,6 +49,7 @@ export async function createDdProject(
       workspace_id: active.id,
       name: parsed.data.name,
       address_hint: parsed.data.address_hint,
+      property_type: parsed.data.property_type,
       status: "draft",
       paid: premiumUnlock,
       paid_at: premiumUnlock ? new Date().toISOString() : null,
