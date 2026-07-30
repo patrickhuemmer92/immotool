@@ -18,6 +18,8 @@ import { DdPaywall } from "./paywall";
 import { JobStatusWidget } from "./job-status";
 import { AcquisitionCard } from "./acquisition-card";
 import { AnalysisPreview } from "./analysis-preview";
+import { ExtraContextCard } from "./extra-context-card";
+import { DdCockpit } from "./cockpit";
 import {
   DOC_RELEVANCE,
   isPropertyType,
@@ -107,16 +109,28 @@ export default async function DdProjectPage({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {project.score_overall != null && (
-            <a
-              href={`/api/pdf/dd-dossier/${project.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-            >
-              {t("dd.download_dossier")}
-            </a>
+            <>
+              <a
+                href={`/api/pdf/dd-dossier/${project.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                title={t("dd.download_internal_hint")}
+              >
+                {t("dd.download_internal")}
+              </a>
+              <a
+                href={`/api/pdf/dd-external-dossier/${project.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg border border-neutral-300 dark:border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                title={t("dd.download_external_hint")}
+              >
+                {t("dd.download_external")}
+              </a>
+            </>
           )}
           <StatusBadge status={project.status} t={t} />
         </div>
@@ -137,6 +151,14 @@ export default async function DdProjectPage({
           />
         </div>
       )}
+
+      {/* Freifeld: zusätzlicher Käufer-Kontext für die KI. */}
+      <div className="mt-6">
+        <ExtraContextCard
+          projectId={project.id}
+          initial={project.extra_user_context ?? ""}
+        />
+      </div>
 
       {/* Wizard-Steps als Fortschritts-Anzeige */}
       <div className="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-4">
@@ -321,6 +343,29 @@ export default async function DdProjectPage({
           <h2 className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3">
             {t("dd.analysis_section")}
           </h2>
+          {project.score_overall != null && (
+            <div className="mb-4">
+              <DdCockpit
+                scoreOverall={project.score_overall}
+                scoreConfidence={
+                  project.score_confidence == null
+                    ? null
+                    : Number(project.score_confidence)
+                }
+                scoreByCategory={
+                  project.score_by_category as Parameters<
+                    typeof DdCockpit
+                  >[0]["scoreByCategory"]
+                }
+                propertyType={(project.property_type ?? "etw_weg") as PropertyType}
+                uploadedKinds={
+                  docs
+                    .filter((d) => d.ocr_status === "extracted")
+                    .map((d) => d.kind as DocumentKind)
+                }
+              />
+            </div>
+          )}
           <FindingsView
             projectId={project.id}
             scoreOverall={project.score_overall}

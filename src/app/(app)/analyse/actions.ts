@@ -193,6 +193,35 @@ export async function unlockDdForTest(
   return {};
 }
 
+/**
+ * Freifeld „Zusätzliche Info" — fließt beim nächsten Analyze- und beim
+ * externen Dossier-Call ins User-Prompt ein.
+ */
+export async function saveExtraUserContext(
+  projectId: string,
+  text: string
+): Promise<{ error?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
+  const trimmed = (text ?? "").trim();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("dd_projects")
+    .update({
+      extra_user_context: trimmed.length > 0 ? trimmed : null,
+      // Externes Dossier neu berechnen lassen — Cache invalidieren.
+      public_dossier_json: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", projectId)
+    .eq("workspace_id", active.id);
+
+  if (error) return { error: error.message };
+  revalidatePath(`/analyse/${projectId}`);
+  return {};
+}
+
 export async function deleteDdProject(projectId: string) {
   const active = await getActiveWorkspace();
   if (!active) return;

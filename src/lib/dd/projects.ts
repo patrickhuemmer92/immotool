@@ -25,6 +25,8 @@ export type DdProject = {
   paid_at: string | null;
   extracted_expose: unknown | null;
   market_snapshot: unknown | null;
+  public_dossier_json: unknown | null;
+  extra_user_context: string | null;
   score_overall: number | null;
   score_confidence: number | null;
   score_by_category: unknown | null;

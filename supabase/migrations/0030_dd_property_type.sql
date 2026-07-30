@@ -50,6 +50,17 @@ comment on column public.dd_projects.extra_user_context is
   'Freifeld: zusätzliche Info vom Käufer die die KI beim Konsolidieren berücksichtigen soll.';
 
 -- ---------------------------------------------------------------------
+-- Cache für das externe „öffentliche" Objektdossier (Verkäufer/Makler-
+-- Version). Separater LLM-Pass mit neutralem Sachverständigen-Ton.
+-- Wird lazy generiert beim ersten PDF-Download und dann persistiert.
+-- ---------------------------------------------------------------------
+alter table public.dd_projects
+  add column if not exists public_dossier_json jsonb;
+
+comment on column public.dd_projects.public_dossier_json is
+  'Cache: extern-Dossier (neutrale Sachverständigen-Version) — lazy vom LLM erzeugt.';
+
+-- ---------------------------------------------------------------------
 -- dd_documents.kind um MFH-relevante Typen erweitern.
 -- Wir droppen den alten CHECK und legen ihn neu an, damit die Menge
 -- der erlaubten Werte kontrolliert wächst.
