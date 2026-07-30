@@ -79,6 +79,15 @@ export const darlehensvertragSchema = z.object({
   bank: z.string().nullable(),
   loan_number: z.string().nullable(),
 
+  // Neuer vs. bestehender Kredit — bei Bestand sind die
+  // Original-Konditionen oft irrelevant, wichtig ist die aktuelle
+  // Restschuld / letzte Rate / Restlaufzeit. Wir extrahieren was da
+  // ist; der User justiert im Confirm-Screen.
+  //  "new"      = frisch abgeschlossenes / geplantes Darlehen
+  //  "existing" = laufendes Bestandsdarlehen (Bank-Übernahme, letzte Rate
+  //               als Grundlage — nicht die ursprünglichen Konditionen)
+  loan_kind: z.enum(["new", "existing"]).nullable(),
+
   loan_amount_eur: z.number().nullable(),
   interest_rate_pa_pct: z.number().nullable(),    // 3.5 = 3,5 %
   amortization_pa_pct: z.number().nullable(),
@@ -93,6 +102,11 @@ export const darlehensvertragSchema = z.object({
   // Sondertilgungs-Rechte (relevant für Findings, aber nicht auto-anlegen)
   special_repayment_max_pct_pa: z.number().nullable(),
   special_repayment_notes: z.string().nullable(),
+
+  // Bestandsdarlehen — nur relevant wenn loan_kind === "existing"
+  current_balance_eur: z.number().nullable(),        // aktuelle Restschuld
+  current_monthly_rate_eur: z.number().nullable(),   // letzte gezahlte Rate
+  remaining_term_months: z.number().nullable(),      // Restlaufzeit
 
   short_summary: z.string(),
 });

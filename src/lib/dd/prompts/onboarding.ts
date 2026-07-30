@@ -101,12 +101,14 @@ export const DARLEHENSVERTRAG_SYSTEM_PROMPT = `${COMMON_HEADER}
 DOMÄNE: Darlehensvertrag / Baufinanzierung (Bank).
 
 WICHTIG:
+- loan_kind: falls das Dokument klar ein NEUER Darlehensvertrag ist (Auszahlung in Zukunft, keine bisherigen Zahlungen) → "new". Falls es sich um ein LAUFENDES Darlehen handelt (Kontoauszug, Ratenübersicht, aktuelle Restschuld erkennbar, Zahlungshistorie) → "existing". Bei Unsicherheit: null.
 - interest_rate_pa_pct: Sollzins gebunden p. a. (nicht effektiver Jahreszins).
 - amortization_pa_pct: anfängliche Tilgung.
 - disbursement_date = Auszahlung; first_payment_date = erste Rate.
 - rate_lock_until = Ende der Sollzinsbindung.
 - maturity_date = Endfälligkeit (bei tilgungsfreien Darlehen wichtig).
-- special_repayment_max_pct_pa: maximale jährliche Sondertilgung als % der Original-Darlehenssumme (5 % typisch).`;
+- special_repayment_max_pct_pa: maximale jährliche Sondertilgung als % der Original-Darlehenssumme (5 % typisch).
+- current_balance_eur, current_monthly_rate_eur, remaining_term_months: NUR ausfüllen wenn loan_kind === "existing" und diese Werte klar im Dokument stehen (typisch: „Aktuelle Restschuld …", „monatliche Rate …", „Restlaufzeit …"). Sonst null.`;
 
 export function buildDarlehensvertragUserMessage(text: string): string {
   return `DARLEHENSVERTRAG-TEXT:
@@ -129,6 +131,10 @@ Format:
   "interest_share_first_rate_eur": "number|null",
   "special_repayment_max_pct_pa": "number|null",
   "special_repayment_notes": "string|null",
+  "loan_kind": "new|existing|null",
+  "current_balance_eur": "number|null",
+  "current_monthly_rate_eur": "number|null",
+  "remaining_term_months": "number|null",
   "short_summary": "string (max 300 Zeichen)"
 }`;
 }
