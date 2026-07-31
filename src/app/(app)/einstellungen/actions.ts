@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getActiveWorkspace } from "@/lib/workspace";
+import { canEdit, getActiveWorkspace } from "@/lib/workspace";
 import { parseDecimal } from "@/lib/format";
+import { OWNER_TAX_FIELD_PREFIX } from "./owner-tax-fields";
 
 const requiredPercentSetting = z
   .string()
@@ -96,6 +97,68 @@ export async function updateSettings(
   if (error) return { error: error.message };
 
   revalidatePath("/einstellungen");
+  return { success: true };
+}
+
+/** Roh-UUID-Check für die Owner-IDs aus den Feldnamen. */
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Persönliche Steuersätze der Eigentümer (Migration 0027).
+ *
+ * Felder heißen `owner_tax_rate:<owner-id>`; ein leeres Feld bedeutet
+ * „kein eigener Satz" → NULL → Fallback auf settings.tax_rate. Der Wert
+ * kommt als Prozent aus dem UI und wird als Dezimalwert gespeichert.
+ */
+export async function updateOwnerTaxRates(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+  if (!canEdit(active.role)) return { error: "forbidden" };
+
+  const updates: { id: string; tax_rate: number | null }[] = [];
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith(OWNER_TAX_FIELD_PREFIX)) continue;
+    const id = key.slice(OWNER_TAX_FIELD_PREFIX.length);
+    if (!UUID_RE.test(id)) continue;
+
+    const raw = String(value ?? "").trim();
+    if (raw.length === 0) {
+      updates.push({ id, tax_rate: null });
+      continue;
+    }
+    const percent = parseDecimal(raw);
+    if (percent === null || percent < 0 || percent > 100) {
+      return { error: `invalid_percent:${raw}` };
+    }
+    updates.push({ id, tax_rate: percent / 100 });
+  }
+
+  if (updates.length === 0) return { success: true };
+
+  const supabase = await createClient();
+  // Einzel-Updates statt Upsert: `owners` hat NOT-NULL-Spalten (name,
+  // workspace_id), die wir hier nicht anfassen wollen. Der zusätzliche
+  // workspace_id-Filter verhindert Updates auf fremde Eigentümer, auch
+  // wenn eine manipulierte Formular-ID durchkommt.
+  const results = await Promise.all(
+    updates.map((u) =>
+      supabase
+        .from("owners")
+        .update({ tax_rate: u.tax_rate } as never)
+        .eq("id", u.id)
+        .eq("workspace_id", active.id)
+    )
+  );
+  const failed = results.find((r) => r.error);
+  if (failed?.error) return { error: failed.error.message };
+
+  // Der Satz wirkt in GuV, Cashflow, Dashboard, Factbook und Simulationen —
+  // deshalb das ganze Layout invalidieren, nicht nur /einstellungen.
+  revalidatePath("/", "layout");
   return { success: true };
 }
 

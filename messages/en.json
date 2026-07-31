@@ -164,8 +164,8 @@
   "settings": {
     "title": "Settings",
     "general": "General",
-    "tax_rate": "Tax rate (%)",
-    "tax_rate_help": "Applied flat to the tax effect in the cashflow calculation.",
+    "tax_rate": "Default tax rate (%)",
+    "tax_rate_help": "Fallback for every owner without their own rate. A property's tax effect is blended from its owners' rates, weighted by ownership share (see below).",
     "default_depreciation_rate": "Default depreciation rate (%)",
     "default_depreciation_help": "Used for properties without their own rate.",
     "default_locale": "Language",
@@ -220,7 +220,13 @@
     "default_management_per_unit": "Management default (€/month)",
     "default_management_help": "Default management cost per unit. Overridable per property or per snapshot.",
     "bank_maintenance_per_sqm": "Bank maintenance allowance (€/m²/p.a.)",
-    "bank_maintenance_help": "Conservative maintenance allowance (typically 7–12 €/m²) — bank view only, on top of the reserve."
+    "bank_maintenance_help": "Conservative maintenance allowance (typically 7–12 €/m²) — bank view only, on top of the reserve.",
+    "owner_tax_section": "Tax rate per owner",
+    "owner_tax_help": "Co-owners are not necessarily assessed jointly — a person has their own marginal tax rate, while a group represents a jointly assessed tax subject. Leave empty to use the default rate above ({rate}). A property's tax effect is derived from its owners' rates, weighted by ownership share.",
+    "owner_tax_kind_person": "Person",
+    "owner_tax_kind_group": "Group (joint assessment)",
+    "owner_tax_properties": "{count, plural, =0 {no properties} one {1 property} other {# properties}}",
+    "owner_tax_empty": "No owners yet — create them under “Owners” first."
   },
   "owners": {
     "title": "Owners",
@@ -243,7 +249,10 @@
     "no_more_persons": "All existing persons are already members. Create more persons first.",
     "add_member": "Add person",
     "add_member_action": "+ Add",
-    "select_person": "Select person…"
+    "select_person": "Select person…",
+    "tax_rate": "Tax rate (%)",
+    "tax_rate_help_person": "This person's marginal tax rate. Leave empty to use the workspace default ({rate}).",
+    "tax_rate_help_group": "Tax rate of the jointly assessed tax subject. Leave empty to use the workspace default ({rate})."
   },
   "portfolios": {
     "title": "Portfolios",
@@ -683,7 +692,10 @@
     "no_snapshots": "No entries yet.",
     "portfolio_table": "Cashflow per property",
     "duplicate_period": "An entry for this period already exists. Edit it or adjust the period.",
-    "hausgeld_sum_invalid": "Recoverable + non-recoverable ancillary costs must equal the total."
+    "hausgeld_sum_invalid": "Recoverable + non-recoverable ancillary costs must equal the total.",
+    "tax_rate_applied": "Applied tax rate",
+    "tax_rate_from_owners": "blended from owner rates by share",
+    "tax_rate_workspace_default": "workspace default"
   },
   "afa": {
     "title": "Depreciation",

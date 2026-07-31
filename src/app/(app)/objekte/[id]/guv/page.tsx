@@ -16,6 +16,7 @@ import {
 } from "@/lib/pnl-context";
 import { loanBalance } from "@/lib/calculations/loan";
 import { computeValuation } from "@/lib/calculations/valuation";
+import { loadPropertyTaxRateInfo } from "@/lib/owners";
 import { SnapshotForm } from "./snapshot-form";
 import { buildDefaultsFromTenant } from "./snapshot-defaults";
 import { deleteSnapshot } from "./actions";
@@ -109,9 +110,19 @@ export default async function PropertyPnLPage({
 
   const propertyForCalc: PropertyForPnL = property;
   const loansForCalc: LoanForPnL[] = (loans ?? []) as LoanForPnL[];
-  const settingsForCalc: SettingsForPnL = settings ?? {
+  const baseSettings: SettingsForPnL = settings ?? {
     tax_rate: 0.35,
     default_depreciation_rate: 0.02,
+  };
+  // Objektspezifischer Steuersatz = Mischsatz aus den Eigentümer-Anteilen
+  // (Migration 0027). Ohne eigene Sätze identisch zu settings.tax_rate.
+  const taxRateInfo = await loadPropertyTaxRateInfo(
+    id,
+    num(baseSettings.tax_rate)
+  );
+  const settingsForCalc: SettingsForPnL = {
+    ...baseSettings,
+    tax_rate: taxRateInfo.rate,
   };
 
   // Sum of remaining loans today (€) — for LTV.
@@ -326,6 +337,8 @@ export default async function PropertyPnLPage({
                   marketValueDate,
                 }}
                 rateLockUntil={earliestRateLock}
+                taxRate={taxRateInfo.rate}
+                taxRateFromOwners={taxRateInfo.fromOwners}
                 deleteSlot={
                   editable ? (
                     <form action={deleteSnapshot.bind(null, row.id, id)}>

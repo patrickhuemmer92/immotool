@@ -6,6 +6,7 @@ import { getActiveWorkspace, isOwner } from "@/lib/workspace";
 import { formatPropertyAddress, propertyHeadline } from "@/lib/properties";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, monthlyAnnuity } from "@/lib/calculations/loan";
+import { blendedTaxRate } from "@/lib/calculations/owner-tax";
 import { dateDe, eur as fmtEur } from "@/lib/format";
 import {
   computeSnapshotResult,
@@ -47,7 +48,7 @@ export default async function PropertyFactsheetPage({
     supabase.from("properties").select("*").eq("id", id).maybeSingle(),
     supabase
       .from("property_owners")
-      .select("ownership_share, owner:owners!inner(id, name)")
+      .select("ownership_share, owner:owners!inner(id, name, tax_rate)")
       .eq("property_id", id),
     supabase
       .from("loans")
@@ -124,7 +125,7 @@ export default async function PropertyFactsheetPage({
   const ownerEntries =
     (owners as unknown as {
       ownership_share: string | number;
-      owner: { id: string; name: string };
+      owner: { id: string; name: string; tax_rate: string | number | null };
     }[]) ?? [];
 
   const loanRefs =
@@ -160,9 +161,21 @@ export default async function PropertyFactsheetPage({
 
   const latestSnapshot = (snapshots ?? [])[0];
   const latestValuation = (valuations ?? [])[0];
-  const settingsForCalc = settings ?? {
+  const baseSettings = settings ?? {
     tax_rate: 0.35,
     default_depreciation_rate: 0.02,
+  };
+  // Steuersatz aus den Anteilen der Eigentümer mischen (Migration 0027) —
+  // Eigentümer ohne eigenen Satz fallen auf settings.tax_rate zurück.
+  const settingsForCalc = {
+    ...baseSettings,
+    tax_rate: blendedTaxRate(
+      ownerEntries.map((o) => ({
+        ownership_share: o.ownership_share,
+        tax_rate: o.owner?.tax_rate ?? null,
+      })),
+      Number(baseSettings.tax_rate)
+    ),
   };
 
   const snapshotResult = latestSnapshot

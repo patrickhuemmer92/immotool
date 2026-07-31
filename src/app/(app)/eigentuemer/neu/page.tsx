@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { redirect } from "next/navigation";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
+import { loadWorkspaceTaxRate } from "@/lib/owners";
+import { pct } from "@/lib/format";
 import { OwnerForm, EMPTY_OWNER_DEFAULTS } from "../owner-form";
 
 export default async function NewOwnerPage() {
@@ -9,6 +11,8 @@ export default async function NewOwnerPage() {
   const active = await getActiveWorkspace();
   if (!active) return null;
   if (!canEdit(active.role)) redirect("/eigentuemer");
+
+  const workspaceTaxRate = await loadWorkspaceTaxRate(active.id);
 
   return (
     <div>
@@ -23,7 +27,13 @@ export default async function NewOwnerPage() {
       </h1>
 
       <div className="mt-6">
-        <OwnerForm defaults={EMPTY_OWNER_DEFAULTS} readOnly={false} />
+        <OwnerForm
+          defaults={{
+            ...EMPTY_OWNER_DEFAULTS,
+            workspace_tax_rate_label: pct(workspaceTaxRate),
+          }}
+          readOnly={false}
+        />
       </div>
     </div>
   );

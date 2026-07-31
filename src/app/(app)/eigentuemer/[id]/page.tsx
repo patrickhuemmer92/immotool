@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit, isOwner } from "@/lib/workspace";
+import { loadWorkspaceTaxRate } from "@/lib/owners";
+import { decimalToPercentInput, pct } from "@/lib/format";
 import { OwnerForm } from "../owner-form";
 import { deleteOwner } from "../actions";
 import { GroupMembersEditor } from "./group-members-editor";
@@ -20,11 +22,13 @@ export default async function OwnerDetailPage({
   const supabase = await createClient();
   const { data: owner } = await supabase
     .from("owners")
-    .select("id, name, kind, first_name, last_name, notes")
+    .select("id, name, kind, first_name, last_name, notes, tax_rate")
     .eq("id", id)
     .maybeSingle();
 
   if (!owner) notFound();
+
+  const workspaceTaxRate = await loadWorkspaceTaxRate(active.id);
 
   const isGroup = owner.kind === "group";
   const editable = canEdit(active.role);
@@ -92,6 +96,11 @@ export default async function OwnerDetailPage({
             last_name: owner.last_name ?? "",
             name: owner.name,
             notes: owner.notes ?? "",
+            tax_rate:
+              owner.tax_rate == null
+                ? ""
+                : decimalToPercentInput(Number(owner.tax_rate)),
+            workspace_tax_rate_label: pct(workspaceTaxRate),
           }}
           readOnly={!editable}
         />

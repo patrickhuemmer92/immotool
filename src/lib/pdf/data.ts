@@ -12,6 +12,7 @@ import {
   type SnapshotInputRow,
 } from "@/lib/pnl-context";
 import { formatPropertyAddress } from "@/lib/properties";
+import { loadPropertyTaxRate } from "@/lib/owners";
 import { dateDe } from "@/lib/format";
 
 export type PdfImage = {
@@ -178,9 +179,18 @@ export async function fetchPropertyForPdf(
   if (!property) return null;
 
   const today = new Date();
-  const settingsForCalc = settings ?? {
+  const baseSettings = settings ?? {
     tax_rate: 0.35,
     default_depreciation_rate: 0.02,
+  };
+  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0027) —
+  // das Factbook soll dieselben Zahlen zeigen wie die GuV-Seite.
+  const settingsForCalc = {
+    ...baseSettings,
+    tax_rate: await loadPropertyTaxRate(
+      propertyId,
+      Number(baseSettings.tax_rate)
+    ),
   };
 
   const loanRefs = (loans ?? []) as LoanForPnL[];

@@ -164,8 +164,8 @@
   "settings": {
     "title": "Einstellungen",
     "general": "Allgemein",
-    "tax_rate": "Steuersatz (%)",
-    "tax_rate_help": "Pauschal angewendet auf den Steuereffekt in der Cashflow-Berechnung.",
+    "tax_rate": "Standard-Steuersatz (%)",
+    "tax_rate_help": "Fallback für alle Eigentümer ohne eigenen Satz. Der Steuereffekt eines Objekts wird aus den Sätzen seiner Eigentümer anteilsgewichtet gebildet (siehe unten).",
     "default_depreciation_rate": "Standard-Afa-Satz (%)",
     "default_depreciation_help": "Wird für Objekte ohne eigenen Afa-Satz verwendet.",
     "default_locale": "Sprache",
@@ -220,7 +220,13 @@
     "default_management_per_unit": "SEV-Verwaltung Default (€/Monat)",
     "default_management_help": "Standardwert für die Verwaltungskosten je Einheit. Pro Objekt oder Snapshot überschreibbar.",
     "bank_maintenance_per_sqm": "IH-Pauschale Bank-Sicht (€/m²/p.a.)",
-    "bank_maintenance_help": "Konservative Instandhaltungspauschale (typisch 7–12 €/m²) — nur in der Bank-Sicht zusätzlich zur Rücklage."
+    "bank_maintenance_help": "Konservative Instandhaltungspauschale (typisch 7–12 €/m²) — nur in der Bank-Sicht zusätzlich zur Rücklage.",
+    "owner_tax_section": "Steuersätze je Eigentümer",
+    "owner_tax_help": "Nicht jeder Miteigentümer wird gemeinsam veranlagt — Personen haben einen eigenen Grenzsteuersatz, eine Gruppe steht für ein gemeinsam veranlagtes Steuersubjekt (Splitting). Leeres Feld = Standard-Steuersatz von oben ({rate}). Der Steuereffekt eines Objekts wird anteilsgewichtet aus den Sätzen seiner Eigentümer berechnet.",
+    "owner_tax_kind_person": "Person",
+    "owner_tax_kind_group": "Gruppe (Zusammenveranlagung)",
+    "owner_tax_properties": "{count, plural, =0 {keine Objekte} one {1 Objekt} other {# Objekte}}",
+    "owner_tax_empty": "Noch keine Eigentümer angelegt — leg zuerst unter „Eigentümer\" welche an."
   },
   "owners": {
     "title": "Eigentümer",
@@ -243,7 +249,10 @@
     "no_more_persons": "Alle vorhandenen Personen sind bereits Mitglied. Lege erst weitere Personen an.",
     "add_member": "Person hinzufügen",
     "add_member_action": "+ Hinzufügen",
-    "select_person": "Person wählen…"
+    "select_person": "Person wählen…",
+    "tax_rate": "Steuersatz (%)",
+    "tax_rate_help_person": "Persönlicher Grenzsteuersatz dieser Person. Leer lassen = Standard-Steuersatz des Workspace ({rate}).",
+    "tax_rate_help_group": "Steuersatz des gemeinsam veranlagten Steuersubjekts (Splitting). Leer lassen = Standard-Steuersatz des Workspace ({rate})."
   },
   "portfolios": {
     "title": "Portfolios",
@@ -683,7 +692,10 @@
     "no_snapshots": "Noch keine Einträge.",
     "portfolio_table": "Cashflow pro Objekt",
     "duplicate_period": "Für diesen Zeitraum existiert bereits ein Eintrag. Bitte vorhandenen Eintrag bearbeiten oder Zeitraum anpassen.",
-    "hausgeld_sum_invalid": "Hausgeld umlagefähig + nicht umlagefähig muss der Gesamtsumme entsprechen."
+    "hausgeld_sum_invalid": "Hausgeld umlagefähig + nicht umlagefähig muss der Gesamtsumme entsprechen.",
+    "tax_rate_applied": "Angewendeter Steuersatz",
+    "tax_rate_from_owners": "anteilsgewichtet aus den Eigentümer-Sätzen",
+    "tax_rate_workspace_default": "Workspace-Standard"
   },
   "afa": {
     "title": "Afa",

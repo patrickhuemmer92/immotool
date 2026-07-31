@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { computeValuation } from "@/lib/calculations/valuation";
 import { loanBalance, generateSchedule } from "@/lib/calculations/loan";
 import { buildingAfaBasis } from "@/lib/calculations/pnl";
+import { blendedTaxRate } from "@/lib/calculations/owner-tax";
 import {
   buildDepreciationParams,
   computeSnapshotResult,
@@ -164,7 +165,7 @@ export async function aggregateDashboard(
       .eq("workspace_id", workspaceId),
     supabase
       .from("owners")
-      .select("id, name")
+      .select("id, name, tax_rate")
       .eq("workspace_id", workspaceId)
       .order("name"),
     supabase
@@ -181,7 +182,16 @@ export async function aggregateDashboard(
   ]);
 
   const allProperties = (propsRes.data ?? []) as PropertyRow[];
-  const ownersAll = (ownersRes.data ?? []) as Array<{ id: string; name: string }>;
+  const ownerRows = (ownersRes.data ?? []) as Array<{
+    id: string;
+    name: string;
+    tax_rate: number | string | null;
+  }>;
+  const ownersAll = ownerRows.map(({ id, name }) => ({ id, name }));
+  // Persönliche Steuersätze (Migration 0027) — null = Workspace-Default.
+  const taxRateByOwner = new Map<string, number | string | null>(
+    ownerRows.map((o) => [o.id, o.tax_rate])
+  );
   const tenantsAll = (tenantsRes.data ?? []) as Array<{
     property_id: string;
     cold_rent_per_month: string | number | null;
@@ -193,6 +203,22 @@ export async function aggregateDashboard(
     tax_rate: num(settings?.tax_rate ?? 0.35),
     default_depreciation_rate: num(settings?.default_depreciation_rate ?? 0.02),
   };
+
+  /**
+   * Settings mit objektspezifischem Mischsteuersatz aus den Eigentümer-
+   * Anteilen (Migration 0027). Nur für Steuer-Rechnungen relevant — die
+   * AfA-Parameter nutzen weiterhin `settingsForCalc`.
+   */
+  const taxSettingsFor = (p: PropertyRow) => ({
+    ...settingsForCalc,
+    tax_rate: blendedTaxRate(
+      (p.property_owners ?? []).map((po) => ({
+        ownership_share: po.ownership_share,
+        tax_rate: taxRateByOwner.get(po.owner_id) ?? null,
+      })),
+      settingsForCalc.tax_rate
+    ),
+  });
 
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
@@ -350,11 +376,12 @@ export async function aggregateDashboard(
     const latestSnap = snaps[0];
     if (!latestSnap) continue;
     const loansForPnL = (e.raw.loans ?? []) as LoanForPnL[];
+    const taxSettings = taxSettingsFor(e.raw);
     const r = computeSnapshotResult(
       latestSnap,
       e.raw,
       loansForPnL,
-      settingsForCalc
+      taxSettings
     );
     afterTaxCashflowCurrent += r.afterTaxCashflow;
 
@@ -364,7 +391,7 @@ export async function aggregateDashboard(
       snapshot: latestSnap,
       property: e.raw,
       loans: loansForPnL,
-      settings: settingsForCalc,
+      settings: taxSettings,
       years: Array.from({ length: PROJECTION_YEARS }, (_, i) => i + 1),
     });
     if (proj.length > 0) {

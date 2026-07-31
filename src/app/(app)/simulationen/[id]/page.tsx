@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace, canEdit } from "@/lib/workspace";
 import { formatPropertyAddress } from "@/lib/properties";
+import { loadPropertyTaxRate } from "@/lib/owners";
 import {
   computeSimulationProjection,
   type SimulationParams,
@@ -133,13 +134,24 @@ export default async function SimulationDetailPage({
   };
 
   // Compute nur, wenn alle Pflicht-Inputs da sind
+  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0027).
+  const settingsForCalc = settings
+    ? {
+        ...settings,
+        tax_rate: await loadPropertyTaxRate(
+          simulation.property_id,
+          Number(settings.tax_rate ?? 0)
+        ),
+      }
+    : null;
+
   const rows =
-    snapshot && settings
+    snapshot && settingsForCalc
       ? computeSimulationProjection({
           snapshot,
           property,
           loans,
-          settings,
+          settings: settingsForCalc,
           investments: realInvestments,
           simulation: simParams,
         })

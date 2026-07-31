@@ -5,14 +5,38 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
+import { parseDecimal } from "@/lib/format";
 
 export type OwnerFormState = { error?: string } | undefined;
+
+/**
+ * Persönlicher Steuersatz (Migration 0027). Eingabe in Prozent, leer =
+ * kein eigener Satz → NULL → Fallback auf settings.tax_rate.
+ */
+const optionalPercent = z
+  .string()
+  .optional()
+  .superRefine((v, ctx) => {
+    if (!v || v.trim().length === 0) return;
+    const n = parseDecimal(v);
+    if (n === null || n < 0 || n > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `invalid_percent:${v}`,
+      });
+    }
+  })
+  .transform((v) => {
+    if (!v || v.trim().length === 0) return null;
+    return (parseDecimal(v) as number) / 100;
+  });
 
 const baseFields = {
   notes: z
     .string()
     .optional()
     .transform((v) => (v && v.length ? v : null)),
+  tax_rate: optionalPercent,
 };
 
 const personSchema = z.object({
@@ -38,6 +62,7 @@ function readForm(formData: FormData) {
     last_name: formData.get("last_name") ?? undefined,
     name: formData.get("name") ?? undefined,
     notes: formData.get("notes") ?? undefined,
+    tax_rate: formData.get("tax_rate") ?? undefined,
   };
 }
 
@@ -63,12 +88,14 @@ export async function createOwner(
           // before commit.
           name: `${parsed.data.first_name} ${parsed.data.last_name}`,
           notes: parsed.data.notes,
+          tax_rate: parsed.data.tax_rate,
         }
       : {
           workspace_id: active.id,
           kind: "group" as const,
           name: parsed.data.name,
           notes: parsed.data.notes,
+          tax_rate: parsed.data.tax_rate,
         };
 
   const { data, error } = await supabase
@@ -99,11 +126,13 @@ export async function updateOwner(
           first_name: parsed.data.first_name,
           last_name: parsed.data.last_name,
           notes: parsed.data.notes,
+          tax_rate: parsed.data.tax_rate,
         }
       : {
           kind: "group" as const,
           name: parsed.data.name,
           notes: parsed.data.notes,
+          tax_rate: parsed.data.tax_rate,
         };
 
   const { error } = await supabase
@@ -115,6 +144,9 @@ export async function updateOwner(
 
   revalidatePath("/eigentuemer");
   revalidatePath(`/eigentuemer/${id}`);
+  // Der Steuersatz wirkt in GuV, Cashflow, Dashboard, Factbook und
+  // Simulationen — deshalb das ganze Layout invalidieren.
+  revalidatePath("/", "layout");
   return undefined;
 }
 

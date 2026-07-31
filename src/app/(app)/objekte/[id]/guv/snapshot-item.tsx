@@ -32,6 +32,8 @@ export function SnapshotItem({
   kpis,
   ltvContext,
   rateLockUntil,
+  taxRate,
+  taxRateFromOwners,
   deleteSlot,
 }: {
   propertyId: string;
@@ -47,6 +49,9 @@ export function SnapshotItem({
   kpis: SnapshotKPIs;
   ltvContext?: LtvContext;
   rateLockUntil: string | null;
+  /** Angewendeter Steuersatz (0..1) inkl. Herkunft — s. Migration 0027. */
+  taxRate: number;
+  taxRateFromOwners: boolean;
   /** Pre-rendered delete form / button (already a Server-Action JSX node). */
   deleteSlot?: React.ReactNode;
 }) {
@@ -78,6 +83,8 @@ export function SnapshotItem({
       kpis={kpis}
       ltvContext={ltvContext}
       rateLockUntil={rateLockUntil}
+      taxRate={taxRate}
+      taxRateFromOwners={taxRateFromOwners}
       onEdit={
         canEdit ? (
           <button

@@ -15,14 +15,22 @@ export type OwnerDefaults = {
   last_name: string;
   name: string;
   notes: string;
+  /** Eigener Steuersatz als Prozent-Eingabe ("42,0"); leer = Default. */
+  tax_rate: string;
+  /** Workspace-Standardsatz als Label — Placeholder + Hilfetext. */
+  workspace_tax_rate_label: string;
 };
 
-export const EMPTY_OWNER_DEFAULTS: OwnerDefaults = {
+export const EMPTY_OWNER_DEFAULTS: Omit<
+  OwnerDefaults,
+  "workspace_tax_rate_label"
+> = {
   kind: "person",
   first_name: "",
   last_name: "",
   name: "",
   notes: "",
+  tax_rate: "",
 };
 
 export function OwnerForm({
@@ -107,6 +115,27 @@ export function OwnerForm({
             />
           </Field>
         )}
+
+        <Field id="tax_rate" label={t("owners.tax_rate")}>
+          <input
+            id="tax_rate"
+            name="tax_rate"
+            type="text"
+            inputMode="decimal"
+            placeholder={defaults.workspace_tax_rate_label}
+            defaultValue={defaults.tax_rate}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            {kind === "group"
+              ? t("owners.tax_rate_help_group", {
+                  rate: defaults.workspace_tax_rate_label,
+                })
+              : t("owners.tax_rate_help_person", {
+                  rate: defaults.workspace_tax_rate_label,
+                })}
+          </p>
+        </Field>
 
         <Field id="notes" label={t("owners.notes")}>
           <textarea

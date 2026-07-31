@@ -30,6 +30,8 @@ export function CashflowResultCard({
   kpis,
   ltvContext,
   rateLockUntil,
+  taxRate,
+  taxRateFromOwners,
   onDelete,
   onEdit,
 }: {
@@ -44,6 +46,10 @@ export function CashflowResultCard({
   ltvContext?: LtvContext;
   /** ISO date of the earliest rate lock end. Used for the stress hint. */
   rateLockUntil: string | null;
+  /** Angewendeter Steuersatz (0..1). */
+  taxRate: number;
+  /** True, wenn der Satz aus eigenen Eigentümer-Sätzen gemischt ist. */
+  taxRateFromOwners: boolean;
   onDelete?: React.ReactNode;
   onEdit?: React.ReactNode;
 }) {
@@ -195,6 +201,19 @@ export function CashflowResultCard({
               <span className="tabular-nums">
                 {eurExact(investor.pretaxProfit)}
               </span>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-3 text-neutral-500 dark:text-neutral-400">
+              <span>
+                {t("pnl.tax_rate_applied")}{" "}
+                <span className="text-[10px]">
+                  (
+                  {taxRateFromOwners
+                    ? t("pnl.tax_rate_from_owners")
+                    : t("pnl.tax_rate_workspace_default")}
+                  )
+                </span>
+              </span>
+              <span className="tabular-nums">{pct(taxRate)}</span>
             </div>
             <div className="mt-1 flex items-baseline justify-between gap-3">
               <span>{t("pnl.tax_effect")}</span>
