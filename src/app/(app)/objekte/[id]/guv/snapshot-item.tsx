@@ -49,7 +49,7 @@ export function SnapshotItem({
   kpis: SnapshotKPIs;
   ltvContext?: LtvContext;
   rateLockUntil: string | null;
-  /** Angewendeter Steuersatz (0..1) inkl. Herkunft — s. Migration 0027. */
+  /** Angewendeter Steuersatz (0..1) inkl. Herkunft — s. Migration 0031. */
   taxRate: number;
   taxRateFromOwners: boolean;
   /** Pre-rendered delete form / button (already a Server-Action JSX node). */

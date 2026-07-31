@@ -10,7 +10,7 @@ import { parseDecimal } from "@/lib/format";
 export type OwnerFormState = { error?: string } | undefined;
 
 /**
- * Persönlicher Steuersatz (Migration 0027). Eingabe in Prozent, leer =
+ * Persönlicher Steuersatz (Migration 0031). Eingabe in Prozent, leer =
  * kein eigener Satz → NULL → Fallback auf settings.tax_rate.
  */
 const optionalPercent = z

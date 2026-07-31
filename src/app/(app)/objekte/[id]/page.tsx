@@ -165,7 +165,7 @@ export default async function PropertyFactsheetPage({
     tax_rate: 0.35,
     default_depreciation_rate: 0.02,
   };
-  // Steuersatz aus den Anteilen der Eigentümer mischen (Migration 0027) —
+  // Steuersatz aus den Anteilen der Eigentümer mischen (Migration 0031) —
   // Eigentümer ohne eigenen Satz fallen auf settings.tax_rate zurück.
   const settingsForCalc = {
     ...baseSettings,

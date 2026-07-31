@@ -116,7 +116,7 @@ export default async function PortfolioPnLPage() {
       latest,
       p as unknown as PropertyForPnL,
       ((p.loans as unknown) as LoanForPnL[]) ?? [],
-      // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0027).
+      // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0031).
       {
         ...settingsForCalc,
         tax_rate: blendedTaxRate(

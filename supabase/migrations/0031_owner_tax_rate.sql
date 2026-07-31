@@ -1,5 +1,5 @@
 -- =====================================================================
--- 0027_owner_tax_rate
+-- 0031_owner_tax_rate
 -- Persönlicher Steuersatz je Eigentümer-Entität.
 --
 -- Bisher gab es genau einen Satz pro Workspace (settings.tax_rate). Das

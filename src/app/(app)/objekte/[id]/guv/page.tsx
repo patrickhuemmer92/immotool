@@ -115,7 +115,7 @@ export default async function PropertyPnLPage({
     default_depreciation_rate: 0.02,
   };
   // Objektspezifischer Steuersatz = Mischsatz aus den Eigentümer-Anteilen
-  // (Migration 0027). Ohne eigene Sätze identisch zu settings.tax_rate.
+  // (Migration 0031). Ohne eigene Sätze identisch zu settings.tax_rate.
   const taxRateInfo = await loadPropertyTaxRateInfo(
     id,
     num(baseSettings.tax_rate)

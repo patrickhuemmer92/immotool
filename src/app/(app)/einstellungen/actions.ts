@@ -105,7 +105,7 @@ const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Persönliche Steuersätze der Eigentümer (Migration 0027).
+ * Persönliche Steuersätze der Eigentümer (Migration 0031).
  *
  * Felder heißen `owner_tax_rate:<owner-id>`; ein leeres Feld bedeutet
  * „kein eigener Satz" → NULL → Fallback auf settings.tax_rate. Der Wert

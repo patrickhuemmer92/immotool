@@ -188,7 +188,7 @@ export async function aggregateDashboard(
     tax_rate: number | string | null;
   }>;
   const ownersAll = ownerRows.map(({ id, name }) => ({ id, name }));
-  // Persönliche Steuersätze (Migration 0027) — null = Workspace-Default.
+  // Persönliche Steuersätze (Migration 0031) — null = Workspace-Default.
   const taxRateByOwner = new Map<string, number | string | null>(
     ownerRows.map((o) => [o.id, o.tax_rate])
   );
@@ -206,7 +206,7 @@ export async function aggregateDashboard(
 
   /**
    * Settings mit objektspezifischem Mischsteuersatz aus den Eigentümer-
-   * Anteilen (Migration 0027). Nur für Steuer-Rechnungen relevant — die
+   * Anteilen (Migration 0031). Nur für Steuer-Rechnungen relevant — die
    * AfA-Parameter nutzen weiterhin `settingsForCalc`.
    */
   const taxSettingsFor = (p: PropertyRow) => ({

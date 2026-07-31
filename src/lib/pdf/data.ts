@@ -183,7 +183,7 @@ export async function fetchPropertyForPdf(
     tax_rate: 0.35,
     default_depreciation_rate: 0.02,
   };
-  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0027) —
+  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0031) —
   // das Factbook soll dieselben Zahlen zeigen wie die GuV-Seite.
   const settingsForCalc = {
     ...baseSettings,

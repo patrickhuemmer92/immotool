@@ -4,7 +4,7 @@
  * Hintergrund: `settings.tax_rate` ist ein einziger Satz pro Workspace.
  * Das trifft nur zu, wenn alle Objekte demselben Steuersubjekt gehören.
  * Sobald ein Objekt mehreren, nicht zusammen veranlagten Eigentümern
- * gehört, hat jeder seinen eigenen Grenzsteuersatz (Migration 0027:
+ * gehört, hat jeder seinen eigenen Grenzsteuersatz (Migration 0031:
  * `owners.tax_rate`, NULL = Workspace-Default).
  *
  * Modell: Der Steuereffekt eines Objekts wird mit einem anteilsgewichteten
@@ -37,7 +37,7 @@ const num = (v: number | string | null | undefined): number | null => {
  *
  * - Eigentümer ohne eigenen Satz gehen mit `fallbackRate` ein.
  * - Ohne zugeordnete Eigentümer (oder bei Anteilssumme 0) gilt
- *   `fallbackRate` — das Objekt rechnet dann wie vor Migration 0027.
+ *   `fallbackRate` — das Objekt rechnet dann wie vor Migration 0031.
  * - Die Gewichte werden auf ihre Summe normiert. Der DB-Trigger
  *   `check_property_owners_sum` erzwingt Summe = 1.0; die Normierung ist
  *   nur eine Absicherung gegen Altdaten/Rundungsdrift, damit kein

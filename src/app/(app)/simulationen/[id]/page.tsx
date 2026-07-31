@@ -134,7 +134,7 @@ export default async function SimulationDetailPage({
   };
 
   // Compute nur, wenn alle Pflicht-Inputs da sind
-  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0027).
+  // Steuersatz je Objekt aus den Eigentümer-Anteilen (Migration 0031).
   const settingsForCalc = settings
     ? {
         ...settings,
