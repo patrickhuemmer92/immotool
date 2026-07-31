@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looseStringArray } from "./primitives";
 
 // ------------------------------------------------------------------
 // Teilungserklärung / Gemeinschaftsordnung
@@ -8,7 +9,7 @@ export const teilungExtractionSchema = z.object({
   datum_urkunde: z.string().nullable(),
 
   // Sondereigentum + Sondernutzungsrechte
-  sondereigentum_einheit: z.array(z.string()),          // z.B. ["Wohnung Nr. 7", "Keller Nr. 7"]
+  sondereigentum_einheit: looseStringArray(),           // z.B. ["Wohnung Nr. 7", "Keller Nr. 7"]
   sondernutzungsrechte: z.array(
     z.object({
       thema: z.string(),                                 // "PKW-Stellplatz", "Gartenanteil"
@@ -32,7 +33,7 @@ export const teilungExtractionSchema = z.object({
   stimmrecht_mode: z.enum(["kopf", "objekt", "anteil", "unklar"]),
 
   // Bauliche Besonderheiten
-  bauliche_besonderheiten: z.array(z.string()),
+  bauliche_besonderheiten: looseStringArray(),
 
   summary: z.string(),
 });
@@ -57,7 +58,7 @@ export const energieExtractionSchema = z.object({
   heizung_baujahr: z.number().nullable(),
 
   // GEG-relevante Warnungen
-  geg_hinweise: z.array(z.string()),
+  geg_hinweise: looseStringArray(),
 
   summary: z.string(),
 });

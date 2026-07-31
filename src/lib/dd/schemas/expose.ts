@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looseStringArray } from "./primitives";
 
 /**
  * Zod-Schema für das strukturierte Extraktions-Ergebnis eines Exposés.
@@ -82,7 +83,7 @@ export const exposeExtractionSchema = z.object({
   reserve_share_per_month_eur: z.number().nullable(),    // enthaltener Instandhaltungsanteil
 
   // Ausstattung / Modernisierung
-  features: z.array(z.string()),                          // ["Balkon", "Aufzug", ...]
+  features: looseStringArray(),                           // ["Balkon", "Aufzug", ...]
   modernizations: z.array(
     z.object({
       what: z.string(),
@@ -92,7 +93,7 @@ export const exposeExtractionSchema = z.object({
   is_heritage_protected: z.boolean().nullable(),          // Denkmalschutz
 
   // Fehlende Pflichtangaben (KI-Selbst-Check)
-  missing_mandatory: z.array(z.string()),                 // z.B. ["energy_class", "build_year"]
+  missing_mandatory: looseStringArray(),                  // z.B. ["energy_class", "build_year"]
 
   // Makler-Sprech mit Übersetzung
   agent_speak_flags: z.array(agentSpeakFlagSchema),

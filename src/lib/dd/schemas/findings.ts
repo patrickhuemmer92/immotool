@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looseStringArray } from "./primitives";
 
 /**
  * Konsolidierte Findings + Score-Modell.
@@ -49,7 +50,7 @@ export const consolidationResultSchema = z.object({
       question: z.string(),
       addressed_to: z.enum(["makler", "verwalter", "verkaeufer", "bank", "andere"]),
       priority: z.enum(["high", "medium", "low"]),
-      related_finding_titles: z.array(z.string()),
+      related_finding_titles: looseStringArray(),
     })
   ),
   negotiation_arguments: z.array(
@@ -57,7 +58,7 @@ export const consolidationResultSchema = z.object({
       argument: z.string(),
       preisabschlag_eur_min: z.number().nullable(),
       preisabschlag_eur_max: z.number().nullable(),
-      related_finding_titles: z.array(z.string()),
+      related_finding_titles: looseStringArray(),
     })
   ),
 });

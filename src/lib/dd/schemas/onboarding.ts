@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { looseStringArray } from "./primitives";
 
 // =====================================================================
 // Kaufvertrag → properties-Basis
@@ -49,7 +50,7 @@ export type KaufvertragExtraction = z.infer<typeof kaufvertragSchema>;
 export const mietvertragSchema = z.object({
   // Mieter (kann mehrere Personen sein — wir speichern den Anzeigename)
   tenant_name: z.string().nullable(),
-  additional_tenants: z.array(z.string()),
+  additional_tenants: looseStringArray(),
 
   // Vertrag
   contract_start: z.string().nullable(),          // ISO
