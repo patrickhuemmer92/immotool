@@ -154,7 +154,10 @@ export async function callLlmJson<T>(
   // Ein Zod-Schema wird via zod-to-json-schema in JSON-Schema
   // konvertiert. `$refStrategy: "none"` inlined alle Definitionen —
   // Anthropic mag keine $refs im input_schema.
-  const rawJsonSchema = zodToJsonSchema(opts.schema, {
+  // Cast auf `any`, weil zod-to-json-schema (mit peer-Zod v3) und das
+  // im Projekt aktive Zod-Package leicht divergente ZodType-Signaturen
+  // haben. Runtime-Verhalten identisch — es geht nur um TS-Struktur.
+  const rawJsonSchema = zodToJsonSchema(opts.schema as never, {
     $refStrategy: "none",
     target: "openApi3",
   }) as Record<string, unknown>;
