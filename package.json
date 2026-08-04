@@ -27,7 +27,8 @@
     "recharts": "^3.8.1",
     "stripe": "^22.2.0",
     "unpdf": "^1.6.2",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
