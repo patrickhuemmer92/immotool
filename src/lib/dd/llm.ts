@@ -13,10 +13,9 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { jsonrepair } from "jsonrepair";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 // --------------------------------------------------------------------------
 // Modell-Registry
@@ -151,23 +150,7 @@ export async function callLlmJson<T>(
   // Response valide-JSON gemäß Schema ist. Kein Text-Parsing, keine
   // Markdown-Fences möglich, keine unescape Quotes.
   //
-  // Ein Zod-Schema wird via zod-to-json-schema in JSON-Schema
-  // konvertiert. `$refStrategy: "none"` inlined alle Definitionen —
-  // Anthropic mag keine $refs im input_schema.
-  // Cast auf `any`, weil zod-to-json-schema (mit peer-Zod v3) und das
-  // im Projekt aktive Zod-Package leicht divergente ZodType-Signaturen
-  // haben. Runtime-Verhalten identisch — es geht nur um TS-Struktur.
-  const rawJsonSchema = zodToJsonSchema(opts.schema as never, {
-    $refStrategy: "none",
-    target: "openApi3",
-  }) as Record<string, unknown>;
-  // Anthropic erwartet top-level object mit type + properties.
-  const inputSchema =
-    typeof rawJsonSchema === "object" &&
-    rawJsonSchema !== null &&
-    "type" in rawJsonSchema
-      ? (rawJsonSchema as Anthropic.Tool.InputSchema)
-      : ({ type: "object" as const } as Anthropic.Tool.InputSchema);
+  const inputSchema = buildToolInputSchema(opts.schema);
 
   const extractTool: Anthropic.Tool = {
     name: "record_extraction",
@@ -254,6 +237,51 @@ export async function callLlmJson<T>(
 // --------------------------------------------------------------------------
 // Interne Helpers
 // --------------------------------------------------------------------------
+
+/**
+ * Zod-Schema → JSON-Schema für das `input_schema` des Extraktions-Tools.
+ *
+ * Konvertiert wird mit Zods EIGENEM Konverter (`z.toJSONSchema`, seit
+ * Zod 4). Die externe Bibliothek `zod-to-json-schema` liest die internen
+ * `_def`-Strukturen von Zod 3 — unter dem hier installierten Zod 4 fand
+ * sie darin nichts und gab für JEDES Schema stumm `{}` zurück. Das Tool
+ * ging dann mit einem leeren `{ type: "object" }` raus: das Modell bekam
+ * keinerlei Feldvorgaben, hat die Struktur frei geraten, und die
+ * anschließende Zod-Validierung ist daran zerbrochen.
+ *
+ * `io: "input"` ist bewusst gewählt: das Tool-Schema beschreibt, was wir
+ * ENTGEGENNEHMEN. Bei toleranten Feldern (siehe looseStringArray) sieht
+ * das Modell dadurch dieselbe Toleranz, die die Validierung nachher
+ * anwendet — mit "output" würden solche Felder als `{}` (beliebig)
+ * beschrieben, was weniger Führung gibt statt mehr.
+ *
+ * `unrepresentable: "any"` verhindert einen Throw bei Konstrukten, die
+ * sich nicht in JSON-Schema abbilden lassen.
+ */
+export function buildToolInputSchema(
+  schema: ZodType<unknown>
+): Anthropic.Tool.InputSchema {
+  const json = z.toJSONSchema(schema, {
+    io: "input",
+    unrepresentable: "any",
+  }) as Record<string, unknown>;
+
+  // `$schema` ist Metadaten für Validatoren, nicht für das Modell.
+  delete json.$schema;
+
+  const properties = json.properties as Record<string, unknown> | undefined;
+  if (!properties || Object.keys(properties).length === 0) {
+    // Lieber hier hart abbrechen als ein leeres Tool rauszuschicken.
+    // Genau dieses stille Zurückfallen auf `{ type: "object" }` hat den
+    // Konverter-Bug oben monatelang unsichtbar gemacht.
+    throw new Error(
+      "Tool-Input-Schema ist leer — die Zod→JSON-Schema-Konvertierung hat " +
+        "nichts geliefert. Ohne Feldvorgaben rät das Modell die Struktur."
+    );
+  }
+
+  return json as Anthropic.Tool.InputSchema;
+}
 
 /**
  * Validiert bereits geparste JSON-Daten aus der Tool-Use-Response
