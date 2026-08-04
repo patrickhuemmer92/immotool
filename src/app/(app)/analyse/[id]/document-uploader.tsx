@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { registerDdDocument } from "../document-actions";
+import { UploadDropzone } from "@/components/upload-dropzone";
 
 const ALL_KINDS = [
   "expose",
@@ -197,21 +198,13 @@ export function DocumentUploader({
         </select>
       </div>
 
-      <label
-        htmlFor="dd-doc-file"
-        className={`block cursor-pointer rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
-          uploading
-            ? "border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900"
-            : "border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800"
-        }`}
-      >
-        <p className="text-sm text-neutral-700 dark:text-neutral-300">
-          {progressMsg ?? t("dd.upload_hint")}
-        </p>
-        <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-          {t("dd.upload_size_hint")}
-        </p>
-      </label>
+      <UploadDropzone
+        inputId="dd-doc-file"
+        uploading={uploading}
+        progressText={progressMsg ?? t("dd.uploading")}
+        hint={t("dd.upload_hint")}
+        sizeHint={t("dd.upload_size_hint")}
+      />
       <input
         ref={fileRef}
         id="dd-doc-file"
