@@ -49,15 +49,21 @@ export function buildConsolidationUserMessage(input: {
   extractedEnergie: unknown | null;
   marketSnapshot?: unknown | null;
   propertyTypeGuidance?: string | null;
-  extraUserContext?: string | null;
+  /** Vorformatierte Notizliste (s. lib/dd/notes.ts) oder null. */
+  notesBlock?: string | null;
 }): string {
   return `${
     input.propertyTypeGuidance
       ? `${input.propertyTypeGuidance}\n\n`
       : ""
   }${
-    input.extraUserContext
-      ? `ZUSÄTZLICHER KONTEXT VOM KÄUFER (nutzen wenn relevant):\n${input.extraUserContext}\n\n`
+    input.notesBlock
+      ? `GESPRÄCHSNOTIZEN DES KÄUFERS (chronologisch, älteste zuerst). ` +
+        `Diese Angaben stammen NICHT aus den Dokumenten — behandle sie als ` +
+        `Aussagen der jeweiligen Quelle, nicht als belegte Fakten. Wenn eine ` +
+        `spätere Notiz einer früheren oder einem Dokument widerspricht, ` +
+        `gilt die spätere Aussage als aktueller Stand und der Widerspruch ` +
+        `gehört als Finding benannt:\n${input.notesBlock}\n\n`
       : ""
   }EXTRAHIERTE DATEN:
 

@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
+import { formatNotesForPrompt, type DdProjectNote } from "@/lib/dd/notes";
 import { consolidationResultSchema } from "@/lib/dd/schemas/findings";
 import {
   CONSOLIDATION_SYSTEM_PROMPT,
@@ -80,6 +81,13 @@ export async function POST(req: Request) {
   const pType = isPropertyType(project.property_type)
     ? project.property_type
     : "etw_weg";
+  // Gespraechsnotizen (Migration 0032) — chronologisch fuer den Prompt.
+  const { data: noteRows } = await supabase
+    .from("dd_project_notes")
+    .select("id, occurred_on, source, note, created_at")
+    .eq("dd_project_id", body.dd_project_id);
+  const notesBlock = formatNotesForPrompt((noteRows ?? []) as DdProjectNote[]);
+
   const userMessage = buildConsolidationUserMessage({
     extractedExpose: project.extracted_expose,
     extractedWeg: wegExtractions,
@@ -88,11 +96,7 @@ export async function POST(req: Request) {
     extractedEnergie: energieDoc?.extraction ?? null,
     marketSnapshot: project.market_snapshot,
     propertyTypeGuidance: propertyTypeGuidance(pType),
-    extraUserContext:
-      typeof project.extra_user_context === "string" &&
-      project.extra_user_context.trim().length > 0
-        ? project.extra_user_context.trim()
-        : null,
+    notesBlock,
   });
 
   let result;

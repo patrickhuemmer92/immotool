@@ -13,7 +13,8 @@ import { ExposeEditor } from "./expose-editor";
 import { DdDocumentList } from "./document-list";
 import { MarketView } from "./market-view";
 import { JobStatusWidget } from "./job-status";
-import { ExtraContextCard } from "./extra-context-card";
+import { NotesLog } from "./notes-log";
+import type { DdProjectNote } from "@/lib/dd/notes";
 import {
   DOC_RELEVANCE,
   isPropertyType,
@@ -84,6 +85,14 @@ export default async function DdProjectPage({
     ? project.property_type
     : "etw_weg";
 
+  const { data: noteRows } = await supabase
+    .from("dd_project_notes")
+    .select("id, occurred_on, source, note, created_at")
+    .eq("dd_project_id", project.id)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  const notes = (noteRows ?? []) as DdProjectNote[];
+
   return (
     <div>
       <Link
@@ -153,10 +162,7 @@ export default async function DdProjectPage({
 
       {/* Freifeld für zusätzlichen Käufer-Kontext */}
       <div className="mt-6">
-        <ExtraContextCard
-          projectId={project.id}
-          initial={project.extra_user_context ?? ""}
-        />
+        <NotesLog projectId={project.id} notes={notes} />
       </div>
 
       {/* Schritt 1: Exposé */}

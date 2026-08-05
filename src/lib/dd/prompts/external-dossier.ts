@@ -44,15 +44,20 @@ export function buildExternalDossierUserMessage(input: {
   extractedEnergie: unknown | null;
   marketSnapshot?: unknown | null;
   propertyTypeGuidance?: string | null;
-  extraUserContext?: string | null;
+  /** Vorformatierte Notizliste (s. lib/dd/notes.ts) oder null. */
+  notesBlock?: string | null;
 }): string {
   return `${
     input.propertyTypeGuidance
       ? `${input.propertyTypeGuidance}\n\n`
       : ""
   }${
-    input.extraUserContext
-      ? `KONTEXT VOM KÄUFER (nutzen wenn relevant, aber NICHT im Dossier direkt erwähnen — es ist die Sicht des Käufers, das Dossier soll neutral bleiben):\n${input.extraUserContext}\n\n`
+    input.notesBlock
+      ? `GESPRÄCHSNOTIZEN DES KÄUFERS (chronologisch, älteste zuerst). ` +
+        `Nutze sie zur Einordnung, aber erwähne sie NICHT im Dossier — es ` +
+        `ist die Sicht des Käufers, das Dossier bleibt neutral. Was hier ` +
+        `als offener Punkt auftaucht, darf als solcher benannt werden, ` +
+        `ohne die Quelle zu nennen:\n${input.notesBlock}\n\n`
       : ""
   }EXTRAHIERTE DATEN:
 

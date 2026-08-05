@@ -1152,10 +1152,6 @@
     "download_internal_hint": "Internal version with findings, negotiation levers, price-cut arguments.",
     "download_external": "Object dossier (external)",
     "download_external_hint": "Neutral expert-report version for seller/broker — no negotiation language.",
-    "extra_context_add": "Add extra info for the AI",
-    "extra_context_title": "Additional context (optional)",
-    "extra_context_hint": "What should the AI know that's not in the documents? Seller statements, intended use, known issues … Flows into the next analysis.",
-    "extra_context_placeholder": "e.g. „Seller mentioned a water damage in 2024, not documented. We plan to move in — no yield priority.\"",
     "cockpit_confidence": "Confidence",
     "cockpit_confidence_hint": "How well the results are backed. Grows per document.",
     "cockpit_score": "Overall score",
@@ -1231,7 +1227,22 @@
     "acq_yield_gross_on_price": "on purchase price",
     "acq_yield_gross_on_total": "on total acquisition cost",
     "acq_yield_note": "Gross yield = annual cold rent divided by purchase price (resp. total acquisition cost). Net yield after operating costs, maintenance, management and vacancy risk is typically 1-2 percentage points lower.",
-    "preview_sr_note": "Example structure of the analysis. Your real findings, questions and negotiation arguments will appear here after unlocking."
+    "preview_sr_note": "Example structure of the analysis. Your real findings, questions and negotiation arguments will appear here after unlocking.",
+    "notes_title": "Conversation notes",
+    "notes_hint": "Anything from a viewing, call or follow-up that is not in any document. With date and source, so the analysis can tell when a later statement corrects an earlier one.",
+    "notes_add_first": "Add a conversation note",
+    "notes_placeholder": "e.g. “Property manager confirmed by phone: roof renovation approved for 2027, special levy still open.”",
+    "notes_save": "Save note",
+    "notes_source_label": "Source",
+    "notes_date_label": "Date of conversation",
+    "notes_rerun_hint": "Notes feed into the next analysis run — see “Re-run analysis” below.",
+    "note_source_makler": "Estate agent",
+    "note_source_verwalter": "Property manager",
+    "note_source_verkaeufer": "Seller",
+    "note_source_eigene_beobachtung": "Own observation",
+    "note_source_handwerker": "Tradesperson/surveyor",
+    "note_source_bank": "Bank",
+    "note_source_sonstiges": "Other"
   },
   "onb": {
     "title": "AI onboarding",
@@ -1345,6 +1356,10 @@
     "invalid_number": "Invalid number: \"{value}\"",
     "invalid_percent": "Invalid percent value: \"{value}\". Please enter a number (e.g. \"2.5\").",
     "invalid_year": "Invalid year.",
-    "with_detail": "Error: {detail}"
+    "with_detail": "Error: {detail}",
+    "note_required": "Please enter some text.",
+    "date_in_future": "The date cannot be in the future.",
+    "invalid_date": "Invalid date.",
+    "not_found": "Project not found."
   }
 }

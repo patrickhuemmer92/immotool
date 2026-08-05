@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
 import { getPremiumStatus } from "@/lib/billing/premium";
 import { PROPERTY_TYPES } from "@/lib/dd/property-type";
+import { NOTE_SOURCES } from "@/lib/dd/notes";
 
 export type DdProjectState = { error?: string } | undefined;
 
@@ -197,32 +198,104 @@ export async function unlockDdForTest(
  * Freifeld „Zusätzliche Info" — fließt beim nächsten Analyze- und beim
  * externen Dossier-Call ins User-Prompt ein.
  */
-export async function saveExtraUserContext(
+const noteSchema = z.object({
+  note: z.string().trim().min(1, "note_required").max(2000),
+  source: z.enum(NOTE_SOURCES),
+  // Datum des Gespraechs. Leer = heute; Zukunft waere ein Tippfehler.
+  occurred_on: z
+    .string()
+    .optional()
+    .transform((v) => (v && v.trim().length ? v.trim() : null))
+    .refine((v) => v === null || /^\d{4}-\d{2}-\d{2}$/.test(v), "invalid_date")
+    .refine(
+      (v) => v === null || v <= new Date().toISOString().slice(0, 10),
+      "date_in_future"
+    ),
+});
+
+/**
+ * Gespraechsnotiz anlegen (Migration 0032).
+ *
+ * Invalidiert den Dossier-Cache: das externe Dossier liest die Notizen
+ * mit, ein gespeichertes public_dossier_json waere danach veraltet.
+ * Die Analyse selbst wird NICHT automatisch neu gerechnet — das kostet
+ * und soll eine bewusste Entscheidung bleiben.
+ */
+export async function addProjectNote(
   projectId: string,
-  text: string
+  input: { note: string; source: string; occurred_on?: string }
 ): Promise<{ error?: string }> {
   const active = await getActiveWorkspace();
   if (!active) return { error: "no_workspace" };
 
-  const trimmed = (text ?? "").trim();
+  const parsed = noteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "invalid" };
+  }
+
+  const supabase = await createClient();
+  const user = await requireUser();
+
+  // Projektzugehoerigkeit pruefen, bevor wir schreiben — die RLS-Policy
+  // deckt das ab, aber so bekommt der Aufrufer eine klare Meldung.
+  const { data: project } = await supabase
+    .from("dd_projects")
+    .select("id")
+    .eq("id", projectId)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project) return { error: "not_found" };
+
+  const { error } = await supabase.from("dd_project_notes").insert({
+    dd_project_id: projectId,
+    note: parsed.data.note,
+    source: parsed.data.source,
+    ...(parsed.data.occurred_on ? { occurred_on: parsed.data.occurred_on } : {}),
+    created_by: user.id,
+  });
+  if (error) return { error: error.message };
+
+  await invalidateDossierCache(supabase, projectId, active.id);
+  revalidateAnalysePaths(projectId);
+  return {};
+}
+
+export async function deleteProjectNote(
+  projectId: string,
+  noteId: string
+): Promise<{ error?: string }> {
+  const active = await getActiveWorkspace();
+  if (!active) return { error: "no_workspace" };
+
   const supabase = await createClient();
   const { error } = await supabase
-    .from("dd_projects")
-    .update({
-      extra_user_context: trimmed.length > 0 ? trimmed : null,
-      // Externes Dossier neu berechnen lassen — Cache invalidieren.
-      public_dossier_json: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", projectId)
-    .eq("workspace_id", active.id);
-
+    .from("dd_project_notes")
+    .delete()
+    .eq("id", noteId)
+    .eq("dd_project_id", projectId);
   if (error) return { error: error.message };
-  revalidatePath(`/analyse/${projectId}`);
-  // Die Card sitzt auf beiden Seiten — die Ergebnis-Seite ist ein
-  // eigener Pfad und wuerde sonst den alten Text weiterzeigen.
-  revalidatePath(`/analyse/${projectId}/ergebnis`);
+
+  await invalidateDossierCache(supabase, projectId, active.id);
+  revalidateAnalysePaths(projectId);
   return {};
+}
+
+/** Beide Seiten zeigen die Notizen — beide Pfade muessen frisch werden. */
+function revalidateAnalysePaths(projectId: string) {
+  revalidatePath(`/analyse/${projectId}`);
+  revalidatePath(`/analyse/${projectId}/ergebnis`);
+}
+
+async function invalidateDossierCache(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string,
+  workspaceId: string
+) {
+  await supabase
+    .from("dd_projects")
+    .update({ public_dossier_json: null, updated_at: new Date().toISOString() })
+    .eq("id", projectId)
+    .eq("workspace_id", workspaceId);
 }
 
 export async function deleteDdProject(projectId: string) {

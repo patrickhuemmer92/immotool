@@ -30,6 +30,7 @@ import {
   buildExternalDossierUserMessage,
 } from "@/lib/dd/prompts/external-dossier";
 import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
+import { formatNotesForPrompt, type DdProjectNote } from "@/lib/dd/notes";
 import {
   isPropertyType,
   propertyTypeGuidance,
@@ -83,6 +84,13 @@ export async function GET(
     const pType = isPropertyType(project.property_type)
       ? project.property_type
       : "etw_weg";
+    // Gespraechsnotizen (Migration 0032) — chronologisch fuer den Prompt.
+    const { data: noteRows } = await supabase
+      .from("dd_project_notes")
+      .select("id, occurred_on, source, note, created_at")
+      .eq("dd_project_id", id);
+    const notesBlock = formatNotesForPrompt((noteRows ?? []) as DdProjectNote[]);
+
     const userMessage = buildExternalDossierUserMessage({
       extractedExpose: project.extracted_expose,
       extractedWeg: wegExtractions,
@@ -91,11 +99,7 @@ export async function GET(
       extractedEnergie: energieDoc?.extraction ?? null,
       marketSnapshot: project.market_snapshot,
       propertyTypeGuidance: propertyTypeGuidance(pType),
-      extraUserContext:
-        typeof project.extra_user_context === "string" &&
-        project.extra_user_context.trim().length > 0
-          ? project.extra_user_context.trim()
-          : null,
+      notesBlock,
     });
 
     try {

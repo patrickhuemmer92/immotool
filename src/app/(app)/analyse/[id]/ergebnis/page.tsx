@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveWorkspace } from "@/lib/workspace";
 import { getDdProject } from "@/lib/dd/projects";
+import type { DdProjectNote } from "@/lib/dd/notes";
 import { requireUser } from "@/lib/auth";
 import { isDdAdmin } from "@/lib/dd/admin";
 import { getPremiumStatus } from "@/lib/billing/premium";
@@ -15,7 +16,7 @@ import { DecisionActions } from "../decision-actions";
 import { ScoreGauge } from "./score-gauge";
 import { CategoryCard } from "./category-card";
 import { AnalyzeButton } from "./analyze-button";
-import { ExtraContextCard } from "../extra-context-card";
+import { NotesLog } from "../notes-log";
 import {
   DOC_RELEVANCE,
   isPropertyType,
@@ -108,6 +109,14 @@ export default async function DdErgebnisPage({
     .eq("dd_project_id", project.id)
     .order("severity", { ascending: false });
 
+  const { data: noteRows } = await supabase
+    .from("dd_project_notes")
+    .select("id, occurred_on, source, note, created_at")
+    .eq("dd_project_id", project.id)
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  const notes = (noteRows ?? []) as DdProjectNote[];
+
   const pType: PropertyType = isPropertyType(project.property_type)
     ? project.property_type
     : "etw_weg";
@@ -188,10 +197,7 @@ export default async function DdErgebnisPage({
           ersten Analyse. */}
       {expose && project.paid && (
         <div className="mt-6 space-y-4">
-          <ExtraContextCard
-            projectId={project.id}
-            initial={project.extra_user_context ?? ""}
-          />
+          <NotesLog projectId={project.id} notes={notes} />
           <AnalyzeButton
             projectId={project.id}
             hasScore={project.score_overall != null}

@@ -1152,10 +1152,6 @@
     "download_internal_hint": "Interne Fassung mit Findings, Verhandlungshebeln und Preisdrücker-Argumenten.",
     "download_external": "Objektdossier (extern)",
     "download_external_hint": "Neutrale Sachverständigen-Fassung für Verkäufer/Makler — ohne Verhandlungssprache.",
-    "extra_context_add": "Zusätzliche Info für die KI hinzufügen",
-    "extra_context_title": "Zusätzlicher Kontext (optional)",
-    "extra_context_hint": "Was solltest du beim Analysieren wissen, was nicht in den Dokumenten steht? Verkäufer-Aussagen, eigene Nutzung, bekannte Baustellen … Fließt ins nächste Analyse-Ergebnis ein.",
-    "extra_context_placeholder": "z. B. „Verkäufer erwähnte im Termin einen Wasserschaden 2024, nicht dokumentiert. Wir wollen einziehen — keine Rendite-Priorität.\"",
     "cockpit_confidence": "Konfidenz",
     "cockpit_confidence_hint": "Wie belegt sind die Ergebnisse? Steigt pro Dokument.",
     "cockpit_score": "Gesamt-Score",
@@ -1231,7 +1227,22 @@
     "acq_yield_gross_on_price": "auf Kaufpreis",
     "acq_yield_gross_on_total": "auf Gesamt-Erwerbskosten",
     "acq_yield_note": "Bruttorendite = Jahres-Kaltmiete geteilt durch Kaufpreis (bzw. Gesamt-Erwerbskosten). Nettorendite nach Betriebskosten, Instandhaltung, Verwaltung und Vermietungsrisiko liegt typisch 1-2 Prozentpunkte darunter.",
-    "preview_sr_note": "Beispiel-Struktur der Analyse. Nach Freischaltung erscheinen hier deine echten Findings, Fragen und Verhandlungsargumente."
+    "preview_sr_note": "Beispiel-Struktur der Analyse. Nach Freischaltung erscheinen hier deine echten Findings, Fragen und Verhandlungsargumente.",
+    "notes_title": "Gesprächsnotizen",
+    "notes_hint": "Was sich aus Besichtigung, Telefonat oder Rückfrage ergibt und in keinem Dokument steht. Mit Datum und Quelle, damit die Analyse erkennt, wenn eine spätere Aussage eine frühere korrigiert.",
+    "notes_add_first": "Gesprächsnotiz hinzufügen",
+    "notes_placeholder": "z. B. „Verwalter bestätigt am Telefon: Dachsanierung ist für 2027 beschlossen, Sonderumlage noch offen.“",
+    "notes_save": "Notiz speichern",
+    "notes_source_label": "Quelle",
+    "notes_date_label": "Datum des Gesprächs",
+    "notes_rerun_hint": "Notizen fließen in den nächsten Analyse-Lauf ein — unten „Analyse neu rechnen“.",
+    "note_source_makler": "Makler",
+    "note_source_verwalter": "Hausverwaltung",
+    "note_source_verkaeufer": "Verkäufer",
+    "note_source_eigene_beobachtung": "Eigene Beobachtung",
+    "note_source_handwerker": "Handwerker/Gutachter",
+    "note_source_bank": "Bank",
+    "note_source_sonstiges": "Sonstige"
   },
   "onb": {
     "title": "KI-Onboarding",
@@ -1345,6 +1356,10 @@
     "invalid_number": "Ungültige Zahl: „{value}\"",
     "invalid_percent": "Ungültiger Prozentwert: „{value}\". Bitte als Zahl (z. B. „2,5\") eingeben.",
     "invalid_year": "Ungültige Jahreszahl.",
-    "with_detail": "Fehler: {detail}"
+    "with_detail": "Fehler: {detail}",
+    "note_required": "Bitte einen Text eingeben.",
+    "date_in_future": "Das Datum darf nicht in der Zukunft liegen.",
+    "invalid_date": "Ungültiges Datum.",
+    "not_found": "Projekt nicht gefunden."
   }
 }
