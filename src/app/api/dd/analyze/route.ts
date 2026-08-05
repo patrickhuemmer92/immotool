@@ -103,10 +103,17 @@ export async function POST(req: Request) {
       systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
       userMessage,
       schema: consolidationResultSchema,
-      // Zurück auf 8192 — mit maxDuration=300s haben wir genug Zeit
-      // fürs Streaming. Bei 4096 wurde das JSON exakt am Limit
-      // abgeschnitten (Response begann in halber Finding-Liste).
-      maxTokens: 8192,
+      // Dritter Anlauf beim Limit: 4096 schnitt mitten in der
+      // Findings-Liste ab, 8192 kam bis zum Ende der Findings und liess
+      // dann `questions` und `negotiation_arguments` weg — also exakt
+      // die beiden letzten Felder des Schemas.
+      //
+      // Achtung, der alte Kommentar hier war irrefuehrend: dieser Call
+      // streamt NICHT (client.messages.create), und maxDuration hilft
+      // gegen ein Token-Limit ohnehin nicht. 16000 ist die Grenze, bis
+      // zu der ein Non-Streaming-Request unkritisch ist; darueber
+      // muesste auf Streaming umgestellt werden.
+      maxTokens: 16000,
       temperature: 0,
       workspaceId: active.id,
       ddProjectId: body.dd_project_id,

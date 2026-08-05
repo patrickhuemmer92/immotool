@@ -105,7 +105,11 @@ export async function GET(
         systemPrompt: EXTERNAL_DOSSIER_SYSTEM_PROMPT,
         userMessage,
         schema: externalDossierSchema,
-        maxTokens: 8192,
+        // Gleiche Falle wie bei der Konsolidierung: `assessments` mit
+        // Details und Zitaten wird lang, `open_items` und
+        // `market_context` stehen danach. 16000 ist die Obergrenze fuer
+        // einen Non-Streaming-Request.
+        maxTokens: 16000,
         temperature: 0,
         workspaceId: active.id,
         ddProjectId: id,

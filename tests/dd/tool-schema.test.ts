@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { buildToolInputSchema } from "@/lib/dd/llm";
+import { buildToolInputSchema, truncationError } from "@/lib/dd/llm";
 import { exposeExtractionSchema } from "@/lib/dd/schemas/expose";
 import {
   energieExtractionSchema,
@@ -57,5 +57,21 @@ describe("buildToolInputSchema", () => {
     expect(() => buildToolInputSchema(z.record(z.string(), z.unknown()))).toThrow(
       /Tool-Input-Schema ist leer/
     );
+  });
+});
+
+describe("truncationError", () => {
+  it("erkennt das Token-Limit und nennt Limit und Zweck", () => {
+    const msg = truncationError("max_tokens", 8192, "consolidate_findings");
+    expect(msg).toContain("8192");
+    expect(msg).toContain("consolidate_findings");
+    expect(msg).toContain("abgeschnitten");
+  });
+
+  it("schweigt bei regulaeren Stop-Gruenden", () => {
+    expect(truncationError("tool_use", 8192, "x")).toBeNull();
+    expect(truncationError("end_turn", 8192, "x")).toBeNull();
+    expect(truncationError(null, 8192, "x")).toBeNull();
+    expect(truncationError(undefined, 8192, "x")).toBeNull();
   });
 });

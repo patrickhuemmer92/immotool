@@ -199,6 +199,30 @@ export async function callLlmJson<T>(
     throw new Error(msg);
   }
 
+  // Abgeschnittene Antwort VOR der Schema-Prüfung abfangen. Bei
+  // stop_reason="max_tokens" liefert Anthropic den tool_use-Block mit
+  // dem bis dahin geparsten Teil-Objekt — die Felder, die das Modell
+  // noch nicht geschrieben hat, fehlen einfach. Die Schema-Prüfung
+  // meldet das dann als "expected array, received undefined" und zeigt
+  // damit auf die Feld-Reihenfolge im Schema statt auf die eigentliche
+  // Ursache. Erkennungsmerkmal: es fehlen die LETZTEN Felder.
+  const truncation = truncationError(
+    response.stop_reason,
+    opts.maxTokens ?? 4096,
+    opts.purpose
+  );
+  if (truncation) {
+    console.error(`[dd-llm] truncated purpose=${opts.purpose} ${truncation}`);
+    await maybeLogFailure(
+      opts,
+      tokensIn,
+      tokensOut,
+      new Error(truncation),
+      Date.now() - t0
+    );
+    throw new Error(truncation);
+  }
+
   const parseResult = tryValidate(toolBlock.input, opts.schema);
   if (!parseResult.ok) {
     console.error(
@@ -237,6 +261,25 @@ export async function callLlmJson<T>(
 // --------------------------------------------------------------------------
 // Interne Helpers
 // --------------------------------------------------------------------------
+
+/**
+ * Meldung, wenn die Antwort am Token-Limit abgeschnitten wurde — sonst
+ * `null`. Bewusst als eigene Funktion, damit die Unterscheidung
+ * „abgeschnitten" vs. „Modell hat Unsinn geliefert" testbar bleibt.
+ */
+export function truncationError(
+  stopReason: string | null | undefined,
+  maxTokens: number,
+  purpose: string
+): string | null {
+  if (stopReason !== "max_tokens") return null;
+  return (
+    `Antwort abgeschnitten: das Modell hat das Ausgabelimit von ` +
+    `${maxTokens} Tokens erreicht (purpose=${purpose}). Die zuletzt ` +
+    `geschriebenen Felder fehlen dadurch komplett. Abhilfe: maxTokens ` +
+    `am Aufrufer erhöhen oder das Schema verkleinern.`
+  );
+}
 
 /**
  * Zod-Schema → JSON-Schema für das `input_schema` des Extraktions-Tools.
