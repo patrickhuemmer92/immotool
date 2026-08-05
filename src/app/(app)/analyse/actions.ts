@@ -219,6 +219,9 @@ export async function saveExtraUserContext(
 
   if (error) return { error: error.message };
   revalidatePath(`/analyse/${projectId}`);
+  // Die Card sitzt auf beiden Seiten — die Ergebnis-Seite ist ein
+  // eigener Pfad und wuerde sonst den alten Text weiterzeigen.
+  revalidatePath(`/analyse/${projectId}/ergebnis`);
   return {};
 }
 

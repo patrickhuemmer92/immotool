@@ -15,6 +15,7 @@ import { DecisionActions } from "../decision-actions";
 import { ScoreGauge } from "./score-gauge";
 import { CategoryCard } from "./category-card";
 import { AnalyzeButton } from "./analyze-button";
+import { ExtraContextCard } from "../extra-context-card";
 import {
   DOC_RELEVANCE,
   isPropertyType,
@@ -179,9 +180,18 @@ export default async function DdErgebnisPage({
         )}
       </div>
 
-      {/* Ganz oben: KI-Analyse-Trigger */}
+      {/* Neue Erkenntnisse erfassen und Analyse darauf neu rechnen.
+          Beides gehört zusammen: was nach einem Besichtigungstermin
+          oder Telefonat dazukommt, steht in keinem Dokument — und ohne
+          erneuten Lauf ändert es am Ergebnis nichts. Die Card gibt es
+          auch auf der Upload-Seite, dort für den Kontext VOR der
+          ersten Analyse. */}
       {expose && project.paid && (
-        <div className="mt-6">
+        <div className="mt-6 space-y-4">
+          <ExtraContextCard
+            projectId={project.id}
+            initial={project.extra_user_context ?? ""}
+          />
           <AnalyzeButton
             projectId={project.id}
             hasScore={project.score_overall != null}
