@@ -74,7 +74,7 @@ export async function registerDdDocument(input: {
 
   if (error) return { error: error.message };
 
-  revalidatePath(`/analyse/${parsed.data.dd_project_id}`);
+  await onDocumentsChanged(supabase, parsed.data.dd_project_id);
   return { documentId: data.id };
 }
 
@@ -110,5 +110,28 @@ export async function deleteDdDocument(
 
   await supabase.from("dd_documents").delete().eq("id", documentId);
 
-  revalidatePath(`/analyse/${projectId}`);
+  await onDocumentsChanged(supabase, projectId);
 }
+
+/**
+ * Dokumentbestand hat sich geaendert → das gespeicherte Dossier ist
+ * veraltet. Das externe Objektdossier liest die Extraktionen direkt und
+ * cacht das Ergebnis in `public_dossier_json`; ohne dieses Leeren zeigt
+ * das PDF nach einem Upload weiterhin den alten Stand.
+ *
+ * Die ANALYSE wird bewusst nicht angefasst — die kostet einen vollen
+ * LLM-Lauf und bleibt eine Entscheidung des Nutzers.
+ */
+async function onDocumentsChanged(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  projectId: string
+) {
+  await supabase
+    .from("dd_projects")
+    .update({ public_dossier_json: null, updated_at: new Date().toISOString() })
+    .eq("id", projectId);
+
+  revalidatePath(`/analyse/${projectId}`);
+  revalidatePath(`/analyse/${projectId}/ergebnis`);
+}
+

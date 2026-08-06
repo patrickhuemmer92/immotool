@@ -32,6 +32,10 @@ import {
 import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
 import { formatNotesForPrompt, type DdProjectNote } from "@/lib/dd/notes";
 import {
+  selectConsolidationDocs,
+  type ExtractedDoc,
+} from "@/lib/dd/documents";
+import {
   isPropertyType,
   propertyTypeGuidance,
 } from "@/lib/dd/property-type";
@@ -65,21 +69,10 @@ export async function GET(
     // Alle Extraktionen einsammeln — analog zur Consolidate-Route.
     const { data: docs } = await supabase
       .from("dd_documents")
-      .select("kind, extraction, ocr_status")
+      .select("kind, extraction, ocr_status, uploaded_at")
       .eq("dd_project_id", id);
 
-    const wegExtractions = (docs ?? [])
-      .filter((d) => d.kind === "weg_minutes" && d.ocr_status === "extracted")
-      .map((d) => d.extraction);
-    const wpDoc = (docs ?? []).find(
-      (d) => d.kind === "wirtschaftsplan" && d.ocr_status === "extracted"
-    );
-    const teilungDoc = (docs ?? []).find(
-      (d) => d.kind === "teilungserklaerung" && d.ocr_status === "extracted"
-    );
-    const energieDoc = (docs ?? []).find(
-      (d) => d.kind === "energieausweis" && d.ocr_status === "extracted"
-    );
+    const sel = selectConsolidationDocs((docs ?? []) as ExtractedDoc[]);
 
     const pType = isPropertyType(project.property_type)
       ? project.property_type
@@ -93,10 +86,10 @@ export async function GET(
 
     const userMessage = buildExternalDossierUserMessage({
       extractedExpose: project.extracted_expose,
-      extractedWeg: wegExtractions,
-      extractedWirtschaftsplan: wpDoc?.extraction ?? null,
-      extractedTeilung: teilungDoc?.extraction ?? null,
-      extractedEnergie: energieDoc?.extraction ?? null,
+      extractedWeg: sel.weg,
+      extractedWirtschaftsplan: sel.wirtschaftsplan,
+      extractedTeilung: sel.teilung,
+      extractedEnergie: sel.energie,
       marketSnapshot: project.market_snapshot,
       propertyTypeGuidance: propertyTypeGuidance(pType),
       notesBlock,

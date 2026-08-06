@@ -45,7 +45,8 @@ export function buildConsolidationUserMessage(input: {
   extractedExpose: unknown;
   extractedWeg: unknown[];       // ggf. mehrere Protokolle
   extractedWirtschaftsplan: unknown | null;
-  extractedTeilung: unknown | null;
+  /** Urschrift + Nachtraege, aeltestes zuerst. */
+  extractedTeilung: unknown[];
   extractedEnergie: unknown | null;
   marketSnapshot?: unknown | null;
   propertyTypeGuidance?: string | null;
@@ -76,8 +77,10 @@ ${JSON.stringify(input.extractedWeg ?? [], null, 2)}
 ## Wirtschaftsplan
 ${JSON.stringify(input.extractedWirtschaftsplan ?? null, null, 2)}
 
-## Teilungserklärung
-${JSON.stringify(input.extractedTeilung ?? null, null, 2)}
+## Teilungserklärung — Urschrift + Nachträge (${input.extractedTeilung.length} Dokument(e), älteste zuerst)
+Spätere Nachträge ändern die Urschrift. Wenn sich Angaben unterscheiden,
+gilt der jüngste Stand; die Änderung selbst ist erwähnenswert.
+${JSON.stringify(input.extractedTeilung ?? [], null, 2)}
 
 ## Energieausweis
 ${JSON.stringify(input.extractedEnergie ?? null, null, 2)}
