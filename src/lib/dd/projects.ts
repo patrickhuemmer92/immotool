@@ -29,6 +29,10 @@ export type DdProject = {
   extra_user_context: string | null;
   score_overall: number | null;
   score_confidence: number | null;
+  /** Objektzustand 0..100 — Substanz, WEG, Recht, Energie. */
+  score_condition: number | null;
+  /** Preiswuerdigkeit 0..100 — Rentabilitaet, Markt, Lage. */
+  score_price: number | null;
   score_by_category: unknown | null;
   model_version: string | null;
   prompt_version: string | null;

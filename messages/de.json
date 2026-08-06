@@ -1242,7 +1242,15 @@
     "note_source_eigene_beobachtung": "Eigene Beobachtung",
     "note_source_handwerker": "Handwerker/Gutachter",
     "note_source_bank": "Bank",
-    "note_source_sonstiges": "Sonstige"
+    "note_source_sonstiges": "Sonstige",
+    "score_condition": "Objektzustand",
+    "score_price": "Preiswürdigkeit",
+    "score_split_hint": "Zustand ist nicht verhandelbar, der Preis schon.",
+    "unrated_title": "Nicht bewertet",
+    "unrated_hint": "Für diese Bereiche fehlt die Grundlage — sie fließen nicht in den Score ein. Fehlende Unterlagen nachreichen und neu rechnen.",
+    "finding_status_offen": "offen",
+    "finding_status_zu_belegen": "zu belegen",
+    "finding_status_erledigt": "erledigt"
   },
   "onb": {
     "title": "KI-Onboarding",

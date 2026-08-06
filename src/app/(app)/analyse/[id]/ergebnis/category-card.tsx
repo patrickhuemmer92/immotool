@@ -20,8 +20,8 @@ type Finding = {
 };
 
 type CategoryScore = {
-  score: number;
-  ampel: "green" | "yellow" | "red";
+  score: number | null;
+  ampel: "green" | "yellow" | "red" | "unrated";
   count_high?: number;
   count_medium?: number;
   count_low?: number;
@@ -69,7 +69,7 @@ export function CategoryCard({
               {t(`dd.cat_${categoryKey}`)}
             </h3>
             <p className="text-xs text-neutral-500 dark:text-neutral-400">
-              {score != null ? `${Math.round(score.score)}/100 · ` : ""}
+              {score?.score != null ? `${Math.round(score.score)}/100 · ` : ""}
               {highCount > 0 && (
                 <span className="text-red-700 dark:text-red-400 font-medium">
                   {highCount} {t("dd.cockpit_high_short")}

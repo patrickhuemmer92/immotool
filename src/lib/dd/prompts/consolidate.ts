@@ -33,11 +33,24 @@ KATEGORIEN:
 - markt: Preis-Einordnung (ergänzt durch Marktdaten, falls vorhanden)
 - lage: Anbindung, Lärm, Umgebung
 
-SCHWEREGRAD:
+SCHWEREGRAD — bemisst sich am Betrag, der DEN KAEUFER TRIFFT, nicht am
+Gesamtbetrag der Gemeinschaft. Eine Sonderumlage von 21.000 EUR, von der
+bei 42/1000 MEA rund 882 EUR auf die Einheit entfallen, ist ein
+DREISTELLIGER Impakt und damit "low" — nicht "high".
 - high: 5-stelliger Kostenimpakt ODER unmittelbares Rechts-/Bau-Risiko
 - medium: 4-stelliger Kostenimpakt ODER offene Fragen mit Kostenpotential
 - low: kleinere Hinweise
 - positive: Pluspunkt (z.B. hohe Rücklage, frisch sanierte Heizung, gute Effizienzklasse)
+
+STATUS je Finding:
+- offen: nichts entkraeftet es (Standard).
+- zu_belegen: es gibt eine Aussage, dass die Sache erledigt sei, aber
+  keinen Nachweis — etwa eine muendliche Bestaetigung aus einer
+  Gespraechsnotiz. Nenne im naechsten Schritt, WELCHER Beleg fehlt.
+- erledigt: aus den Unterlagen belegt erledigt (Rechnung,
+  Zahlungsbestaetigung, Beschluss ueber Abschluss der Massnahme).
+  Kosten dann auf null setzen — sie treffen den Kaeufer nicht mehr.
+Eine Aussage des Verkaeufers oder Maklers allein ist NIE "erledigt".
 
 VERHANDLUNGSARGUMENTE: konkret + rechenbar. Beispiel: "Rücklage 12k€ unter Empfehlung → Preisabschlag 12k€ begründbar".`;
 

@@ -128,11 +128,17 @@ export default async function DdErgebnisPage({
   const docsCoveredCount = relevantDocs.filter((k) => uploadedSet.has(k)).length;
 
   const scoreCat = (project.score_by_category ?? {}) as Record<string, {
-    score: number;
-    ampel: "green" | "yellow" | "red";
+    score: number | null;
+    ampel: "green" | "yellow" | "red" | "unrated";
     count_high?: number;
     count_medium?: number;
   }>;
+
+  // Kategorien ohne auswertbare Quelle. Frueher standen die stillschweigend
+  // auf 80 und damit gruen — "nicht geprueft" sah aus wie "unauffaellig".
+  const unratedCategories = CATEGORIES.filter(
+    (c) => scoreCat[c] != null && scoreCat[c].score == null
+  );
 
   const findingsByCategory = new Map<string, typeof findings>();
   for (const f of findings ?? []) {
@@ -227,12 +233,35 @@ export default async function DdErgebnisPage({
       {project.score_overall != null && (
         <section className="mt-6 rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
-            {/* Tacho mit Nadel */}
+            {/* Tacho mit Nadel + die beiden Teilscores.
+                Getrennt, weil Zustand und Preis unterschiedliche Fragen
+                sind: den Preis kannst du verhandeln, die Substanz nicht. */}
             <div className="flex flex-col items-center">
               <div className="text-xs uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-2">
                 {t("dd.cockpit_score")}
               </div>
               <ScoreGauge value={project.score_overall} size={220} />
+              <div className="mt-3 grid grid-cols-2 gap-3 w-full text-center">
+                <div>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {t("dd.score_condition")}
+                  </div>
+                  <div className="text-xl font-semibold">
+                    {project.score_condition ?? "—"}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {t("dd.score_price")}
+                  </div>
+                  <div className="text-xl font-semibold">
+                    {project.score_price ?? "—"}
+                  </div>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400 text-center">
+                {t("dd.score_split_hint")}
+              </p>
             </div>
 
             {/* Konfidenz + Doku-Coverage */}
@@ -411,6 +440,25 @@ export default async function DdErgebnisPage({
                 score={scoreCat[cat] ?? null}
               />
             )
+          )}
+
+          {unratedCategories.length > 0 && (
+            <div className="rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-700 p-4">
+              <h3 className="text-sm font-medium">{t("dd.unrated_title")}</h3>
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                {t("dd.unrated_hint")}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {unratedCategories.map((c) => (
+                  <span
+                    key={c}
+                    className="rounded-full border border-neutral-300 dark:border-neutral-700 px-2 py-0.5 text-xs text-neutral-600 dark:text-neutral-300"
+                  >
+                    {t(`dd.cat_${c}`)}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
         </section>
       )}

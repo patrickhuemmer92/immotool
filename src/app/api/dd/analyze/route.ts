@@ -144,6 +144,7 @@ export async function POST(req: Request) {
     source_quote: f.source_quote,
     source_location: f.source_location,
     source_market: f.source_kind === "market" ? "consolidation" : null,
+    status: f.status,
     confidence: f.confidence,
     confidence_reason: f.confidence_reason,
     next_step: f.next_step,
@@ -160,13 +161,27 @@ export async function POST(req: Request) {
   }
 
   // Score berechnen — regelbasiert
-  const score = computeScore(result.data.findings, {
-    hasExpose: !!project.extracted_expose,
-    hasWeg: sel.weg.length > 0,
-    hasWirtschaftsplan: sel.wirtschaftsplan != null,
-    hasTeilung: sel.teilung.length > 0,
-    hasEnergie: sel.energie != null,
-  });
+  // Kaufpreis fuer die Kostengewichtung: ein Finding ueber 882 EUR darf
+  // nicht so schwer wiegen wie eines ueber 9.870 EUR.
+  const purchasePriceEur =
+    typeof (project.extracted_expose as { purchase_price_eur?: unknown })
+      ?.purchase_price_eur === "number"
+      ? ((project.extracted_expose as { purchase_price_eur: number })
+          .purchase_price_eur)
+      : null;
+
+  const score = computeScore(
+    result.data.findings,
+    {
+      hasExpose: !!project.extracted_expose,
+      hasWeg: sel.weg.length > 0,
+      hasWirtschaftsplan: sel.wirtschaftsplan != null,
+      hasTeilung: sel.teilung.length > 0,
+      hasEnergie: sel.energie != null,
+      hasMarket: project.market_snapshot != null,
+    },
+    { purchasePriceEur }
+  );
 
   // Project-Update: Score + Konsolidierungs-Blobs (für Fragen/Argumente
   // brauchen wir einen Platz — v1 legen wir sie neben Score als JSONB ab).
@@ -175,6 +190,8 @@ export async function POST(req: Request) {
     .update({
       status: "analyzed",
       score_overall: score.overall,
+      score_condition: score.condition,
+      score_price: score.price,
       score_confidence: score.confidence,
       score_by_category: score.by_category,
       market_snapshot: project.market_snapshot ?? null,

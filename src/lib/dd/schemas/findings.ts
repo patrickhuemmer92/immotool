@@ -38,6 +38,12 @@ export const consolidatedFindingSchema = z.object({
   ]),
   source_quote: z.string().nullable(),
   source_location: z.string().nullable(),
+  /**
+   * Bearbeitungsstand. Steuert, wie stark das Finding den Score noch
+   * belastet — s. lib/dd/scoring.ts. `erledigt` verlangt einen BELEG;
+   * eine muendliche Zusage ist `zu_belegen`.
+   */
+  status: z.enum(["offen", "zu_belegen", "erledigt"]).default("offen"),
   confidence: z.number().min(0).max(1),
   confidence_reason: z.string(),
   next_step: z.string(),

@@ -1242,7 +1242,15 @@
     "note_source_eigene_beobachtung": "Own observation",
     "note_source_handwerker": "Tradesperson/surveyor",
     "note_source_bank": "Bank",
-    "note_source_sonstiges": "Other"
+    "note_source_sonstiges": "Other",
+    "score_condition": "Property condition",
+    "score_price": "Value for money",
+    "score_split_hint": "Condition is not negotiable, the price is.",
+    "unrated_title": "Not assessed",
+    "unrated_hint": "No basis available for these areas — they are excluded from the score. Add the missing documents and re-run.",
+    "finding_status_offen": "open",
+    "finding_status_zu_belegen": "to be evidenced",
+    "finding_status_erledigt": "resolved"
   },
   "onb": {
     "title": "AI onboarding",
