@@ -105,6 +105,18 @@ export default async function AppLayout({
         { href: "/simulationen", label: t("nav.simulations"), icon: "wand" },
       ],
     },
+    {
+      heading: t("nav.before_purchase"),
+      items: [
+        { href: "/analyse", label: t("nav.dd"), icon: "wand" },
+      ],
+    },
+    {
+      heading: t("nav.ai"),
+      items: [
+        { href: "/onboarding", label: t("nav.onboarding"), icon: "wand" },
+      ],
+    },
   ];
 
   return (

@@ -1,0 +1,381 @@
+/**
+ * POST /api/onboarding/extract
+ * Body: { onboarding_project_id, document_id }
+ *
+ * Extraktions-Pipeline für die Onboarding-Vertragstypen. Struktur analog
+ * /api/dd/extract: Download → PDF-Text mit Vision-Fallback → Dispatch je
+ * Doku-Typ → Zod-validiertes JSON → Persist auf onboarding_documents
+ * UND Aggregation auf onboarding_projects.extracted_summary.
+ */
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+import { NextResponse } from "next/server";
+import { createHash } from "node:crypto";
+import { createClient } from "@/lib/supabase/server";
+import { getActiveWorkspace } from "@/lib/workspace";
+import { extractPdfText } from "@/lib/dd/extract-pdf";
+import { extractDocxText } from "@/lib/dd/extract-docx";
+
+const DOCX_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
+]);
+import { callLlmJson, PROMPT_VERSION } from "@/lib/dd/llm";
+import {
+  kaufvertragSchema,
+  mietvertragSchema,
+  darlehensvertragSchema,
+} from "@/lib/dd/schemas/onboarding";
+import {
+  KAUFVERTRAG_SYSTEM_PROMPT,
+  buildKaufvertragUserMessage,
+  MIETVERTRAG_SYSTEM_PROMPT,
+  buildMietvertragUserMessage,
+  DARLEHENSVERTRAG_SYSTEM_PROMPT,
+  buildDarlehensvertragUserMessage,
+} from "@/lib/dd/prompts/onboarding";
+
+const MAX_TEXT_CHARS = 300_000;
+
+export async function POST(req: Request) {
+  const active = await getActiveWorkspace();
+  if (!active)
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = (await req.json().catch(() => null)) as {
+    onboarding_project_id?: string;
+    document_id?: string;
+  } | null;
+  if (!body?.onboarding_project_id || !body.document_id) {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  console.log(
+    `[onb-extract] enter onb=${body.onboarding_project_id.slice(0, 8)} doc=${body.document_id.slice(0, 8)}`
+  );
+
+  const supabase = await createClient();
+
+  const { data: project } = await supabase
+    .from("onboarding_projects")
+    .select("id, workspace_id, extracted_summary")
+    .eq("id", body.onboarding_project_id)
+    .eq("workspace_id", active.id)
+    .maybeSingle();
+  if (!project)
+    return NextResponse.json({ error: "project_not_found" }, { status: 404 });
+
+  const { data: doc } = await supabase
+    .from("onboarding_documents")
+    .select("id, kind, storage_path, mime_type, ocr_status")
+    .eq("id", body.document_id)
+    .eq("onboarding_project_id", body.onboarding_project_id)
+    .maybeSingle();
+  if (!doc)
+    return NextResponse.json({ error: "doc_not_found" }, { status: 404 });
+
+  if (doc.ocr_status === "extracted") {
+    return NextResponse.json({ ok: true, cached: true });
+  }
+
+  const { data: fileBlob, error: dlErr } = await supabase.storage
+    .from("dd-documents")
+    .download(doc.storage_path);
+  if (dlErr || !fileBlob) {
+    return NextResponse.json(
+      { error: `download_failed: ${dlErr?.message ?? "no_blob"}` },
+      { status: 500 }
+    );
+  }
+  const arrayBuf = await fileBlob.arrayBuffer();
+  // WICHTIG: pdfjs-dist (via unpdf) übernimmt den Buffer als
+  // Transferable Object — der übergebene Uint8Array wird DETACHED,
+  // sobald unpdf die Worker-Loading-Task startet. Wir brauchen die
+  // Bytes aber später NOCH für den Vision-Modus. Deshalb: zwei
+  // unabhängige Kopien via arrayBuf.slice().
+  const bytesForPdfExtract = new Uint8Array(arrayBuf.slice(0));
+  const bytesForVision = new Uint8Array(arrayBuf.slice(0));
+  const fileHash = createHash("sha256").update(bytesForVision).digest("hex");
+
+  let text = "";
+  let pages = 0;
+  let totalPages = 0;
+  let scanned = false;
+  const isDocx = DOCX_MIMES.has(doc.mime_type ?? "");
+  if (doc.mime_type === "application/pdf") {
+    const pdf = await extractPdfText(bytesForPdfExtract);
+    text = pdf.text;
+    pages = pdf.textPages;
+    totalPages = pdf.totalPages;
+    scanned = pdf.isProbablyScanned;
+  } else if (isDocx) {
+    // DOCX = XML-Container mit Text — kein Vision-Modus möglich (Anthropic
+    // akzeptiert nur PDF-document-Blocks). mammoth extrahiert reinen Text.
+    const docx = await extractDocxText(bytesForPdfExtract);
+    text = docx.text;
+    if (!text || text.length < 20) {
+      const msg =
+        "Word-Dokument enthält keinen extrahierbaren Text (evtl. reine Bild-Scans in Word verpackt). " +
+        "Bitte als PDF exportieren und erneut hochladen.";
+      await supabase
+        .from("onboarding_documents")
+        .update({ ocr_status: "failed", ocr_error: msg, file_hash: fileHash })
+        .eq("id", doc.id);
+      return NextResponse.json({ error: msg }, { status: 422 });
+    }
+  } else {
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "not_needed",
+        ocr_error: "MIME-Type wird in v1 nicht extrahiert",
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: "unsupported_mime" }, { status: 415 });
+  }
+
+  const useVision = scanned || text.trim().length < 50;
+  const pdfBufferForVision = useVision ? bytesForVision : undefined;
+
+  // Hard-Cap für Vision: bei > 20 Seiten überschreitet die Extraktion
+  // regelmäßig die Vercel-Function-maxDuration (300s). Statt den User
+  // 4 Minuten warten zu lassen und ihn dann mit Timeout-Reklamation
+  // zu enttäuschen: sofort mit klarer Handlungsempfehlung failen.
+  if (useVision && totalPages > 20) {
+    const msg =
+      `Dokument hat ${totalPages} Seiten — zu groß für automatische Analyse. ` +
+      `Für Verträge reichen meist die ersten 3-5 Seiten (Konditions-Übersicht). ` +
+      `Bitte PDF splitten und nur die relevanten Seiten erneut hochladen.`;
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "failed",
+        ocr_error: msg,
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: msg }, { status: 413 });
+  }
+
+  if (useVision && bytesForVision.byteLength > 32 * 1024 * 1024) {
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "failed",
+        ocr_error: "PDF größer als 32 MB — bitte splitten.",
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: "pdf_too_large" }, { status: 413 });
+  }
+
+  const trimmedText =
+    text.length > MAX_TEXT_CHARS
+      ? text.slice(0, MAX_TEXT_CHARS) + "\n\n[…gekürzt…]"
+      : text;
+
+  // Dispatch je Vertragstyp
+  let systemPrompt = "";
+  let userMessage = "";
+  let schema: Parameters<typeof callLlmJson>[0]["schema"] | null = null;
+  let purpose = "";
+  let summaryKey: "kauf" | "miete" | "darlehen" | null = null;
+
+  switch (doc.kind) {
+    case "kaufvertrag":
+      systemPrompt = KAUFVERTRAG_SYSTEM_PROMPT;
+      userMessage = buildKaufvertragUserMessage(trimmedText);
+      schema = kaufvertragSchema;
+      purpose = "extract_kaufvertrag";
+      summaryKey = "kauf";
+      break;
+    case "mietvertrag":
+      systemPrompt = MIETVERTRAG_SYSTEM_PROMPT;
+      userMessage = buildMietvertragUserMessage(trimmedText);
+      schema = mietvertragSchema;
+      purpose = "extract_mietvertrag";
+      summaryKey = "miete";
+      break;
+    case "darlehensvertrag":
+      systemPrompt = DARLEHENSVERTRAG_SYSTEM_PROMPT;
+      userMessage = buildDarlehensvertragUserMessage(trimmedText);
+      schema = darlehensvertragSchema;
+      purpose = "extract_darlehensvertrag";
+      summaryKey = "darlehen";
+      break;
+    default:
+      // grundbuchauszug / other — nur Rohtext ablegen, keine LLM-Analyse
+      await supabase
+        .from("onboarding_documents")
+        .update({
+          ocr_status: "extracted",
+          ocr_text_pages: pages,
+          extraction: { raw_text: trimmedText.slice(0, 5000) },
+          extracted_at: new Date().toISOString(),
+          file_hash: fileHash,
+          ocr_error: null,
+        })
+        .eq("id", doc.id);
+      return NextResponse.json({ ok: true, kind: doc.kind });
+  }
+
+  try {
+    const result = await callLlmJson({
+      model: "sonnet",
+      purpose: useVision ? `${purpose}_vision` : purpose,
+      systemPrompt,
+      userMessage: useVision
+        ? `[Das PDF wird direkt vom Modell gelesen — extrahiere die Felder aus dem angehängten Dokument in das folgende JSON-Format.]
+
+${userMessage.split("Format:")[1] ?? userMessage}`
+        : userMessage,
+      pdfBuffer: pdfBufferForVision,
+      schema,
+      maxTokens: 4096,
+      temperature: 0,
+      workspaceId: active.id,
+      supabase,
+    });
+
+    // Leere Extraktion erkennen — LLM ist alle Felder null geblieben,
+    // was heißt: kein passendes Dokument (z.B. Mieterhöhungsschreiben
+    // als "Mietvertrag" markiert). Nicht als "extracted" durchwinken,
+    // sonst landet ein "Geist"-Eintrag mit lauter Bindestrichen im
+    // Confirm-Editor.
+    const data = result.data as Record<string, unknown>;
+    const isEmpty =
+      (summaryKey === "kauf" &&
+        !data.street &&
+        !data.purchase_price_eur &&
+        !data.city) ||
+      (summaryKey === "miete" &&
+        !data.tenant_name &&
+        !data.cold_rent_per_month_eur) ||
+      (summaryKey === "darlehen" &&
+        !data.loan_amount_eur &&
+        !data.bank &&
+        !data.interest_rate_pa_pct);
+    if (isEmpty) {
+      const msg =
+        summaryKey === "kauf"
+          ? "Keine Kaufvertrag-Daten im Dokument erkannt. Ist das wirklich ein Kaufvertrag? Andernfalls Dokument-Typ auf „Sonstiges\" ändern."
+          : summaryKey === "miete"
+            ? "Keine Mieter-Daten im Dokument erkannt. Ist das wirklich ein Mietvertrag? Bei Mieterhöhungen etc. Dokument-Typ auf „Sonstiges\" setzen."
+            : "Keine Darlehens-Daten im Dokument erkannt. Ist das wirklich ein Darlehensvertrag?";
+      await supabase
+        .from("onboarding_documents")
+        .update({
+          ocr_status: "failed",
+          ocr_error: msg,
+          file_hash: fileHash,
+        })
+        .eq("id", doc.id);
+      return NextResponse.json({ error: msg, empty: true }, { status: 422 });
+    }
+
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "extracted",
+        ocr_text_pages: pages,
+        extraction: result.data,
+        extracted_at: new Date().toISOString(),
+        file_hash: fileHash,
+        ocr_error: null,
+      })
+      .eq("id", doc.id);
+
+    // Aggregation aus ALLEN extracted Docs — nicht inkrementell aus
+    // `project.extracted_summary` bauen, weil bei parallelen Uploads
+    // eine Race entsteht: zwei Jobs lesen dasselbe Snapshot, mergen
+    // ihre Änderung, schreiben zurück — der zweite überschreibt den
+    // ersten. Ergebnis: nur einer der Verträge landet im Summary.
+    //
+    // Deshalb: alle extracted Docs des Projekts JETZT frisch lesen
+    // und daraus das komplette Summary neu bauen. Idempotent und
+    // race-safe.
+    const { data: allDocs } = await supabase
+      .from("onboarding_documents")
+      .select("kind, extraction")
+      .eq("onboarding_project_id", body.onboarding_project_id)
+      .eq("ocr_status", "extracted");
+
+    // Kauf: einer (letzter gewinnt), Miete/Darlehen: Array.
+    // Leere Extractions (alle Kernfelder null) filtern wir raus,
+    // damit ein bereits vor diesem Fix hochgeladenes "leeres" Doku
+    // nicht mit-aggregiert wird und im Confirm-Editor Geist-Einträge
+    // mit "—" produziert.
+    let mergedKauf: unknown = null;
+    const mergedMiete: unknown[] = [];
+    const mergedDarlehen: unknown[] = [];
+    for (const d of allDocs ?? []) {
+      if (!d.extraction) continue;
+      const e = d.extraction as Record<string, unknown>;
+      if (d.kind === "kaufvertrag") {
+        if (e.street || e.purchase_price_eur || e.city) mergedKauf = e;
+      } else if (d.kind === "mietvertrag") {
+        if (e.tenant_name || e.cold_rent_per_month_eur) mergedMiete.push(e);
+      } else if (d.kind === "darlehensvertrag") {
+        if (e.loan_amount_eur || e.bank || e.interest_rate_pa_pct)
+          mergedDarlehen.push(e);
+      }
+    }
+
+    // Wichtig: den Doku, den wir GERADE aktualisiert haben, ist evtl.
+    // noch nicht als ocr_status='extracted' in dem obigen Query
+    // (Race gegen den vorherigen UPDATE). Deshalb: manuell mit-mergen
+    // basierend auf summaryKey.
+    if (summaryKey === "kauf") mergedKauf = result.data;
+    else if (summaryKey === "miete") {
+      // Wenn Doku bereits im query drin war, nicht doppelt zufügen
+      const alreadyIn = (allDocs ?? []).some(
+        (d) => d.kind === "mietvertrag" && d.extraction === result.data
+      );
+      if (!alreadyIn) mergedMiete.push(result.data);
+    } else if (summaryKey === "darlehen") {
+      const alreadyIn = (allDocs ?? []).some(
+        (d) => d.kind === "darlehensvertrag" && d.extraction === result.data
+      );
+      if (!alreadyIn) mergedDarlehen.push(result.data);
+    }
+
+    const merged: Record<string, unknown> = {};
+    if (mergedKauf) merged.kauf = mergedKauf;
+    if (mergedMiete.length > 0) merged.miete = mergedMiete;
+    if (mergedDarlehen.length > 0) merged.darlehen = mergedDarlehen;
+
+    await supabase
+      .from("onboarding_projects")
+      .update({
+        status: "extracted",
+        extracted_summary: merged,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", body.onboarding_project_id);
+
+    return NextResponse.json({
+      ok: true,
+      kind: doc.kind,
+      tokens: { in: result.tokensIn, out: result.tokensOut },
+      cost_cents: result.costCents,
+      prompt_version: PROMPT_VERSION,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[onb-extract] CAUGHT err kind=${doc.kind} msg="${msg.slice(0, 300)}"`
+    );
+    await supabase
+      .from("onboarding_documents")
+      .update({
+        ocr_status: "failed",
+        ocr_error: msg,
+        file_hash: fileHash,
+      })
+      .eq("id", doc.id);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}

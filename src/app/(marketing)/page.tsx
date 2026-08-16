@@ -664,6 +664,12 @@ export default function MarketingLandingPage() {
                 >
                   Factbook ansehen
                 </a>
+                <Link
+                  href="/login"
+                  className="text-sm text-mk-muted transition-colors hover:text-mk-foreground"
+                >
+                  Schon Kunde? Anmelden →
+                </Link>
               </div>
               <div className="mt-12 flex flex-wrap gap-x-8 gap-y-3 text-xs uppercase tracking-widest text-mk-muted">
                 <span>Bank-ready PDF</span>
